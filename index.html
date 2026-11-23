@@ -65,6 +65,12 @@ body {
 @keyframes hardIn { 0% { opacity: 0; transform: translate(-50%, -50%) scale(.6); } 12% { opacity: 1; transform: translate(-50%, -50%) scale(1.08); }
   20% { transform: translate(-50%, -50%) scale(1); } 80% { opacity: 1; transform: translate(-50%, -50%) scale(1); } 100% { opacity: 0; transform: translate(-50%, -60%) scale(.95); } }
 .play-sub.hard { color: #a3165f; }
+.play-sub.extreme { color: #b3121f; }
+/* Extreme levels (the last level of each chapter): fiery red instead of pink */
+.level.extreme small { color: #ff6b5c; text-shadow: 0 0 10px rgba(255, 60, 40, .7); }
+.level.extreme span { color: #ffd9d2; text-shadow: 0 0 16px rgba(255, 50, 30, .7); }
+#hardTint.extreme { background: radial-gradient(ellipse at 50% 45%, transparent 50%, rgba(230, 40, 30, .3) 82%, rgba(140, 10, 10, .6) 100%); }
+#hardBanner.extreme { background: linear-gradient(180deg, #ff4a2e, #9a1010); border-color: rgba(255, 200, 170, .85); box-shadow: 0 0 46px rgba(255, 60, 30, .65), 0 10px 30px rgba(0, 0, 0, .4); }
 #movesLeft { align-self: center; margin-top: 5px; padding: 3px 12px; border-radius: 999px; font-style: normal; font-size: 13px; font-weight: 800;
   color: #ffe3f1; background: rgba(214, 51, 140, .35); border: 1px solid rgba(255, 170, 215, .5); }
 #movesLeft.low { color: #3a2205; background: #ffc94a; border-color: #ffe39a; }
@@ -356,7 +362,7 @@ svg.i { width: 1em; height: 1em; display: block; }
         <span class="txt"><b>Daily puzzle</b><span id="dailySub">A new puzzle every day</span></span>
         <span class="streak" id="dailyStreak" hidden></span>
       </button>
-      <div class="note"><span id="soundStatus">Tap anywhere to start the music</span> · Test build v0.18</div>
+      <div class="note"><span id="soundStatus">Tap anywhere to start the music</span> · Test build v0.19</div>
     </div>
   </div>
 </div>
@@ -502,22 +508,39 @@ function levelSpec(lv) {
     colorJar: lv >= 10 && lv % 3 === 1,
     lids: lv >= 16 && lv % 3 === 2 ? (lv >= 30 ? 2 : 1) : 0,
   };
+  // After the colors max out (level 29), normal levels keep getting a little harder every chapter:
+  // more lids (on every level from 81), lids that need more pours to open, and the trickiest of several layouts.
+  if (lv >= 41 && lv % 3 === 0) spec.lids = 1;
+  if (lv >= 81 && lv % 3 === 1) spec.lids = 1;
+  spec.pick = lv >= 41 ? 1 + Math.min(3, Math.floor((lv - 21) / 20)) : 1;
+  spec.lockMin = lv >= 41 ? 3 + Math.min(2, Math.floor((lv - 41) / 40)) : 3;
   if (!isHard(lv)) return spec;
-  // Hard level: two more colors than its neighbours. Once the colors are maxed out, it gets a color jar and two lids instead.
-  const more = colorsFor(lv) + 2;
+  // Hard level: two more colors than its neighbours; Extreme: three more, and from level 30 always a twist.
+  // Levels 5 and 10 are gentle versions (one and two more colors) so new players aren't scared off.
+  // Once the colors are maxed out, it gets a color jar and two lids instead.
+  const ext = isExtreme(lv), more = colorsFor(lv) + (lv === 5 ? 1 : lv === 10 ? 2 : ext ? 3 : 2);
   return {
     colors: Math.min(MAX_COLORS, more),
-    colorJar: lv >= 20 && (spec.colorJar || more > MAX_COLORS),   // never a new twist on the first hard levels
-    lids: more > MAX_COLORS ? Math.max(spec.lids, 2) : spec.lids,
-    hard: true,
+    colorJar: lv >= 20 && (spec.colorJar || more > MAX_COLORS || (ext && lv >= 30)),   // never a new twist on the first hard levels
+    lids: more > MAX_COLORS ? Math.max(spec.lids, 2) : ext && lv >= 30 ? Math.max(spec.lids, 1) : spec.lids,
+    hard: true, extreme: ext, lockMin: spec.lockMin,
   };
 }
-// GUESS: every 5th level from level 10 is a Hard level (10, 15, 20, ...)
-const isHard = lv => lv >= 10 && lv % 5 === 0;
+// Every chapter: level 5 of it is Hard, level 10 (the chapter's last) is Extreme. isHard is true for both.
+const isHard = lv => lv >= 5 && lv % 5 === 0;
+const isExtreme = lv => lv >= 10 && lv % 10 === 0;
+const tierName = lv => isExtreme(lv) ? "Extreme" : isHard(lv) ? "Hard" : "";
+// Move limit: the fewest possible pours plus a buffer. Hard: 35% (at least 5). Extreme: 20% (at least 3).
+// The gentle first ones: level 5 gets 60% (at least 8), level 10 gets 35%. GUESS: tunable.
+function limitFor(lv, best) {
+  if (lv === 5) return best + Math.max(8, Math.ceil(best * .6));
+  if (isExtreme(lv) && lv > 10) return best + Math.max(3, Math.ceil(best * .2));
+  return best + Math.max(5, Math.ceil(best * .35));
+}
 function generateSpec(spec, seedBase) {
   const nc = spec.colors;
   // Hard levels: try a few solvable layouts and keep the one the solver found hardest
-  const want = spec.hard ? 5 : 1; let best = null, bestNodes = -1, found = 0;
+  const want = spec.extreme ? 8 : spec.hard ? 5 : spec.pick || 1; let best = null, bestNodes = -1, found = 0;
   for (let attempt = 0; attempt < 300; attempt++) {
     const r = rng(seedBase + attempt * 104729);
     const pool = []; for (let c = 0; c < nc; c++) for (let i = 0; i < CAP; i++) pool.push(c);
@@ -529,7 +552,7 @@ function generateSpec(spec, seedBase) {
     if (spec.colorJar) S.only[nc + 1] = Math.floor(r() * nc);
     const lidJars = [];
     while (lidJars.length < spec.lids) { const i = Math.floor(r() * nc); if (!lidJars.includes(i)) lidJars.push(i); }
-    for (const i of lidJars) S.locks[i] = 3 + Math.floor(r() * 4);
+    for (const i of lidJars) S.locks[i] = (spec.lockMin || 3) + Math.floor(r() * 4);
     // mix the jar order so special jars aren't always in the same spot
     const order = S.jars.map((_, i) => i);
     for (let i = order.length - 1; i > 0; i--) { const k = Math.floor(r() * (i + 1)); [order[i], order[k]] = [order[k], order[i]]; }
@@ -590,7 +613,7 @@ function solve(start) {
 // ===================== saved settings & progress (this browser only) =====================
 const save = { level: 1, hints: 3, coins: 0, music: true, sfx: true, vibrate: true, colorBlind: false, seen: {}, dailyDone: "", streak: 0, adsRemoved: false, ach: {}, stats: {} };
 try { Object.assign(save, JSON.parse(localStorage.getItem("fj-save") || "{}")); } catch (e) {}
-save.stats = Object.assign({ hard: 0, pure: 0, daily: 0, bestStreak: 0, repairs: 0, earned: 0 }, save.stats || {}); save.ach = save.ach || {}; save.coins = Math.max(0, save.coins | 0);
+save.stats = Object.assign({ hard: 0, extreme: 0, pure: 0, daily: 0, bestStreak: 0, repairs: 0, earned: 0 }, save.stats || {}); save.ach = save.ach || {}; save.coins = Math.max(0, save.coins | 0);
 const store = () => { try { localStorage.setItem("fj-save", JSON.stringify(save)); } catch (e) {} };
 const today = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 const yesterday = () => { const d = new Date(); d.setDate(d.getDate() - 1); return today(d); };
@@ -716,9 +739,10 @@ function refresh() {
   $("undoBtn").disabled = history.length === 0;
   $("undoBtn").innerHTML = `<span class="ico">${ICONS.undo}</span>Undo <span class="badge">${undosLeft > 0 ? undosLeft : "+"}</span>`;
   $("hintBtn").innerHTML = `<span class="ico">${ICONS.bulb}</span>Hint <span class="badge">${save.hints > 0 ? save.hints : "▶"}</span>`;
-  $("chapterLabel").textContent = mode === "daily" ? "Daily puzzle" : hardNow() && !won ? "Hard level" : chapterOf(save.level).name;
+  $("chapterLabel").textContent = mode === "daily" ? "Daily puzzle" : hardNow() && !won ? tierName(save.level) + " level" : chapterOf(save.level).name;
   $("chapterLabel").parentElement.classList.toggle("hard", hardNow() && !won);
-  $("hardTint").classList.toggle("on", hardNow() && !won);
+  $("chapterLabel").parentElement.classList.toggle("extreme", hardNow() && !won && isExtreme(save.level));
+  $("hardTint").classList.toggle("on", hardNow() && !won); $("hardTint").classList.toggle("extreme", isExtreme(save.level));
   const ml = $("movesLeft"), left = movesMax - moves;
   ml.hidden = !hardNow() || won;
   ml.textContent = !movesMax ? "…" : left === 1 ? "1 move left" : left + " moves left";
@@ -745,8 +769,9 @@ function startLevel() {
     });
   }
   if (isHard(save.level + 1)) setTimeout(() => prefetchLimit(save.level + 1), 2500);   // get the next hard level ready while this one is played
-  Analytics.log("level_start", { level: save.level, mode, hard: isHard(save.level) });
-  if (isHard(save.level)) { $("hardBannerSub").textContent = `${moveLimit} moves. Win for +1 hint`; const b = $("hardBanner"); b.classList.remove("show"); void b.offsetWidth; b.classList.add("show"); later(250, () => Snd.play("sfx_unlock", .8)); }
+  Analytics.log("level_start", { level: save.level, mode, hard: isHard(save.level), extreme: isExtreme(save.level) });
+  if (isHard(save.level)) { const ext = isExtreme(save.level); $("hardBanner").querySelector("b").textContent = tierName(save.level) + " level"; $("hardBanner").classList.toggle("extreme", ext);
+    $("hardBannerSub").textContent = (moveLimit ? `${moveLimit} moves. ` : "") + `Win for ${ext ? COIN.extreme : COIN.hard} coins + 1 hint`; const b = $("hardBanner"); b.classList.remove("show"); void b.offsetWidth; b.classList.add("show"); later(250, () => Snd.play("sfx_unlock", .8)); }
 }
 const hardNow = () => mode === "level" && isHard(save.level) && $("menu").hidden;
 function startDaily() {
@@ -830,8 +855,8 @@ function updateMenu() {
   $("chapterName").textContent = ch.name;
   $("chapterCount").textContent = `${ch.done} / 10`;
   $("chapterBar").style.width = (ch.done * 10) + "%";
-  $("playSub").textContent = "Level " + save.level + (isHard(save.level) ? " · Hard" : "");
-  $("playSub").classList.toggle("hard", isHard(save.level));
+  $("playSub").textContent = "Level " + save.level + (isHard(save.level) ? " · " + tierName(save.level) : "");
+  $("playSub").classList.toggle("hard", isHard(save.level)); $("playSub").classList.toggle("extreme", isExtreme(save.level));
   $("hintCount").textContent = save.hints; $("coinCount").textContent = save.coins;
   const doneToday = save.dailyDone === today(), alive = doneToday || save.dailyDone === yesterday();
   $("dailyBtn").classList.toggle("done", doneToday);
@@ -1197,6 +1222,12 @@ function bandImage(G, i) {
   mapBands.set(i, c); return c;
 }
 function starPath(g, x, y, r) { g.beginPath(); for (let k = 0; k < 10; k++) { const a = -Math.PI / 2 + k * Math.PI / 5, rr = k % 2 ? r * .45 : r; g.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); } g.closePath(); }
+// a small gold crown marks each Extreme level (the chapter's last)
+function crownPath(g, x, y, w) {
+  const h = w * .62; g.beginPath();
+  g.moveTo(x - w / 2, y + h / 2); g.lineTo(x - w / 2, y - h * .2); g.lineTo(x - w / 4, y + h * .1); g.lineTo(x, y - h / 2);
+  g.lineTo(x + w / 4, y + h * .1); g.lineTo(x + w / 2, y - h * .2); g.lineTo(x + w / 2, y + h / 2); g.closePath();
+}
 function lockIcon(g, x, y, s, col) {
   g.strokeStyle = col; g.lineWidth = s * .16; g.beginPath(); g.arc(x, y - s * .2, s * .3, Math.PI, 0); g.stroke();
   g.fillStyle = col; roundRect(g, x - s * .45, y - s * .2, s * .9, s * .7, s * .12, s * .12); g.fill();
@@ -1259,27 +1290,28 @@ function drawMap() {
   // the stones
   for (const p of pts) {
     if (p.y < -60 || p.y > MPH + 60) continue;
-    const lv = p.lv, T = THEMES[Math.floor((lv - 1) / 10) % THEMES.length], hard = isHard(lv), r = G.r;
+    const lv = p.lv, T = THEMES[Math.floor((lv - 1) / 10) % THEMES.length], hard = isHard(lv), ext = isExtreme(lv), r = G.r;
     if (lv < cur) {
       glow(g, p.x, p.y, r * 2.4, T.glow, .3);
-      const gr = g.createRadialGradient(p.x - r * .3, p.y - r * .3, r * .1, p.x, p.y, r); gr.addColorStop(0, "#fff6c2"); gr.addColorStop(1, hard ? "#ff8fc8" : "#ffb830");
+      const gr = g.createRadialGradient(p.x - r * .3, p.y - r * .3, r * .1, p.x, p.y, r); gr.addColorStop(0, "#fff6c2"); gr.addColorStop(1, ext ? "#ff6b4a" : hard ? "#ff8fc8" : "#ffb830");
       g.fillStyle = gr; g.beginPath(); g.arc(p.x, p.y, r, 0, 6.283); g.fill();
       g.fillStyle = "#3a2205";
     } else if (lv === cur) {
       const pu = .5 + .5 * Math.sin(t * 3);
       glow(g, p.x, p.y, r * (3 + pu), "#ffd93b", .55);
       g.strokeStyle = `rgba(255,240,180,${.35 + .4 * pu})`; g.lineWidth = 3; g.beginPath(); g.arc(p.x, p.y, r * (1.25 + .15 * pu), 0, 6.283); g.stroke();
-      const gr = g.createRadialGradient(p.x - r * .3, p.y - r * .3, r * .1, p.x, p.y, r * 1.12); gr.addColorStop(0, "#ffffff"); gr.addColorStop(1, hard ? "#ff5ca8" : "#ffd93b");
+      const gr = g.createRadialGradient(p.x - r * .3, p.y - r * .3, r * .1, p.x, p.y, r * 1.12); gr.addColorStop(0, "#ffffff"); gr.addColorStop(1, ext ? "#ff3b2e" : hard ? "#ff5ca8" : "#ffd93b");
       g.fillStyle = gr; g.beginPath(); g.arc(p.x, p.y, r * 1.12, 0, 6.283); g.fill();
       g.fillStyle = "#3a2205";
     } else {
       g.fillStyle = "rgba(16,22,52,.88)"; g.beginPath(); g.arc(p.x, p.y, r, 0, 6.283); g.fill();
-      g.strokeStyle = hard ? "rgba(255,120,190,.55)" : "rgba(200,215,255,.25)"; g.lineWidth = 2; g.stroke();
+      g.strokeStyle = ext ? "rgba(255,90,60,.7)" : hard ? "rgba(255,120,190,.55)" : "rgba(200,215,255,.25)"; g.lineWidth = ext ? 2.5 : 2; g.stroke();
       g.fillStyle = "rgba(200,210,240,.6)";
     }
     g.textAlign = "center"; g.textBaseline = "middle"; g.font = `800 ${Math.round(r * (lv >= 100 ? .72 : .85))}px Nunito, sans-serif`;
     g.fillText(lv, p.x, p.y + 1);
-    if (hard) { g.fillStyle = lv < cur ? "#ff5ca8" : "#ff8fc8"; starPath(g, p.x + r * .85, p.y - r * .85, r * .42); g.fill(); g.strokeStyle = "rgba(40,0,20,.6)"; g.lineWidth = 1.5; g.stroke(); }
+    if (ext) { if (lv > cur) glow(g, p.x, p.y, r * 1.8, "#ff3b2e", .22 + .08 * Math.sin(t * 2 + lv)); g.fillStyle = "#ffcf3a"; crownPath(g, p.x, p.y - r * 1.05, r * .8); g.fill(); g.strokeStyle = "rgba(90,30,0,.7)"; g.lineWidth = 1.5; g.stroke(); }
+    else if (hard) { g.fillStyle = lv < cur ? "#ff5ca8" : "#ff8fc8"; starPath(g, p.x + r * .85, p.y - r * .85, r * .42); g.fill(); g.strokeStyle = "rgba(40,0,20,.6)"; g.lineWidth = 1.5; g.stroke(); }
     if (lv === cur) { drawMap.flap = (drawMap.flap || 0) + .3; paintFly(g, p.x + Math.sin(t * 1.3) * r * .4, p.y - r * 2 + Math.sin(t * 2.1) * 4, r * .42, 0, drawMap.flap, true, true, 7); }
   }
   // sparkles when a new chapter opens
@@ -1299,7 +1331,7 @@ function newChapterWaiting() { return chapterOf(save.level).num > (save.mapCh ||
 function showMap(from) {
   mapFrom = from; const m = $("map"); m.hidden = false; sizeMap();
   const G = mapGeom(), ch = chapterOf(save.level);
-  $("mapPlaySub").textContent = "Level " + save.level + (isHard(save.level) ? " · Hard" : ""); $("mapPlaySub").classList.toggle("hard", isHard(save.level));
+  $("mapPlaySub").textContent = "Level " + save.level + (isHard(save.level) ? " · " + tierName(save.level) : ""); $("mapPlaySub").classList.toggle("hard", isHard(save.level)); $("mapPlaySub").classList.toggle("extreme", isExtreme(save.level));
   $("mapCoins").textContent = save.coins;
   const centre = lv => stopPos(G, lv).y - MPH * .55;
   mapVel = 0; mapAnim = null; mapBurst = []; mapBanner = null;
@@ -1839,7 +1871,7 @@ function doPour(a, b) {
 }
 function celebrate() {
   let title = "All glowing!", text = `Solved in ${moves} moves`, sfx = "sfx_win", gain = 0;
-  Analytics.log("level_end", { level: save.level, mode, moves, success: true, hard: hardNow(), used_hint: usedHint });
+  Analytics.log("level_end", { level: save.level, mode, moves, success: true, hard: hardNow(), extreme: hardNow() && isExtreme(save.level), used_hint: usedHint });
   if (mode === "practice") {
     title = "Well done!"; text = "That's all there is to it."; tutStop();
     $("nextBtn").textContent = "Back to menu";
@@ -1852,10 +1884,10 @@ function celebrate() {
     title = "Daily solved!"; text = `Solved in ${moves} moves · ${save.streak}-day streak 🔥\n+1 hint. Come back tomorrow for a new puzzle.`; sfx = "sfx_daily";
     $("nextBtn").textContent = "Back to levels";
   } else {
-    const wasHard = isHard(save.level);
+    const wasHard = isHard(save.level), wasExt = isExtreme(save.level);
     save.level++;
-    gain = wasHard ? COIN.hard : COIN.level;
-    if (wasHard) { save.hints++; title = "Hard level beaten!"; text += "\n+1 hint"; save.stats.hard++; if (!usedHint) save.stats.pure++; }
+    gain = wasExt ? COIN.extreme : wasHard ? COIN.hard : COIN.level;
+    if (wasHard) { save.hints++; title = wasExt ? "Extreme level beaten!" : "Hard level beaten!"; text += "\n+1 hint"; save.stats.hard++; if (wasExt) save.stats.extreme++; if (!usedHint) save.stats.pure++; }
     else if (save.level < 10 && save.level % 5 === 0) save.hints++;
     $("nextBtn").textContent = "Next level";
   }
@@ -1953,7 +1985,7 @@ function moveLimitFor(lv, s) {
   if (!c || c.key !== key(s)) return 0;   // not ready yet: startLevel waits for the sliced search
   const p = c.path, best = p ? p.length : 60;
   if (p) hintPlan = planFrom(s, p);   // hints on this level follow the shortest route
-  return best + Math.max(5, Math.ceil(best * .35));
+  return limitFor(lv, best);
 }
 
 // ===================== ads (pretend ads in this test version) =====================
@@ -2058,7 +2090,7 @@ function twinkle(vol = .7) { if (now - twinkleAt < 110) return; twinkleAt = now;
 // ===================== coins =====================
 // Earned by solving puzzles, spent on hints, undos, moves and mending the cracked jar. Prices are high on
 // purpose, so the free video stays the easy choice. GUESS: all numbers can be tuned after launch.
-const COIN = { level: 10, hard: 25, daily: 30 }, PRICE = { hint: 150, undo: 100, moves: 120, jar: 200 };
+const COIN = { level: 10, hard: 25, extreme: 50, daily: 30 }, PRICE = { hint: 150, undo: 100, moves: 120, jar: 200 };
 let winGain = 0, usedHint = false;
 function addCoins(n, source) {
   save.coins += n; save.stats.earned += n; store(); refreshCoins(true);
@@ -2159,6 +2191,7 @@ const TROPHIES = [
   ["lv100", "Firefly master", "Reach level 100", s => s.level >= 100],
   ["hard1", "Brave heart", "Beat a hard level", s => s.stats.hard >= 1],
   ["hard10", "Unshakable", "Beat 10 hard levels", s => s.stats.hard >= 10],
+  ["extreme1", "Fearless", "Beat an Extreme level", s => s.stats.extreme >= 1],
   ["pure", "Pure skill", "Beat a hard level without a hint", s => s.stats.pure >= 1],
   ["daily1", "Early bird", "Solve a daily puzzle", s => s.stats.daily >= 1],
   ["streak7", "Week of light", "Reach a 7-day daily streak", s => s.stats.bestStreak >= 7],
