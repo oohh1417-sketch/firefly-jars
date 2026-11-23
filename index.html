@@ -356,7 +356,7 @@ svg.i { width: 1em; height: 1em; display: block; }
         <span class="txt"><b>Daily puzzle</b><span id="dailySub">A new puzzle every day</span></span>
         <span class="streak" id="dailyStreak" hidden></span>
       </button>
-      <div class="note"><span id="soundStatus">Tap anywhere to start the music</span> · Test build v0.17</div>
+      <div class="note"><span id="soundStatus">Tap anywhere to start the music</span> · Test build v0.18</div>
     </div>
   </div>
 </div>
@@ -2033,7 +2033,7 @@ const PRIVACY_HTML = `<p><b>Firefly Jars</b> is a puzzle game. This policy expla
 <h4>Purchases</h4><p>The "Remove ads" purchase is handled by the App Store or Google Play. We never see your payment details.</p>
 <h4>Game Center and Google Play Games</h4><p>If you sign in to Apple Game Center or Google Play Games, your scores, achievements and saved progress are stored by Apple or Google under their own privacy policies.</p>
 <h4>Children</h4><p>The game is not directed at children under 13, and we don't knowingly collect their personal data.</p>
-<h4>Contact</h4><p>Questions? Write to [contact email].</p>`;
+<h4>Contact</h4><p>Questions? Write to <a href="mailto:fireflyjars.support@gmail.com">fireflyjars.support@gmail.com</a>.</p>`;
 $("privacyBtn").onclick = () => { $("privacyText").innerHTML = PRIVACY_HTML; $("privacy").hidden = false; };
 $("privacyClose").onclick = () => { $("privacy").hidden = true; };
 // Replay the tutorial on the first level without touching saved progress
