@@ -55,7 +55,7 @@ body {
 #hardTint { position: fixed; inset: 0; pointer-events: none; z-index: 0; opacity: 0; transition: opacity .6s;
   background: radial-gradient(ellipse at 50% 45%, transparent 55%, rgba(200, 40, 140, .28) 85%, rgba(120, 20, 110, .5) 100%); }
 #hardTint.on { opacity: 1; }
-#hardBanner { position: fixed; left: 50%; top: 38%; z-index: 6; pointer-events: none; display: flex; flex-direction: column; align-items: center; gap: 4px;
+#hardBanner { position: fixed; left: 50%; top: 38%; z-index: 4; pointer-events: none; display: flex; flex-direction: column; align-items: center; gap: 4px;
   padding: 14px 34px 12px; border-radius: 22px; transform: translate(-50%, -50%) scale(.6); opacity: 0;
   background: linear-gradient(180deg, #d6338c, #7a1f8f); border: 2px solid rgba(255, 190, 230, .8);
   box-shadow: 0 0 40px rgba(255, 60, 160, .55), 0 10px 30px rgba(0, 0, 0, .4); color: #fff; text-align: center; }
@@ -156,6 +156,30 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; }
 .map-top .spacer { flex: 1; pointer-events: none; }
 .mapview .map-play { position: absolute; left: 50%; transform: translateX(-50%); bottom: max(18px, env(safe-area-inset-bottom, 0px)); width: min(360px, calc(100% - 32px)); }
 .mapview .map-play:active { transform: translateX(-50%) translateY(4px); }
+/* hearts chip, the side buttons on the menu, and the daily rewards calendar */
+.chip.lives small { font-size: 12px; font-weight: 800; color: #ffb3c2; margin-left: 2px; font-variant-numeric: tabular-nums; }
+.menu-top .chip { padding: 0 11px; }
+.side { position: absolute; right: max(12px, env(safe-area-inset-right, 0px)); top: 36%; display: flex; flex-direction: column; gap: 14px; z-index: 2; }
+.sideBtn { position: relative; width: 66px; height: 74px; padding: 0; border: 0; background: none; display: flex; flex-direction: column; align-items: center; gap: 2px; color: #fff; }
+.sideBtn .sb { width: 58px; height: 58px; border-radius: 50%; display: grid; place-items: center; background: radial-gradient(circle at 40% 35%, rgba(60, 74, 150, .95), rgba(16, 20, 52, .95));
+  border: 2px solid rgba(255, 217, 59, .7); box-shadow: 0 0 18px rgba(255, 200, 60, .35), inset 0 2px 0 rgba(255, 255, 255, .15); }
+.sideBtn .sb svg.i { width: 34px; height: 34px; }
+.sideBtn b { font-size: 13px; font-weight: 800; padding: 1px 8px; border-radius: 999px; background: rgba(10, 14, 36, .85); border: 1px solid rgba(255, 217, 59, .45); margin-top: -10px; position: relative; }
+.sideBtn .badge { position: absolute; top: -2px; right: 0; width: 22px; height: 22px; border-radius: 50%; background: #ff3b5c; color: #fff; font-style: normal; font-weight: 900; font-size: 15px;
+  display: grid; place-items: center; border: 2px solid #fff; animation: badgePop 1.4s ease-in-out infinite; }
+@keyframes badgePop { 50% { transform: scale(1.15); } }
+.sideBtn:active .sb { transform: scale(.94); }
+.bigHeart { align-self: center; width: 84px; height: 84px; filter: drop-shadow(0 0 18px rgba(255, 60, 100, .6)); }
+.bigHeart svg.i { width: 84px; height: 84px; }
+.ggrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.gday { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 2px; border-radius: 14px; background: rgba(255, 255, 255, .05); border: 1.5px solid var(--glass-line); }
+.gday small { font-size: 11px; font-weight: 800; color: var(--muted); letter-spacing: .04em; }
+.gday .gi svg.i { width: 28px; height: 28px; }
+.gday b { font-size: 13px; line-height: 1.1; }
+.gday.got { opacity: .55; }
+.gday.got .gi svg.i { color: #7dff6b; }
+.gday.today { border-color: #ffd93b; background: rgba(255, 217, 59, .14); box-shadow: 0 0 16px rgba(255, 217, 59, .35); }
+.gday.big7 { grid-column: span 2; }
 /* ---------- main menu: a night meadow with a glowing jar ---------- */
 .menu { background: #060818; padding: 0; display: block; text-align: left; }
 #menuArt { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
@@ -340,6 +364,7 @@ svg.i { width: 1em; height: 1em; display: block; }
     <div class="menu-top">
       <div class="chip" id="hintChip" title="Hints"><span class="ci" data-ico="bulb"></span><span id="hintCount">3</span></div>
       <div class="chip" id="coinChip" title="Coins"><span class="ci coin" data-ico="coin"></span><span id="coinCount">0</span></div>
+      <div class="chip lives" id="livesChip" title="Hearts for Hard and Extreme levels"><span class="ci" data-ico="heart"></span><span id="livesCount">5</span><small id="livesTime">Full</small></div>
       <div class="chip" id="streakChip" hidden><span class="ci" data-ico="flame"></span><span id="streakCount">0</span></div>
       <div class="spacer"></div>
       <button class="round" id="trophyBtn" aria-label="Trophies" data-ico="trophy"></button>
@@ -350,6 +375,10 @@ svg.i { width: 1em; height: 1em; display: block; }
       <div class="logo-sub">JARS</div>
     </div>
     <div class="hero-space" id="heroSpace"></div>
+    <div class="side">
+      <button class="sideBtn" id="noAdsSide" aria-label="Remove ads"><span class="sb" data-ico="noads"></span><b>No ads</b></button>
+      <button class="sideBtn" id="giftSide" aria-label="Daily rewards"><span class="sb" data-ico="gift"></span><b>Daily</b><i class="badge" id="giftBadge">!</i></button>
+    </div>
     <div class="panel">
       <div class="chapter">
         <div class="chapter-name" id="chapterNum">Chapter 1<b id="chapterName">Meadow Glow</b></div>
@@ -362,7 +391,7 @@ svg.i { width: 1em; height: 1em; display: block; }
         <span class="txt"><b>Daily puzzle</b><span id="dailySub">A new puzzle every day</span></span>
         <span class="streak" id="dailyStreak" hidden></span>
       </button>
-      <div class="note"><span id="soundStatus">Tap anywhere to start the music</span> · Test build v0.19</div>
+      <div class="note"><span id="soundStatus">Tap anywhere to start the music</span> · Test build v0.20</div>
     </div>
   </div>
 </div>
@@ -372,6 +401,7 @@ svg.i { width: 1em; height: 1em; display: block; }
   <div class="map-top">
     <button class="round" id="mapBack" aria-label="Back" data-ico="home"></button>
     <div class="spacer"></div>
+    <div class="chip lives" title="Hearts"><span class="ci" data-ico="heart"></span><span id="mapLives">5</span><small id="mapLivesTime">Full</small></div>
     <div class="chip" title="Coins"><span class="ci coin" data-ico="coin"></span><span id="mapCoins">0</span></div>
   </div>
   <button class="play map-play" id="mapPlay"><span class="play-main">Play</span><span class="play-sub" id="mapPlaySub">Level 1</span></button>
@@ -410,7 +440,7 @@ svg.i { width: 1em; height: 1em; display: block; }
     <div class="sub">So close! Watch a short video for 5 more moves, or try the level again.</div>
     <button class="big" id="moreMovesBtn">+5 moves ▶</button>
     <button class="coinBtn" id="movesCoinBtn"></button>
-    <button class="ghostBtn" id="retryBtn">Try again</button>
+    <button class="ghostBtn" id="retryBtn">Try again (−1 heart)</button>
   </div>
 </div>
 <div class="overlay" id="settings" hidden>
@@ -462,6 +492,35 @@ svg.i { width: 1em; height: 1em; display: block; }
   </div>
 </div>
 <div id="trophyToast" aria-live="polite"><span class="tb" data-ico="trophy"></span><span><small>Trophy unlocked</small><span id="trophyName"></span></span></div>
+<div class="overlay" id="leave" hidden>
+  <div class="card">
+    <div class="title" style="font-size:40px" id="leaveTitle">Leave this level?</div>
+    <div class="sub" id="leaveText"></div>
+    <button class="big" id="leaveNo">Keep playing</button>
+    <button class="ghostBtn" id="leaveYes">Leave (−1 heart)</button>
+  </div>
+</div>
+<div class="overlay" id="noLives" hidden>
+  <div class="card">
+    <div class="bigHeart" data-ico="heart"></div>
+    <div class="title" style="font-size:40px">Out of hearts</div>
+    <div class="sub">Hard and Extreme levels need a heart. One comes back every 20 minutes, and the daily puzzle is always free.</div>
+    <div class="note" id="noLivesTime"></div>
+    <button class="big adBtn" id="lifeAdBtn">Free video: +1 heart</button>
+    <button class="coinBtn" id="lifeCoinBtn"></button>
+    <button class="ghostBtn" id="noLivesClose">Wait</button>
+  </div>
+</div>
+<div class="overlay" id="gifts" hidden>
+  <div class="card gifts">
+    <div class="title" style="font-size:40px">Daily rewards</div>
+    <div class="sub" id="giftSub"></div>
+    <div class="ggrid" id="giftGrid"></div>
+    <button class="big" id="giftClaim">Claim today's gift</button>
+    <div class="note" id="giftDone">Today's gift is claimed ✓</div>
+    <button class="ghostBtn" id="giftClose">Close</button>
+  </div>
+</div>
 <div class="overlay" id="tip" hidden>
   <div class="card">
     <canvas id="tipArt" width="240" height="200" style="align-self:center;width:240px;height:200px"></canvas>
@@ -720,6 +779,9 @@ const ICONS = {
   trophy: svgI('<path d="M7.5 4h9v5a4.5 4.5 0 0 1-9 0z" fill="currentColor"/><path d="M7.5 6H4.5a3 3 0 0 0 3 4M16.5 6h3a3 3 0 0 1-3 4M12 13.5V17M8.5 20.5h7M9.5 17h5v3.5h-5z"/>'),
   play: svgI('<path d="M8 5.5v13l10.5-6.5z" fill="currentColor"/>'),
   check: svgI('<path d="m5 12.5 4.5 4.5L19 7.5" stroke-width="3"/>'),
+  heart: '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7.5-4.6-9.3-9.4C1.4 8 3.6 4.5 7.2 4.5c2 0 3.6 1.1 4.8 2.8 1.2-1.7 2.8-2.8 4.8-2.8 3.6 0 5.8 3.5 4.5 7.1C19.5 16.4 12 21 12 21z" fill="#ff4d6d" stroke="#b3123a" stroke-width="1.4"/><path d="M7 7.6c-1.2.3-2 1.4-2 2.6" fill="none" stroke="#ffd0da" stroke-width="1.6" stroke-linecap="round"/></svg>',
+  gift: '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="10" width="17" height="11" rx="2" fill="#b98cff" stroke="#6b3fc0" stroke-width="1.3"/><rect x="2.5" y="7" width="19" height="4.5" rx="1.5" fill="#d2b3ff" stroke="#6b3fc0" stroke-width="1.3"/><rect x="10.5" y="7" width="3" height="14" fill="#ffd93b"/><path d="M12 7c-1.5-3.5-5.5-4-5.5-1.6C6.5 7 9.5 7 12 7zm0 0c1.5-3.5 5.5-4 5.5-1.6 0 1.6-3 1.6-5.5 1.6z" fill="#ffd93b" stroke="#c78a00" stroke-width="1"/></svg>',
+  noads: '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="6" width="19" height="12" rx="3" fill="#2a3470" stroke="#9fb4ff" stroke-width="1.4"/><text x="12" y="15.2" text-anchor="middle" font-size="7.5" font-weight="900" font-family="sans-serif" fill="#fff">AD</text><path d="M4 20 20 4" stroke="#ff4d6d" stroke-width="2.6" stroke-linecap="round"/></svg>',
 };
 document.querySelectorAll("[data-ico]").forEach(el => { el.innerHTML = ICONS[el.dataset.ico]; });
 
@@ -755,7 +817,9 @@ function say(t) { $("info").textContent = t; clearTimeout(infoTimer); infoTimer 
 const later = (ms, fn) => events.push({ at: now + ms, fn });
 
 function startLevel() {
-  Snd.start(); mode = "level";
+  Snd.start();
+  if (needsLife(save.level)) { hideMap(); showMenu(); showNoLives(); return; }
+  mode = "level";
   $("menu").hidden = true; $("win").hidden = true;
   hintPlan = null; startS = generate(save.level); moveLimit = moveLimitFor(save.level, startS); resetExtra(); loadState(copyS(startS), true); maybeTip();
   if (isHard(save.level) && !moveLimit) {
@@ -809,11 +873,19 @@ const TIPS = {
   lid: { title: "Lidded jars", text: "The fireflies in a lidded jar are asleep. The number counts down by one with every pour you make. At zero, the lid pops off and you can use the jar." },
   crackedJar: { title: "The cracked jar", text: "This jar is cracked. Tap it, and two helper fireflies will fly in and mend it. Then it's one more empty jar for this level." },
   daily: { title: "Daily puzzle", text: "A new puzzle every day, with color jars and a lid. Solve it every day to grow your streak." },
+  hard: { title: "Hard level", text: "The 5th level of every chapter is Hard: more colors and a move limit (the number under the level). Win for 25 coins and a hint. If you give up, you lose a heart." },
+  extreme: { title: "Extreme level", text: "The last level of every chapter is Extreme: even more colors and fewer spare moves. Win for 50 coins and a hint. If you give up, you lose a heart." },
+  lives: { title: "Hearts", text: "You lost a heart. You have 5 for Hard and Extreme levels, and one comes back every 20 minutes. Normal levels never cost hearts." },
+  coins: { title: "Coins", text: "You earn coins for every level you solve. Spend them on hints, undos, extra moves, hearts and mending cracked jars." },
+  map: { title: "Your firefly trail", text: "Every level is a stone on this trail. Gold ones are done and yours glows. Hard levels have a pink star, Extreme levels a gold crown. Tap your level or Play to start." },
 };
+// show one card now (or after the one on screen), outside the start of a level too
+function showTip(k) { if (!tipQueue.includes(k)) tipQueue.push(k); if ($("tip").hidden) showNextTip(); }
 let tipQueue = [];
 function maybeTip() {
   const want = [];
   if (mode === "daily") want.push("daily");
+  if (mode === "level" && isExtreme(save.level)) want.push("extreme"); else if (mode === "level" && isHard(save.level)) want.push("hard");
   if (S.only.some(x => x >= 0)) want.push("colorJar");
   if (S.locks.some(x => x > 0)) want.push("lid");
   if (extraIdx() >= 0) want.push("crackedJar");
@@ -828,6 +900,26 @@ function showNextTip() {
   drawTipArt(k); $("tip").hidden = false;
 }
 $("tipBtn").onclick = () => { Snd.play("sfx_select"); showNextTip(); };
+function heartPath(g, x, y, w) {
+  const h = w * .9; g.beginPath(); g.moveTo(x, y + h * .42);
+  g.bezierCurveTo(x - w * .62, y - h * .05, x - w * .38, y - h * .55, x, y - h * .22);
+  g.bezierCurveTo(x + w * .38, y - h * .55, x + w * .62, y - h * .05, x, y + h * .42); g.closePath();
+}
+function drawTipIcon(g, k) {
+  const cx = 120, cy = 100;
+  if (k === "hard") { glow(g, cx, cy, 95, "#ff5ca8", .55); g.fillStyle = "#ff8fc8"; starPath(g, cx, cy, 62); g.fill(); g.strokeStyle = "rgba(80,0,40,.5)"; g.lineWidth = 3; g.stroke(); }
+  if (k === "extreme") { glow(g, cx, cy, 95, "#ff3b2e", .6); g.fillStyle = "#ffcf3a"; crownPath(g, cx, cy, 130); g.fill(); g.strokeStyle = "rgba(90,30,0,.7)"; g.lineWidth = 3; g.stroke();
+    for (const [dx, c] of [[-40, "#ff3b2e"], [0, "#5cf2ff"], [40, "#7dff6b"]]) { g.fillStyle = c; g.beginPath(); g.arc(cx + dx * .9, cy + 16, 7, 0, 6.283); g.fill(); } }
+  if (k === "lives") { glow(g, cx, cy, 95, "#ff4d6d", .55); g.fillStyle = "#ff4d6d"; heartPath(g, cx, cy + 6, 120); g.fill(); g.strokeStyle = "#b3123a"; g.lineWidth = 3; g.stroke();
+    g.fillStyle = "#fff"; g.font = "800 40px 'Baloo 2', sans-serif"; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText("5", cx, cy + 4); }
+  if (k === "coins") { glow(g, cx, cy, 95, "#ffc23d", .55);
+    for (const [dx, dy, r] of [[-38, 18, 30], [38, 18, 30], [0, -8, 40]]) { g.fillStyle = "#ffc23d"; g.strokeStyle = "#b36b0c"; g.lineWidth = 3; g.beginPath(); g.arc(cx + dx, cy + dy, r, 0, 6.283); g.fill(); g.stroke();
+      g.strokeStyle = "#fff0a0"; g.lineWidth = 2.5; g.beginPath(); g.arc(cx + dx, cy + dy, r * .66, 0, 6.283); g.stroke(); g.fillStyle = "#fff6c8"; starPath(g, cx + dx, cy + dy, r * .4); g.fill(); } }
+  if (k === "map") { const pts = [[50, 170], [100, 140], [70, 100], [130, 70], [180, 40]];
+    g.setLineDash([2, 10]); g.lineCap = "round"; g.lineWidth = 5; g.strokeStyle = "rgba(255,217,59,.9)"; g.beginPath(); pts.forEach(([x, y], i) => i ? g.lineTo(x, y) : g.moveTo(x, y)); g.stroke(); g.setLineDash([]);
+    pts.forEach(([x, y], i) => { const curr = i === 3; if (curr) glow(g, x, y, 50, "#ffd93b", .6); g.fillStyle = i < 3 ? "#ffb830" : curr ? "#fff3a0" : "rgba(30,40,90,.95)"; g.beginPath(); g.arc(x, y, curr ? 18 : 14, 0, 6.283); g.fill();
+      if (i === 4) { g.strokeStyle = "rgba(255,90,60,.8)"; g.lineWidth = 2.5; g.stroke(); g.fillStyle = "#ffcf3a"; crownPath(g, x, y - 18, 20); g.fill(); } }); }
+}
 function drawTipArt(k) {
   const c = $("tipArt"), g = c.getContext("2d"), d = 2; c.width = 240 * d; c.height = 200 * d; g.setTransform(d, 0, 0, d, 0, 0);
   g.clearRect(0, 0, 240, 200);
@@ -836,6 +928,7 @@ function drawTipArt(k) {
   const fake = { jars: [k === "colorJar" ? [2] : [3, 1, 4, 0]], only: [k === "colorJar" ? 2 : -1], locks: [k === "lid" ? 3 : 0] };
   if (k === "daily") { fake.jars = [[0, 0, 0, 0]]; }
   if (k === "crackedJar") { paintCracked(g, r, 0, 15, true); return; }
+  if (["hard", "extreme", "lives", "coins", "map"].includes(k)) return drawTipIcon(g, k);
   paintJarBack(g, r, fake, 0);
   fake.jars[0].forEach((col, s) => { const step = (r.h - r.w * .42) / CAP; paintFly(g, r.x + r.w / 2, r.y + r.h - r.w * .16 - step * (s + .5), 15, col, s, k !== "lid", false, s * 2); });
   paintJarFront(g, r, fake, 0, 15);
@@ -864,6 +957,7 @@ function updateMenu() {
   $("dailySub").textContent = doneToday ? `Solved! Next puzzle in ${untilMidnight()}` : (alive && save.streak ? `Solve today to keep your streak` : "A new puzzle every day");
   $("dailyStreak").hidden = !(alive && save.streak > 0); $("dailyStreak").innerHTML = `${ICONS.flame} ${save.streak}`;
   $("streakChip").hidden = true;
+  if (typeof refreshSide === "function") { refreshSide(); refreshLives(); }
 }
 function showMenu() {
   if ($("menu").hidden && !won && moves > 0 && mode !== "practice") Analytics.log("level_quit", { level: save.level, mode, moves, hard: hardNow() });
@@ -892,6 +986,61 @@ function hill(g, baseY, amp, freq, phase, color) {
   for (let x = 0; x <= MW + 10; x += 10) g.lineTo(x, baseY + Math.sin(x / MW * freq + phase) * amp + Math.sin(x / MW * freq * 2.7 + phase * 2) * amp * .35);
   g.lineTo(MW, MH); g.closePath(); g.fillStyle = color; g.fill();
 }
+// ---- the big menu jar: a glass mason jar with thick walls, a screw neck and a gold lid propped open ----
+function heroBody(J) { return { x: J.x, y: J.y + J.h * .1, w: J.w, h: J.h * .9 }; }
+function heroBack(g, J, T, ground) {
+  const b = heroBody(J), cx = b.x + b.w / 2;
+  // shadow and warm light pooling on the ground
+  g.save(); g.fillStyle = "rgba(0,0,10,.45)"; g.beginPath(); g.ellipse(cx, ground + 2, b.w * .62, b.w * .09, 0, 0, 6.283); g.fill(); g.restore();
+  glow(g, cx, ground, b.w * 1.1, "#ffc94a", .2 + .03 * Math.sin(T * 2));
+  // the glass behind the fireflies: clearer in the middle, denser toward the edges
+  jarPath(g, b);
+  const gr = g.createLinearGradient(b.x, 0, b.x + b.w, 0);
+  gr.addColorStop(0, "rgba(175,210,255,.26)"); gr.addColorStop(.18, "rgba(140,180,240,.09)"); gr.addColorStop(.6, "rgba(120,160,230,.05)"); gr.addColorStop(.88, "rgba(150,190,250,.1)"); gr.addColorStop(1, "rgba(175,210,255,.24)");
+  g.fillStyle = gr; g.fill();
+  // warm glow of the fireflies inside
+  g.save(); jarPath(g, b); g.clip(); glow(g, cx, b.y + b.h * .62, b.w * .85, "#ffcf4a", .32 + .05 * Math.sin(T * 1.6)); g.restore();
+  // back edge of the open mouth
+  g.strokeStyle = "rgba(200,225,255,.35)"; g.lineWidth = Math.max(1.5, b.w * .012);
+  g.beginPath(); g.ellipse(cx, b.y, b.w * .4, b.w * .055, 0, Math.PI, 2 * Math.PI); g.stroke();
+}
+function heroFront(g, J, T) {
+  const b = heroBody(J), x = b.x, w = b.w, top = b.y, bot = b.y + b.h, cx = x + w / 2, lw = Math.max(2.5, w * .022);
+  // thick glass bottom with a bright lens edge
+  const bg = g.createLinearGradient(0, bot - w * .2, 0, bot);
+  bg.addColorStop(0, "rgba(200,230,255,0)"); bg.addColorStop(1, "rgba(200,230,255,.22)");
+  g.save(); jarPath(g, b); g.clip(); g.fillStyle = bg; g.fillRect(x, bot - w * .2, w, w * .2);
+  g.strokeStyle = "rgba(230,245,255,.35)"; g.lineWidth = lw * .7; g.beginPath(); g.ellipse(cx, bot - w * .11, w * .38, w * .05, 0, .1, Math.PI - .1); g.stroke(); g.restore();
+  // the wall: a bright outer line and a fainter inner line give the glass its thickness
+  jarPath(g, b); g.strokeStyle = "rgba(215,235,255,.62)"; g.lineWidth = lw; g.stroke();
+  const inset = w * .035; jarPath(g, { x: x + inset, y: top + inset * .3, w: w - inset * 2, h: b.h - inset * 1.3 }); g.strokeStyle = "rgba(190,220,255,.18)"; g.lineWidth = lw * .6; g.stroke();
+  // screw threads on the neck
+  g.strokeStyle = "rgba(220,240,255,.45)"; g.lineWidth = lw * .7; g.lineCap = "round";
+  for (let k = 0; k < 2; k++) { const y = top + w * (.035 + k * .045); g.beginPath(); g.moveTo(x + w * .11, y + w * .012); g.quadraticCurveTo(cx, y + w * .04, x + w * .89, y - w * .004); g.stroke(); }
+  // front edge of the mouth
+  g.strokeStyle = "rgba(235,248,255,.7)"; g.lineWidth = lw * .9; g.beginPath(); g.ellipse(cx, top, w * .4, w * .055, 0, 0, Math.PI); g.stroke();
+  // highlights: a long soft streak on the left, a thin one on the right, a glint on the shoulder
+  const hl = g.createLinearGradient(0, top + w * .3, 0, bot - w * .2);
+  hl.addColorStop(0, "rgba(255,255,255,0)"); hl.addColorStop(.25, "rgba(255,255,255,.34)"); hl.addColorStop(.75, "rgba(255,255,255,.2)"); hl.addColorStop(1, "rgba(255,255,255,0)");
+  g.fillStyle = hl; roundRect(g, x + w * .09, top + w * .3, w * .075, b.h - w * .52, w * .04, w * .04); g.fill();
+  g.fillStyle = "rgba(255,255,255,.16)"; roundRect(g, x + w * .2, top + w * .36, w * .025, b.h * .35, w * .015, w * .015); g.fill();
+  g.fillStyle = "rgba(255,255,255,.14)"; roundRect(g, x + w * .86, top + w * .42, w * .03, b.h * .4, w * .015, w * .015); g.fill();
+  g.strokeStyle = "rgba(255,255,255,.5)"; g.lineWidth = lw * .8; g.beginPath(); g.arc(x + w * .24, top + w * .3, w * .14, Math.PI * 1.08, Math.PI * 1.42); g.stroke();
+  glow(g, x + w * .8, top + w * .36, w * .07, "#dfe8ff", .45);   // the moon caught in the glass
+  // the gold lid, propped open on the rim so the fireflies can get out
+  const lid = w * .8, lh = w * .13;
+  g.save(); g.translate(x + w * .92, top + w * .005); g.rotate(.4 + .03 * Math.sin(T * 1.3));
+  glow(g, -lid * .5, lh * .3, lid * .6, "#ffd36a", .25);
+  const lg = g.createLinearGradient(0, -lh, 0, 0); lg.addColorStop(0, "#f5cf6a"); lg.addColorStop(.5, "#d79b34"); lg.addColorStop(1, "#8f5a17");
+  g.fillStyle = lg; roundRect(g, -lid, -lh, lid, lh, lh * .22, lh * .22); g.fill();
+  g.strokeStyle = "rgba(90,50,10,.55)"; g.lineWidth = Math.max(1, w * .008);
+  for (let k = 1; k < 14; k++) { const lx = -lid + k * lid / 14; g.beginPath(); g.moveTo(lx, -lh * .78); g.lineTo(lx, -lh * .12); g.stroke(); }
+  const tg = g.createLinearGradient(0, -lh * 1.45, 0, -lh * .6); tg.addColorStop(0, "#fff0b0"); tg.addColorStop(1, "#e2a940");
+  g.fillStyle = tg; g.beginPath(); g.ellipse(-lid / 2, -lh, lid / 2, lh * .42, 0, 0, 6.283); g.fill();
+  g.strokeStyle = "rgba(150,95,25,.6)"; g.lineWidth = Math.max(1, w * .01); g.beginPath(); g.ellipse(-lid / 2, -lh, lid * .36, lh * .26, 0, 0, 6.283); g.stroke();
+  g.fillStyle = "rgba(255,255,255,.55)"; g.beginPath(); g.ellipse(-lid * .68, -lh * 1.12, lid * .12, lh * .08, -.1, 0, 6.283); g.fill();
+  g.restore();
+}
 function drawMenu() {
   if (!MW) sizeMenu(); if (!MW) return;
   const g = mctx, T = now / 1000; g.setTransform(MD, 0, 0, MD, 0, 0);
@@ -915,18 +1064,13 @@ function drawMenu() {
   for (let i = 0; i < 70; i++) { const x = (i / 70) * MW + (i % 3) * 4, y = ground + Math.sin(x / MW * 4 + .4) * MH * .012 + 2, sway = Math.sin(T * 1.3 + i) * 3; g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x + sway * .5, y - 8, x + sway, y - 14 - (i % 4) * 3); g.stroke(); }
   // jar
   const r = J, R = r.w * .11;
-  glow(g, r.cx, r.y + r.h * .55, r.w * .9, "#ffd93b", .35);
-  roundRect(g, r.x, r.y + r.h * .08, r.w, r.h * .92, r.w * .18, r.w * .32); g.fillStyle = "rgba(160,200,255,.10)"; g.fill();
-  g.lineWidth = Math.max(2.5, r.w * .025); g.strokeStyle = "rgba(210,232,255,.55)"; g.stroke();
-  g.fillStyle = "rgba(210,232,255,.55)"; roundRect(g, r.x - r.w * .06, r.y + r.h * .05, r.w * 1.12, r.h * .05, 6, 6); g.fill();
-  g.fillStyle = "rgba(255,255,255,.12)"; roundRect(g, r.x + r.w * .12, r.y + r.h * .2, r.w * .09, r.h * .6, 8, 8); g.fill();
-  // cork resting against the jar
-  g.save(); g.translate(r.x + r.w * 1.02, ground - r.w * .1); g.rotate(-.35); g.fillStyle = "#a87445"; roundRect(g, -r.w * .2, -r.w * .12, r.w * .4, r.w * .24, 6, 6); g.fill(); g.fillStyle = "#c48d5a"; g.fillRect(-r.w * .16, -r.w * .1, r.w * .32, r.w * .05); g.restore();
+  heroBack(g, J, T, ground);
   // fireflies dancing inside
   for (const f of inJar) {
     const x = r.cx + Math.sin(T * f.sp + f.a) * r.w * .3, y = r.y + r.h * .6 + Math.sin(T * f.sp * 1.4 + f.b) * r.h * .26;
     f.flap += .25; paintFly(g, x, y, R, f.c, f.flap, true, true, f.a * 10);
   }
+  heroFront(g, J, T);
   // fireflies rising out of the jar and drifting across the sky
   for (const f of outFlies) {
     let t = (f.t + T * .045) % 1; const e = t;
@@ -1329,7 +1473,8 @@ function drawMap() {
 }
 function newChapterWaiting() { return chapterOf(save.level).num > (save.mapCh || 1); }
 function showMap(from) {
-  mapFrom = from; const m = $("map"); m.hidden = false; sizeMap();
+  mapFrom = from; const m = $("map"); m.hidden = false; sizeMap(); refreshLives();
+  if (!save.seen.map) setTimeout(() => { if (!$("map").hidden) showTip("map"); }, from === "win" ? 3400 : 500);
   const G = mapGeom(), ch = chapterOf(save.level);
   $("mapPlaySub").textContent = "Level " + save.level + (isHard(save.level) ? " · " + tierName(save.level) : ""); $("mapPlaySub").classList.toggle("hard", isHard(save.level)); $("mapPlaySub").classList.toggle("extreme", isExtreme(save.level));
   $("mapCoins").textContent = save.coins;
@@ -1894,6 +2039,7 @@ function celebrate() {
   if (tut || (mode === "level" && save.level === 2)) { if (!save.seen.tutorial) Analytics.log("tutorial_complete", {}); save.seen.tutorial = true; tutStop(); }
   store();
   winGain = gain; if (gain) addCoins(gain, mode === "daily" ? "daily" : "level");
+  if (gain && !save.seen.coins) setTimeout(() => { if (!$("win").hidden) showTip("coins"); }, 1700);
   checkTrophies();
   won = true; busyUntil = now + 99999;   // no more moves (or restarts) while the last lid screws on
   later(CAP_TOTAL + 250, () => { winMode = now; Snd.play(sfx); rects.forEach(r => sparkle(r.x + r.w / 2, r.y, "#ffd93b", 10, 2)); });
@@ -1926,7 +2072,7 @@ $("movesCoinBtn").onclick = () => {
   movesMax += 5; say("+5 moves"); refresh();
 };
 $("moreMovesBtn").onclick = () => { $("outMoves").hidden = true; showAd("rewarded", () => { Analytics.log("reward_choice", { item: "moves", via: "ad" }); movesMax += 5; say("+5 moves"); refresh(); }); };
-$("retryBtn").onclick = () => { $("outMoves").hidden = true; Snd.start(); loadState(copyS(startS), true); };
+$("retryBtn").onclick = () => { $("outMoves").hidden = true; Snd.start(); loseLife("fail"); if (livesNow() <= 0) { showMenu(); showNoLives(); return; } loadState(copyS(startS), true); };
 // Fewest pours that solve the puzzle (A* search), as a list of moves. The estimate counts color changes
 // inside jars; one pour fixes at most one, so the answer is exact. null if not found within `limit` positions.
 function shortestPath(start, limit = 40000, weight = 1) {
@@ -2026,7 +2172,7 @@ $("undoBtn").onclick = () => {
   S.locks.forEach((l, i) => { if (l > 0) delete lidsOff[i]; });
   moveFlies(h.b, h.a, h.n, null); Snd.play("sfx_whoosh", 1.2, .6); refresh();
 };
-$("restartBtn").onclick = () => { if (winMode || won) return; Snd.start(); loadState(copyS(startS), true); };
+$("restartBtn").onclick = () => { if (winMode || won) return; Snd.start(); confirmLeave("restart", () => loadState(copyS(startS), true)); };
 $("hintBtn").onclick = () => {
   if (winMode || won || now < busyUntil) return;
   if (save.hints <= 0) { offer("hint", () => { save.hints++; store(); $("hintBtn").onclick(); }); return; }
@@ -2040,7 +2186,7 @@ $("soundBtn").onclick = () => {
   Snd.start(); if (save.music) Snd.setMusic(true); Snd.play("sfx_jar_done");
   say(Snd.musicState === "blocked" ? "Sound is blocked here. Try opening the link in Safari" : "Sound on"); refresh();
 };
-$("menuBtn").onclick = () => showMenu();
+$("menuBtn").onclick = () => confirmLeave("menu", showMenu);
 // iPhones only allow sound after a tap, so the first tap anywhere starts the music
 const firstTap = () => {
   if (adShowing) return;
@@ -2176,10 +2322,95 @@ function refreshStore() { const b = $("removeAdsBtn"); b.textContent = save.adsR
 $("removeAdsBtn").onclick = () => { if (save.adsRemoved) return; Snd.play("sfx_select"); $("store").hidden = false; };
 $("storeCancel").onclick = () => { $("store").hidden = true; Snd.play("sfx_drop"); };
 $("storeBuy").onclick = () => {
-  $("store").hidden = true; save.adsRemoved = true; store(); refreshStore(); Snd.play("sfx_jar_done");
+  $("store").hidden = true; save.adsRemoved = true; store(); refreshStore(); refreshSide(); Snd.play("sfx_jar_done");
   toast("Thank you!", "Ads between levels are gone"); Analytics.log("purchase", { item_id: "remove_ads", value: 2.99, currency: "USD" });
 };
 $("restoreBtn").onclick = () => { Snd.play("sfx_select"); toast("Restore purchases", save.adsRemoved ? "Remove ads is active" : "No purchases found"); };
+
+// ===================== hearts (lives) =====================
+// Only Hard and Extreme levels use hearts. You lose one when you give up on one of them: "Try again" after
+// running out of moves, Restart, or going back to the menu after making moves. 5 at most, one comes back every 20 min.
+const LIVES_MAX = 5, LIFE_MS = 20 * 60 * 1000, LIFE_PRICE = 100;
+function livesNow() {
+  if (save.lives === undefined) { save.lives = LIVES_MAX; save.livesAt = 0; }
+  if (save.lives >= LIVES_MAX) { save.lives = LIVES_MAX; return save.lives; }
+  const n = Math.floor((Date.now() - save.livesAt) / LIFE_MS);
+  if (n > 0) { save.lives = Math.min(LIVES_MAX, save.lives + n); save.livesAt += n * LIFE_MS; store(); }
+  return save.lives;
+}
+function nextLifeIn() { livesNow(); if (save.lives >= LIVES_MAX) return 0; return Math.max(0, save.livesAt + LIFE_MS - Date.now()); }
+const mmss = ms => { const s = Math.ceil(ms / 1000); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; };
+function addLife(n = 1) { livesNow(); save.lives = Math.min(LIVES_MAX, save.lives + n); store(); refreshLives(); }
+function loseLife(why) {
+  livesNow(); if (save.lives >= LIVES_MAX) save.livesAt = Date.now();
+  save.lives = Math.max(0, save.lives - 1); store(); refreshLives();
+  Analytics.log("life_lost", { level: save.level, why, left: save.lives });
+  if (!save.seen.lives) { save.seen.lives = true; store(); setTimeout(() => showTip("lives"), 400); }
+}
+const leavingCostsLife = () => mode === "level" && isHard(save.level) && !won && moves > 0 && $("menu").hidden;
+function refreshLives() {
+  const n = livesNow(), t = nextLifeIn();
+  for (const id of ["livesCount", "mapLives"]) { const el = $(id); if (el) el.textContent = n; }
+  for (const id of ["livesTime", "mapLivesTime"]) { const el = $(id); if (el) { el.textContent = n >= LIVES_MAX ? "Full" : mmss(t); } }
+  if (!$("noLives").hidden) $("noLivesTime").textContent = n > 0 ? "You have a heart again!" : `Next heart in ${mmss(t)}`;
+}
+setInterval(refreshLives, 1000);
+// "Leave this level? You'll lose a heart" before quitting or restarting a Hard/Extreme level
+function confirmLeave(what, go) {
+  if (!leavingCostsLife()) return go();
+  $("leaveTitle").textContent = what === "restart" ? "Restart this level?" : "Leave this level?";
+  $("leaveText").textContent = `You'll lose a heart. Hard and Extreme levels cost a heart when you give up. You have ${livesNow()} left.`;
+  $("leaveYes").textContent = what === "restart" ? "Restart (−1 heart)" : "Leave (−1 heart)";
+  $("leave").hidden = false; Snd.play("sfx_select");
+  $("leaveYes").onclick = () => { $("leave").hidden = true; loseLife(what); if (what === "restart" && livesNow() <= 0) { showMenu(); showNoLives(); return; } go(); };
+}
+$("leaveNo").onclick = () => { $("leave").hidden = true; Snd.play("sfx_drop"); };
+// out of hearts: wait, watch a video, or pay coins
+function showNoLives() {
+  setCoinBtn($("lifeCoinBtn"), LIFE_PRICE, "+1 heart for"); $("lifeAdBtn").innerHTML = `${ICONS.play} Video: +1 heart`;
+  $("noLives").hidden = false; refreshLives(); Snd.play("sfx_nope");
+}
+$("lifeAdBtn").onclick = () => { $("noLives").hidden = true; showAd("rewarded", () => { Analytics.log("reward_choice", { item: "life", via: "ad" }); addLife(); say("+1 heart"); }); };
+$("lifeCoinBtn").onclick = () => { if (!spendCoins(LIFE_PRICE, "life")) return; $("noLives").hidden = true; Snd.play("sfx_coin"); Analytics.log("reward_choice", { item: "life", via: "coins" }); addLife(); say("+1 heart"); };
+$("noLivesClose").onclick = () => { $("noLives").hidden = true; Snd.play("sfx_drop"); };
+const needsLife = lv => isHard(lv) && livesNow() <= 0;
+
+// ===================== daily rewards: a 7-day calendar =====================
+// Come back each day for the next gift. Missing a day starts again from day 1.
+const DAILY_GIFTS = [{ coins: 20 }, { coins: 30 }, { hints: 1 }, { coins: 50 }, { lives: 5 }, { hints: 2 }, { coins: 100 }];
+const giftLabel = g => g.coins ? `${g.coins}` : g.hints ? `${g.hints} hint${g.hints > 1 ? "s" : ""}` : "Full hearts";
+const giftIcon = g => g.coins ? ICONS.coin : g.hints ? ICONS.bulb : ICONS.heart;
+function dailyGiftState() {
+  const d = save.gift || { day: 0, last: "" };
+  if (d.last === today()) return { day: d.day, ready: false };
+  return { day: d.last === yesterday() ? d.day % 7 : 0, ready: true };
+}
+function refreshSide() {
+  $("noAdsSide").hidden = !!save.adsRemoved;
+  $("giftBadge").hidden = !dailyGiftState().ready;
+}
+function showGifts() {
+  const st = dailyGiftState(), done = save.gift && save.gift.last === today() ? save.gift.day : st.day;
+  $("giftGrid").innerHTML = DAILY_GIFTS.map((g, i) => {
+    const cls = i < done ? "got" : i === st.day && st.ready ? "today" : "";
+    return `<div class="gday ${cls} ${i === 6 ? "big7" : ""}"><small>Day ${i + 1}</small><span class="gi ${g.coins ? "coin" : ""}">${i < done ? ICONS.check : giftIcon(g)}</span><b>${giftLabel(g)}</b></div>`;
+  }).join("");
+  $("giftClaim").hidden = !st.ready; $("giftDone").hidden = st.ready;
+  $("giftSub").textContent = st.ready ? "Come back every day for a new gift. Day 7 is the biggest! Miss a day and it starts again." : `Come back tomorrow for day ${(done % 7) + 1}. Miss a day and it starts again from day 1.`;
+  $("gifts").hidden = false; Snd.play("sfx_select");
+}
+$("giftClaim").onclick = () => {
+  const st = dailyGiftState(); if (!st.ready) return;
+  const g = DAILY_GIFTS[st.day]; save.gift = { day: st.day + 1, last: today() };
+  if (g.coins) addCoins(g.coins, "daily_gift"); if (g.hints) save.hints += g.hints; if (g.lives) { livesNow(); save.lives = LIVES_MAX; }
+  store(); refresh(); refreshLives(); refreshSide(); Snd.play("sfx_jar_done");
+  Analytics.log("daily_gift", { day: st.day + 1 }); toast(`Day ${st.day + 1} gift`, g.coins ? `+${g.coins} coins` : g.hints ? `+${g.hints} hint${g.hints > 1 ? "s" : ""}` : "Hearts refilled");
+  showGifts();
+};
+$("giftClose").onclick = () => { $("gifts").hidden = true; Snd.play("sfx_drop"); };
+$("giftSide").onclick = () => { Snd.start(); showGifts(); };
+$("noAdsSide").onclick = () => { Snd.start(); if (save.adsRemoved) return; Snd.play("sfx_select"); $("store").hidden = false; };
+refreshLives(); refreshSide();
 
 // ===================== trophies =====================
 // The phone app also reports these to Game Center / Google Play Games (scripts/services.gd).
