@@ -48,7 +48,7 @@ body {
 .app { position: relative; z-index: 1; }
 .top { display: flex; align-items: center; gap: 10px; }
 .level { flex: 1; min-width: 0; text-align: center; display: flex; flex-direction: column; line-height: 1; }
-.level small { font-size: 12px; letter-spacing: .2em; text-transform: uppercase; color: var(--muted); font-weight: 700; margin-bottom: 4px; }
+.level small { font-size: 12px; letter-spacing: .14em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-transform: uppercase; color: var(--muted); font-weight: 700; margin-bottom: 4px; }
 .level.hard small { color: #ff8fc8; text-shadow: 0 0 10px rgba(255, 80, 160, .6); }
 .level.hard span { color: #ffd6ec; text-shadow: 0 0 16px rgba(255, 70, 150, .6); }
 /* Hard levels: a red-violet glow around the edges and a banner when the level starts */
@@ -142,6 +142,14 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; }
 .daily { height: 60px; font-size: 22px; border-color: #ff9f43; }
 .pulse { animation: pulse 1.4s ease-in-out infinite; }
 @keyframes pulse { 50% { box-shadow: 0 0 0 6px rgba(255, 217, 59, .35); } }
+/* ---------- chapter map ---------- */
+.mapview { background: #050716; padding: 0; display: block; }
+#mapArt { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+.map-top { position: absolute; left: 0; right: 0; top: 0; display: flex; align-items: center; gap: 10px; padding: 12px max(16px, env(safe-area-inset-left, 0px)); pointer-events: none; }
+.map-top > * { pointer-events: auto; }
+.map-top .spacer { flex: 1; pointer-events: none; }
+.mapview .map-play { position: absolute; left: 50%; transform: translateX(-50%); bottom: max(18px, env(safe-area-inset-bottom, 0px)); width: min(360px, calc(100% - 32px)); }
+.mapview .map-play:active { transform: translateX(-50%) translateY(4px); }
 /* ---------- main menu: a night meadow with a glowing jar ---------- */
 .menu { background: #060818; padding: 0; display: block; text-align: left; }
 #menuArt { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
@@ -348,9 +356,19 @@ svg.i { width: 1em; height: 1em; display: block; }
         <span class="txt"><b>Daily puzzle</b><span id="dailySub">A new puzzle every day</span></span>
         <span class="streak" id="dailyStreak" hidden></span>
       </button>
-      <div class="note"><span id="soundStatus">Tap anywhere to start the music</span> · Test build v0.16</div>
+      <div class="note"><span id="soundStatus">Tap anywhere to start the music</span> · Test build v0.17</div>
     </div>
   </div>
+</div>
+
+<div class="overlay mapview" id="map" hidden>
+  <canvas id="mapArt" aria-label="Chapter map"></canvas>
+  <div class="map-top">
+    <button class="round" id="mapBack" aria-label="Back" data-ico="home"></button>
+    <div class="spacer"></div>
+    <div class="chip" title="Coins"><span class="ci coin" data-ico="coin"></span><span id="mapCoins">0</span></div>
+  </div>
+  <button class="play map-play" id="mapPlay"><span class="play-main">Play</span><span class="play-sub" id="mapPlaySub">Level 1</span></button>
 </div>
 
 <div class="overlay" id="win" hidden>
@@ -801,7 +819,9 @@ function drawTipArt(k) {
 
 // ===================== main menu =====================
 // Every 10 levels is a chapter with its own name (GUESS: names can change any time).
-const CHAPTERS = ["Meadow Glow", "Willow Pond", "Moonlit Garden", "Lantern Woods", "Starfall Hills", "Misty Marsh", "Crystal Creek", "Aurora Ridge"];
+const CHAPTERS = ["Meadow Glow", "Willow Pond", "Moonlit Garden", "Lantern Woods", "Starfall Hills", "Misty Marsh", "Crystal Creek", "Aurora Ridge",
+  "Cherry Blossom Grove", "Desert Oasis", "Firefly Falls", "Mushroom Hollow", "Autumn Orchard", "Frozen Lake", "Lighthouse Shore", "Bamboo Valley",
+  "Sunflower Fields", "Glowing Lagoon", "Floating Isles", "Rainbow Sky"];
 const chapterOf = lv => { const i = Math.floor((lv - 1) / 10); return { num: i + 1, name: CHAPTERS[i % CHAPTERS.length] + (i >= CHAPTERS.length ? " " + (Math.floor(i / CHAPTERS.length) + 1) : ""), done: (lv - 1) % 10 }; };
 function untilMidnight() { const d = new Date(), m = new Date(d); m.setHours(24, 0, 0, 0); const mins = Math.max(1, Math.round((m - d) / 60000)); return mins >= 60 ? `${Math.floor(mins / 60)}h ${mins % 60}m` : `${mins}m`; }
 function updateMenu() {
@@ -904,6 +924,18 @@ const THEMES = [
   { name: "marsh",   sky: ["#070d12", "#17262e", "#2c3f48"], hills: ["#18262c", "#111c21", "#0a1215"], glow: "#7dff6b" },
   { name: "creek",   sky: ["#03101a", "#082c3c", "#0e4c60"], hills: ["#09303c", "#06222c", "#04161d"], glow: "#2fe0a0" },
   { name: "aurora",  sky: ["#030714", "#0a1a36", "#122848"], hills: ["#0e1d36", "#0a1528", "#060d1a"], glow: "#4d8bff" },
+  { name: "blossom", sky: ["#0b0716", "#2a1030", "#4a1d45"], hills: ["#2a1432", "#1f0e26", "#140819"], glow: "#ff8fc8" },
+  { name: "oasis",   sky: ["#07061a", "#1c1a40", "#3d3358"], hills: ["#3a2a30", "#2c1f26", "#1d141a"], glow: "#ffb347" },
+  { name: "falls",   sky: ["#030b14", "#0a2433", "#123e4e"], hills: ["#0d2a2e", "#092022", "#051416"], glow: "#7dffd9" },
+  { name: "mushroom",sky: ["#080614", "#1a1233", "#2c1d4d"], hills: ["#1c1530", "#140f24", "#0c0918"], glow: "#c77dff" },
+  { name: "orchard", sky: ["#0d0710", "#2a1420", "#4a2228"], hills: ["#2c1716", "#211110", "#150a09"], glow: "#ff9f43" },
+  { name: "frozen",  sky: ["#050b18", "#13284a", "#2a4a70"], hills: ["#3a5578", "#2a4060", "#1a2a44"], glow: "#bfe8ff" },
+  { name: "lighthouse", sky: ["#040a16", "#0c2040", "#183a60"], hills: ["#14263a", "#0e1c2c", "#08121e"], glow: "#ffe28a" },
+  { name: "bamboo",  sky: ["#04100c", "#0c2a20", "#16402e"], hills: ["#0e2a1c", "#0a2014", "#06140c"], glow: "#ffcf4a" },
+  { name: "sunflower", sky: ["#0a0a18", "#1e2040", "#3a3550"], hills: ["#1e2418", "#161b11", "#0e120a"], glow: "#ffd93b" },
+  { name: "lagoon",  sky: ["#020a14", "#052436", "#08404e"], hills: ["#082a30", "#061e24", "#041318"], glow: "#3dfcff" },
+  { name: "islands", sky: ["#06061a", "#161a48", "#2a2f6a"], hills: ["#161a40", "#10132f", "#0a0c20"], glow: "#9fb4ff" },
+  { name: "rainbow", sky: ["#0a0820", "#1e1a48", "#3a2c66"], hills: ["#1e1a40", "#16122f", "#0e0b20"], glow: "#ffffff" },
 ];
 const bcv = $("bgArt"), bctx = bcv.getContext("2d");
 let BW = 0, BH = 0, BD = 1, bgCache = null, bgKey = "";
@@ -911,36 +943,166 @@ const bgStars = Array.from({ length: 80 }, (_, i) => { const r = rng(i * 17 + 9)
 const bgFlies = Array.from({ length: 10 }, (_, i) => { const r = rng(i * 41 + 3); return { x: r(), y: .25 + r() * .6, a: r() * 6.28, b: r() * 6.28, s: .4 + r() * .6, c: i % 5 }; });
 function themeNow() { return THEMES[mode === "daily" ? 4 : Math.floor((save.level - 1) / 10) % THEMES.length]; }
 function sizeBg() { BD = Math.min(window.devicePixelRatio || 1, 2); BW = innerWidth; BH = innerHeight; bcv.width = BW * BD; bcv.height = BH * BD; bgKey = ""; }
-function bgHill(g, baseY, amp, freq, phase, color) {
-  g.beginPath(); g.moveTo(0, BH);
-  for (let x = 0; x <= BW + 10; x += 8) g.lineTo(x, baseY + Math.sin(x / BW * freq + phase) * amp + Math.sin(x / BW * freq * 2.3 + phase * 1.7) * amp * .4);
-  g.lineTo(BW, BH); g.closePath(); g.fillStyle = color; g.fill();
+function hillW(g, W, H, baseY, amp, freq, phase, color) {
+  g.beginPath(); g.moveTo(0, H);
+  for (let x = 0; x <= W + 10; x += 8) g.lineTo(x, baseY + Math.sin(x / W * freq + phase) * amp + Math.sin(x / W * freq * 2.3 + phase * 1.7) * amp * .4);
+  g.lineTo(W, H); g.closePath(); g.fillStyle = color; g.fill();
 }
+function bgHill(g, baseY, amp, freq, phase, color) { hillW(g, BW, BH, baseY, amp, freq, phase, color); }
 function pine(g, x, base, h, color) {
   g.fillStyle = color; g.fillRect(x - h * .03, base - h * .15, h * .06, h * .15);
   for (let k = 0; k < 4; k++) { const y = base - h * .12 - k * h * .21, w = h * (.32 - k * .06); g.beginPath(); g.moveTo(x - w, y); g.lineTo(x, y - h * .32); g.lineTo(x + w, y); g.closePath(); g.fill(); }
+}
+function ellipse(g, x, y, rx, ry, col) { g.fillStyle = col; g.beginPath(); g.ellipse(x, y, Math.max(.1, rx), Math.max(.1, ry), 0, 0, 6.283); g.fill(); }
+// ---- shared scene geometry (same numbers in the Android/iPhone version, scripts/art.gd) ----
+const WATER = { pond: 1, creek: 1, falls: 1, frozen: 1, lighthouse: 1, lagoon: 1 };
+const waterTop = (n, H) => H * .78 + (n === "lighthouse" ? -H * .06 : n === "lagoon" ? -H * .02 : H * .02);
+const MUSHROOMS = [[.1, .9, .12], [.24, .7, .08], [.42, .95, .1], [.62, .75, .07], [.8, .9, .13], [.93, .7, .07]];   // x, height, cap size
+const FALLS = (W, H) => ({ x0: W * .43, x1: W * .57, top: H * .36, bot: H * .8 });
+const LAMP = (W, H) => ({ x: W * .845, y: H * .78 - H * .135 - H * .22 - H * .023 });
+function paintSky(g, T, W, H, moon) {
+  const sky = g.createLinearGradient(0, 0, 0, H);
+  sky.addColorStop(0, T.sky[0]); sky.addColorStop(.6, T.sky[1]); sky.addColorStop(1, T.sky[2]);
+  g.fillStyle = sky; g.fillRect(0, 0, W, H);
+  if (T.name === "rainbow") {
+    const cols = ["255,90,110", "255,160,70", "255,230,90", "110,240,130", "90,200,255", "120,140,255", "190,120,255"];
+    g.lineWidth = W * .035;
+    for (let k = 0; k < 7; k++) { g.strokeStyle = `rgba(${cols[k]},.13)`; g.beginPath(); g.arc(W * .5, H * .95, W * (.78 - k * .035), Math.PI, 2 * Math.PI); g.stroke(); }
+  }
+  if (!moon) return;
+  const mx = W * .8, my = H * .13, mr = Math.min(W, H) * .045;
+  glow(g, mx, my, mr * 6, "#c9d8ff", .16);
+  // crescent moon, cut out on its own small canvas so the sky behind stays intact
+  const D = g.getTransform().a || 1;
+  const mc = document.createElement("canvas"); mc.width = mc.height = Math.ceil(mr * 2.4 * D); const m = mc.getContext("2d"); m.scale(D, D);
+  m.fillStyle = T.name === "frozen" ? "#f4fbff" : "#efeedd"; m.beginPath(); m.arc(mr * 1.2, mr * 1.2, mr, 0, 6.283); m.fill();
+  m.globalCompositeOperation = "destination-out"; m.beginPath(); m.arc(mr * 1.2 + mr * .45, mr * 1.2 - mr * .2, mr * .9, 0, 6.283); m.fill();
+  g.drawImage(mc, mx - mr * 1.2, my - mr * 1.2, mr * 2.4, mr * 2.4);
+}
+function roundTree(g, x, base, h, trunk, leaf, dot, seed) {
+  g.strokeStyle = trunk; g.lineWidth = h * .07; g.lineCap = "round";
+  g.beginPath(); g.moveTo(x, base); g.lineTo(x + h * .03, base - h * .55); g.moveTo(x + h * .02, base - h * .35); g.lineTo(x - h * .18, base - h * .62); g.moveTo(x + h * .03, base - h * .45); g.lineTo(x + h * .2, base - h * .7); g.stroke();
+  const r = rng(seed);
+  for (let k = 0; k < 7; k++) { const a = k / 7 * 6.283; ellipse(g, x + Math.cos(a) * h * .22, base - h * .72 + Math.sin(a) * h * .14, h * (.2 + r() * .06), h * (.17 + r() * .05), leaf); }
+  ellipse(g, x, base - h * .74, h * .26, h * .2, leaf);
+  for (let k = 0; k < 14; k++) ellipse(g, x + (r() - .5) * h * .62, base - h * .74 + (r() - .5) * h * .4, h * .025, h * .025, dot);
+}
+function palm(g, x, base, h, col) {
+  const tx = x + h * .18, ty = base - h;
+  g.strokeStyle = col; g.lineCap = "round"; g.lineWidth = h * .07;
+  g.beginPath(); g.moveTo(x, base); g.quadraticCurveTo(x + h * .02, base - h * .6, tx, ty); g.stroke();
+  g.lineWidth = h * .045;
+  for (let k = 0; k < 6; k++) { const a = -2.9 + k * .58, ex = tx + Math.cos(a) * h * .45, ey = ty + Math.sin(a) * h * .2 + h * .18;
+    g.beginPath(); g.moveTo(tx, ty); g.quadraticCurveTo(tx + Math.cos(a) * h * .3, ty + Math.sin(a) * h * .3 - h * .08, ex, ey); g.stroke(); }
+}
+function sunflower(g, x, base, h, stem, petal, mid) {
+  g.strokeStyle = stem; g.lineWidth = Math.max(1.5, h * .05); g.beginPath(); g.moveTo(x, base); g.lineTo(x, base - h); g.stroke();
+  ellipse(g, x - h * .1, base - h * .45, h * .1, h * .035, stem); ellipse(g, x + h * .1, base - h * .62, h * .1, h * .035, stem);
+  const r = h * .17;
+  for (let k = 0; k < 10; k++) { const a = k / 10 * 6.283; ellipse(g, x + Math.cos(a) * r, base - h + Math.sin(a) * r, r * .55, r * .55, petal); }
+  ellipse(g, x, base - h, r * .8, r * .8, mid);
+}
+function paintLand(g, T, W, H) {
+  const n = T.name, hz = H * .78, c0 = T.hills[0], c1 = T.hills[1], c2 = T.hills[2];
+  if (n === "lighthouse") {
+    const wy = waterTop(n, H), wg = g.createLinearGradient(0, wy, 0, H); wg.addColorStop(0, T.sky[2]); wg.addColorStop(1, c2); g.fillStyle = wg; g.fillRect(0, wy, W, H - wy);
+    g.fillStyle = c1; g.beginPath(); g.moveTo(W * .6, H); g.lineTo(W * .64, hz + H * .02); g.lineTo(W * .72, hz - H * .12); g.lineTo(W, hz - H * .15); g.lineTo(W, H); g.closePath(); g.fill();
+    // the lighthouse: a striped tower with a glowing lamp room
+    const bx = W * .845, by = hz - H * .135, th = H * .22, bw = W * .05, tw = W * .033;
+    const side = (u) => bw + (tw - bw) * u;
+    g.fillStyle = "#6f6c6a"; g.beginPath(); g.moveTo(bx - bw, by); g.lineTo(bx - tw, by - th); g.lineTo(bx + tw, by - th); g.lineTo(bx + bw, by); g.closePath(); g.fill();
+    g.fillStyle = "#5e2a30";
+    for (const [u0, u1] of [[.2, .38], [.56, .74]]) { g.beginPath(); g.moveTo(bx - side(u0), by - th * u0); g.lineTo(bx - side(u1), by - th * u1); g.lineTo(bx + side(u1), by - th * u1); g.lineTo(bx + side(u0), by - th * u0); g.closePath(); g.fill(); }
+    g.fillStyle = "#1a2030"; g.fillRect(bx - tw * 1.5, by - th - H * .006, tw * 3, H * .008);
+    g.fillStyle = "#ffe9a8"; g.fillRect(bx - tw * .8, by - th - H * .04, tw * 1.6, H * .034);
+    g.fillStyle = "#1a2030"; g.beginPath(); g.moveTo(bx - tw * 1.1, by - th - H * .04); g.lineTo(bx, by - th - H * .065); g.lineTo(bx + tw * 1.1, by - th - H * .04); g.closePath(); g.fill();
+    for (let k = 0; k < 3; k++) { g.fillStyle = c2; g.beginPath(); g.arc(W * (.08 + k * .17), wy + H * .05 + k * 6, W * (.05 + k % 2 * .03), Math.PI, 0); g.fill(); }
+    return;
+  }
+  if (n === "falls") {
+    g.fillStyle = c0; g.beginPath(); g.moveTo(W * .22, hz); g.lineTo(W * .3, H * .42); g.lineTo(W * .38, H * .35); g.lineTo(W * .62, H * .34); g.lineTo(W * .7, H * .4); g.lineTo(W * .8, hz); g.closePath(); g.fill();
+  }
+  hillW(g, W, H, hz - H * .1, H * .03, 4, 1.1, n === "lagoon" ? c1 : c0);
+  if (n === "woods") for (let i = 0; i < 14; i++) pine(g, (i + .3) / 13 * W, hz - H * .05 + Math.sin(i * 1.7) * 10, H * (.16 + (i % 3) * .04), c1);
+  if (n === "frozen") for (let i = 0; i < 9; i++) { const x = (i + .5) / 9 * W, b = hz - H * .05 + Math.sin(i * 1.3) * 8, h = H * (.12 + (i % 3) * .03); pine(g, x, b, h, c1);
+    g.fillStyle = "rgba(235,248,255,.55)"; for (let k = 0; k < 4; k++) { const y = b - h * .12 - k * h * .21 - h * .32, w = h * (.32 - k * .06) * .35; g.beginPath(); g.moveTo(x - w, y + h * .1); g.lineTo(x, y); g.lineTo(x + w, y + h * .1); g.closePath(); g.fill(); } }
+  if (n === "garden") for (let i = 0; i < 26; i++) { const x = (i + .5) / 26 * W, y = hz - H * .04 + Math.sin(i) * 6; g.strokeStyle = c1; g.lineWidth = 2; g.beginPath(); g.moveTo(x, y + 20); g.lineTo(x, y - 18 - (i % 4) * 6); g.stroke(); g.fillStyle = c1; g.beginPath(); g.arc(x, y - 20 - (i % 4) * 6, 6 + (i % 3) * 2, 0, 6.283); g.fill(); }
+  if (n === "blossom") [.06, .3, .56, .8, .97].forEach((x, i) => roundTree(g, W * x, hz - H * .02, H * (.2 + (i % 2) * .05), c2, "#4a1a44", "rgba(255,160,210,.5)", i * 7 + 1));
+  if (n === "orchard") [.1, .36, .64, .9].forEach((x, i) => roundTree(g, W * x, hz - H * .02, H * (.21 + (i % 2) * .04), c2, "#3e1c12", "rgba(255,150,60,.6)", i * 5 + 3));
+  if (n === "mushroom") for (const [x, hh, s] of MUSHROOMS) { const bx = W * x, by = hz - H * .02, h = H * .12 * hh, cr = W * s * .5;
+    g.fillStyle = c2; g.fillRect(bx - cr * .18, by - h, cr * .36, h);
+    g.fillStyle = "#2e1a52"; g.beginPath(); g.ellipse(bx, by - h, cr, cr * .62, 0, Math.PI, 2 * Math.PI); g.closePath(); g.fill();
+    for (let k = 0; k < 3; k++) ellipse(g, bx + (k - 1) * cr * .45, by - h - cr * (.25 + (k % 2) * .15), cr * .1, cr * .08, "rgba(210,150,255,.45)"); }
+  if (n === "islands" || n === "rainbow" || n === "starfall") { /* open sky scenes: just hills */ }
+  hillW(g, W, H, hz - H * .04, H * .025, 6, 2.6, c1);
+  if (n === "falls") {
+    const f = FALLS(W, H), fg = g.createLinearGradient(0, f.top, 0, f.bot); fg.addColorStop(0, "rgba(190,240,255,.30)"); fg.addColorStop(1, "rgba(190,240,255,.16)");
+    g.fillStyle = fg; g.fillRect(f.x0, f.top, f.x1 - f.x0, f.bot - f.top);
+  }
+  if (n === "oasis") palm(g, W * .86, hz + H * .02, H * .2, c2);
+  if (n === "sunflower") for (let i = 0; i < 18; i++) { const x = (i + .5) / 18 * W + Math.sin(i * 2.1) * 8, h = H * (.08 + (i % 3) * .025); sunflower(g, x, hz + H * .03, h, c2, "#3a300e", "#171006"); }
+  if (WATER[n]) {
+    const wy = waterTop(n, H), wg = g.createLinearGradient(0, wy, 0, H);
+    wg.addColorStop(0, n === "frozen" ? "#5a7ea6" : T.sky[2]); wg.addColorStop(1, c2); g.fillStyle = wg; g.fillRect(0, wy, W, H - wy);
+    if (n === "frozen") { g.strokeStyle = "rgba(230,245,255,.18)"; g.lineWidth = 1.5; for (let k = 0; k < 5; k++) { const x = W * (.1 + k * .2), y = wy + H * (.05 + (k % 3) * .04); g.beginPath(); g.moveTo(x, y); g.lineTo(x + W * .05, y + H * .02); g.lineTo(x + W * .11, y + H * .01); g.stroke(); } }
+    if (n === "lagoon") { g.fillStyle = c1; g.beginPath(); g.ellipse(W * .2, wy + 2, W * .16, H * .03, 0, Math.PI, 2 * Math.PI); g.fill(); palm(g, W * .2, wy, H * .13, c1); }
+  } else {
+    hillW(g, W, H, hz + H * .02, H * .015, 3, .3, c2);
+    if (n === "oasis") { const pg = g.createLinearGradient(0, hz + H * .06, 0, hz + H * .14); pg.addColorStop(0, T.sky[2]); pg.addColorStop(1, "#141020");
+      g.fillStyle = pg; g.beginPath(); g.ellipse(W * .45, hz + H * .1, W * .3, H * .035, 0, 0, 6.283); g.fill(); palm(g, W * .14, hz + H * .1, H * .24, c2); palm(g, W * .7, hz + H * .09, H * .17, c2); }
+  }
+}
+// moving parts of each scene; part "sky" goes behind the hills' grass, part "ground" in front
+const petals = Array.from({ length: 16 }, (_, i) => { const r = rng(i * 29 + 5); return { x: r(), o: r(), v: .03 + r() * .03, s: .6 + r() * .6, a: r() * 6.28 }; });
+const flakes = Array.from({ length: 40 }, (_, i) => { const r = rng(i * 31 + 7); return { x: r(), o: r(), v: .02 + r() * .025, s: .6 + r() * 1.2, a: r() * 6.28 }; });
+function paintLive(g, T, W, H, t, part) {
+  const n = T.name, hz = H * .78;
+  if (part === "sky") {
+    if (n === "aurora") for (let k = 0; k < 3; k++) {
+      g.beginPath(); for (let x = 0; x <= W; x += 12) { const y = H * (.18 + k * .05) + Math.sin(x / W * 5 + t * .4 + k) * 18; x ? g.lineTo(x, y) : g.moveTo(x, y); }
+      g.strokeStyle = ["rgba(80,255,170,.10)", "rgba(90,180,255,.08)", "rgba(180,120,255,.07)"][k]; g.lineWidth = 34; g.stroke();
+    }
+    if (n === "islands") [[.2, .34, 1], [.72, .24, .8], [.55, .48, .55]].forEach(([ix, iy, s], k) => {
+      const x = W * ix, y = H * iy + Math.sin(t * .6 + k * 2) * H * .008, w = W * .2 * s;
+      glow(g, x, y + w * .3, w * .8, "#9fb4ff", .12);
+      g.fillStyle = "#262c66"; g.beginPath(); g.moveTo(x - w / 2, y); g.lineTo(x + w / 2, y); g.lineTo(x + w * .28, y + w * .3); g.lineTo(x + w * .05, y + w * .62); g.lineTo(x - w * .22, y + w * .34); g.closePath(); g.fill();
+      ellipse(g, x, y, w * .52, w * .07, "#34407e");
+      g.strokeStyle = "#1c2050"; g.lineWidth = Math.max(1.5, w * .04); g.beginPath(); g.moveTo(x + w * .15, y); g.lineTo(x + w * .15, y - w * .25); g.stroke(); ellipse(g, x + w * .15, y - w * .3, w * .12, w * .1, "#2c3a78");
+      g.strokeStyle = "rgba(190,230,255,.25)"; g.lineWidth = Math.max(1, w * .02); g.beginPath(); g.moveTo(x - w * .1, y + w * .3); g.lineTo(x - w * .1, y + w * .3 + ((t * 30 + k * 20) % (w * .5))); g.stroke();
+    });
+    if (n === "rainbow") for (let k = 0; k < 9; k++) { const a = Math.PI + (k + .5) / 9 * Math.PI, r = W * (.78 - (k % 7) * .035); glow(g, W * .5 + Math.cos(a) * r, H * .95 + Math.sin(a) * r, 14, "#ffffff", .25 + .25 * Math.sin(t * 2 + k * 1.7)); }
+    return;
+  }
+  if (n === "marsh") for (let k = 0; k < 3; k++) { const y = H * (.62 + k * .1), x = ((t * 8 * (k + 1)) % (W + 300)) - 150; glow(g, x, y, 160, "#b8c8d0", .06); glow(g, W - x, y + 30, 140, "#b8c8d0", .05); }
+  if (WATER[n] && n !== "frozen") for (let k = 0; k < 7; k++) { const y = waterTop(n, H) + H * .04 + k * 14, w = 30 + (k * 23 % 50); if (y > H) break; g.fillStyle = "rgba(200,230,255,.07)"; g.fillRect((W * (.15 + (k * .37 % .7)) + Math.sin(t + k) * 10), y, w, 2); }
+  if (n === "woods") for (let k = 0; k < 3; k++) { const x = W * (.15 + k * .35), y = H * .7 - (k % 2) * 20; glow(g, x, y, 60, "#ff9f43", .12 + .06 * Math.sin(t * 3 + k)); }
+  if (n === "blossom" || n === "orchard") for (const p of petals) {
+    const u = (p.o + t * p.v) % 1, x = (p.x + Math.sin(t * .5 + p.a) * .05 + u * .15) % 1 * W, y = u * H * 1.05 - H * .03;
+    g.save(); g.translate(x, y); g.rotate(t * 1.5 * p.s + p.a); ellipse(g, 0, 0, 4 * p.s, 2.2 * p.s, n === "blossom" ? "rgba(255,180,215,.6)" : "rgba(255,150,60,.55)"); g.restore();
+  }
+  if (n === "frozen") for (const f of flakes) { const u = (f.o + t * f.v) % 1; ellipse(g, (f.x + Math.sin(t * .7 + f.a) * .02) * W, u * H, 1.3 * f.s, 1.3 * f.s, "rgba(240,250,255,.6)"); }
+  if (n === "falls") { const f = FALLS(W, H);
+    for (let k = 0; k < 12; k++) { const x = f.x0 + (k + .5) / 12 * (f.x1 - f.x0), len = H * .05, y = f.top + ((t * H * .25 + k * 97) % (f.bot - f.top)); g.fillStyle = "rgba(230,250,255,.25)"; g.fillRect(x - 1, y, 2, Math.min(len, f.bot - y)); }
+    for (let k = 0; k < 3; k++) glow(g, f.x0 + (f.x1 - f.x0) * (k / 2), f.bot, W * .1, "#c8f4ff", .1 + .05 * Math.sin(t * 2 + k)); }
+  if (n === "mushroom") for (const [x, hh, s] of MUSHROOMS) glow(g, W * x, hz - H * .02 - H * .12 * hh - W * s * .2, W * s * 1.1, "#c77dff", .16 + .08 * Math.sin(t * 1.5 + x * 9));
+  if (n === "lighthouse") { const L = LAMP(W, H), d = Math.cos(t * .8), len = W * 1.1 * Math.abs(d), dir = d < 0 ? -1 : 1;
+    if (len > 4) { const bg = g.createLinearGradient(L.x, L.y, L.x + dir * len, L.y); bg.addColorStop(0, `rgba(255,240,180,${.3 * Math.abs(d)})`); bg.addColorStop(1, "rgba(255,240,180,0)");
+      g.fillStyle = bg; g.beginPath(); g.moveTo(L.x, L.y - 3); g.lineTo(L.x + dir * len, L.y - H * .05); g.lineTo(L.x + dir * len, L.y + H * .05); g.lineTo(L.x, L.y + 3); g.closePath(); g.fill(); }
+    glow(g, L.x, L.y, W * .08, "#fff0a0", .5 + .2 * Math.abs(Math.sin(t * .8))); }
+  if (n === "bamboo") { for (let i = 0; i < 13; i++) {
+      const x = (i + .3) / 12.5 * W, top = H * (.28 + (i % 4) * .06), sw = Math.sin(t * .6 + i * 1.3) * W * .012, col = i % 2 ? T.hills[1] : T.hills[0];
+      g.strokeStyle = col; g.lineWidth = W * .022; g.lineCap = "butt"; g.beginPath(); g.moveTo(x, H); g.quadraticCurveTo(x, (H + top) / 2, x + sw, top); g.stroke();
+      for (let k = 1; k < 6; k++) { const u = k / 6, yy = H - (H - top) * u, xx = x + sw * u * u; g.fillStyle = T.hills[2]; g.fillRect(xx - W * .014, yy, W * .028, 2);
+        if ((k + i) % 2) { g.save(); g.translate(xx, yy); g.rotate((i % 2 ? -.6 : .6) + sw * .01); ellipse(g, (i % 2 ? -1 : 1) * W * .03, 0, W * .035, W * .008, col); g.restore(); } } }
+    for (let k = 0; k < 3; k++) { const x = W * (.2 + k * .3), y = H * (.55 + (k % 2) * .06) + Math.sin(t + k) * 3; g.fillStyle = "#c0392b"; ellipse(g, x, y, W * .022, W * .03, "#b8432e"); glow(g, x, y, 50, "#ffb347", .2 + .06 * Math.sin(t * 3 + k)); } }
+  if (n === "lagoon") for (let k = 0; k < 18; k++) { const r = rng(k * 11 + 1), x = r() * W, y = waterTop(n, H) + H * .02 + r() * (H * .2); glow(g, x, y, 10 + r() * 8, "#3dfcff", .2 * Math.max(0, Math.sin(t * (.6 + r()) + k))); }
+  if (n === "oasis") for (let k = 0; k < 3; k++) { g.fillStyle = "rgba(200,220,255,.08)"; g.fillRect(W * (.32 + k * .08) + Math.sin(t + k) * 6, hz + H * (.09 + k * .01), W * .06, 2); }
 }
 // the parts that don't move are painted once into a cache
 function buildBg(T) {
   const c = document.createElement("canvas"); c.width = BW * BD; c.height = BH * BD;
   const g = c.getContext("2d"); g.setTransform(BD, 0, 0, BD, 0, 0);
-  const sky = g.createLinearGradient(0, 0, 0, BH);
-  sky.addColorStop(0, T.sky[0]); sky.addColorStop(.6, T.sky[1]); sky.addColorStop(1, T.sky[2]);
-  g.fillStyle = sky; g.fillRect(0, 0, BW, BH);
-  const mx = BW * .8, my = BH * .13, mr = Math.min(BW, BH) * .045;
-  glow(g, mx, my, mr * 6, "#c9d8ff", .16);
-  // crescent moon, cut out on its own small canvas so the sky behind stays intact
-  const mc = document.createElement("canvas"); mc.width = mc.height = Math.ceil(mr * 2.4 * BD); const m = mc.getContext("2d"); m.scale(BD, BD);
-  m.fillStyle = "#efeedd"; m.beginPath(); m.arc(mr * 1.2, mr * 1.2, mr, 0, 6.283); m.fill();
-  m.globalCompositeOperation = "destination-out"; m.beginPath(); m.arc(mr * 1.2 + mr * .45, mr * 1.2 - mr * .2, mr * .9, 0, 6.283); m.fill();
-  g.drawImage(mc, mx - mr * 1.2, my - mr * 1.2, mr * 2.4, mr * 2.4);
-  const hz = BH * .78;
-  bgHill(g, hz - BH * .1, BH * .03, 4, 1.1, T.hills[0]);
-  if (T.name === "woods") for (let i = 0; i < 14; i++) pine(g, (i + .3) / 13 * BW, hz - BH * .05 + Math.sin(i * 1.7) * 10, BH * (.16 + (i % 3) * .04), T.hills[1]);
-  if (T.name === "garden") for (let i = 0; i < 26; i++) { const x = (i + .5) / 26 * BW, y = hz - BH * .04 + Math.sin(i) * 6; g.strokeStyle = T.hills[1]; g.lineWidth = 2; g.beginPath(); g.moveTo(x, y + 20); g.lineTo(x, y - 18 - (i % 4) * 6); g.stroke(); g.fillStyle = T.hills[1]; g.beginPath(); g.arc(x, y - 20 - (i % 4) * 6, 6 + (i % 3) * 2, 0, 6.283); g.fill(); }
-  bgHill(g, hz - BH * .04, BH * .025, 6, 2.6, T.hills[1]);
-  if (T.name === "pond" || T.name === "creek") { const wy = hz + BH * .02; const wg = g.createLinearGradient(0, wy, 0, BH); wg.addColorStop(0, T.sky[2]); wg.addColorStop(1, T.hills[2]); g.fillStyle = wg; g.fillRect(0, wy, BW, BH - wy); }
-  else bgHill(g, hz + BH * .02, BH * .015, 3, .3, T.hills[2]);
+  paintSky(g, T, BW, BH, true); paintLand(g, T, BW, BH);
   // soft vignette so the jars stay the brightest thing
   const v = g.createRadialGradient(BW / 2, BH * .5, Math.min(BW, BH) * .3, BW / 2, BH * .5, Math.max(BW, BH) * .75);
   v.addColorStop(0, "rgba(0,0,0,0)"); v.addColorStop(1, "rgba(0,0,0,.45)"); g.fillStyle = v; g.fillRect(0, 0, BW, BH);
@@ -996,15 +1158,10 @@ function drawBackdrop() {
   if (keyNow !== bgKey) { bgCache = buildBg(T); bgKey = keyNow; }
   const g = bctx, t = now / 1000; g.setTransform(1, 0, 0, 1, 0, 0); g.drawImage(bgCache, 0, 0); g.setTransform(BD, 0, 0, BD, 0, 0);
   for (const s of bgStars) { const a = .2 + .5 * Math.abs(Math.sin(t * .5 * s[3] + s[2])); g.fillStyle = `rgba(255,250,230,${a})`; g.fillRect(s[0] * BW, s[1] * BH, s[3], s[3]); }
-  if (T.name === "aurora") for (let k = 0; k < 3; k++) {
-    g.beginPath(); for (let x = 0; x <= BW; x += 12) { const y = BH * (.18 + k * .05) + Math.sin(x / BW * 5 + t * .4 + k) * 18; x ? g.lineTo(x, y) : g.moveTo(x, y); }
-    g.strokeStyle = ["rgba(80,255,170,.10)", "rgba(90,180,255,.08)", "rgba(180,120,255,.07)"][k]; g.lineWidth = 34; g.stroke();
-  }
+  paintLive(g, T, BW, BH, t, "sky");
   glow(g, BW * .8, BH * .13, Math.min(BW, BH) * .045 * 4, "#dfe8ff", .05 + .04 * Math.sin(t * .8));   // the moon's halo breathes
   skyLife(g, T, t);
-  if (T.name === "marsh") for (let k = 0; k < 3; k++) { const y = BH * (.62 + k * .1), x = ((t * 8 * (k + 1)) % (BW + 300)) - 150; glow(g, x, y, 160, "#b8c8d0", .06); glow(g, BW - x, y + 30, 140, "#b8c8d0", .05); }
-  if (T.name === "pond" || T.name === "creek") for (let k = 0; k < 7; k++) { const y = BH * .82 + k * 14, w = 30 + (k * 23 % 50); g.fillStyle = "rgba(200,230,255,.07)"; g.fillRect((BW * (.15 + (k * .37 % .7)) + Math.sin(t + k) * 10), y, w, 2); }
-  if (T.name === "woods") for (let k = 0; k < 3; k++) { const x = BW * (.15 + k * .35), y = BH * .7 - (k % 2) * 20; glow(g, x, y, 60, "#ff9f43", .12 + .06 * Math.sin(t * 3 + k)); }
+  paintLive(g, T, BW, BH, t, "ground");
   for (const f of bgFlies) {
     const x = (f.x + Math.sin(t * .25 * f.s + f.a) * .1) * BW, y = (f.y + Math.cos(t * .2 * f.s + f.b) * .05) * BH;
     const tw = .3 + .7 * Math.abs(Math.sin(t * 1.2 * f.s + f.a));
@@ -1012,6 +1169,175 @@ function drawBackdrop() {
   }
 }
 window.addEventListener("resize", sizeBg);
+
+// ===================== chapter map: a winding firefly trail, one glowing stone per level =====================
+// Level 1 is at the bottom; the trail climbs through each chapter's scene. Opens when the player taps Play.
+const mapCv = $("mapArt"), mapG = mapCv.getContext("2d");
+let MPW = 0, MPH = 0, MPD = 1, mapScroll = 0, mapVel = 0, mapDrag = null, mapAnim = null, mapBurst = [], mapBanner = null, mapFrom = "menu";
+const mapBands = new Map();
+const mapFlies = Array.from({ length: 14 }, (_, i) => { const r = rng(i * 23 + 4); return { x: r(), y: r(), a: r() * 6.28, b: r() * 6.28, s: .4 + r() * .6, c: i % 7 }; });
+function sizeMap() { const r = mapCv.getBoundingClientRect(); MPD = Math.min(window.devicePixelRatio || 1, 2); MPW = r.width; MPH = r.height; mapCv.width = MPW * MPD; mapCv.height = MPH * MPD; mapBands.clear(); }
+function mapGeom() {
+  const W = MPW, step = Math.round(Math.min(104, Math.max(62, W * .2))), sign = Math.round(step * 1.3), band = step * 10 + sign;
+  const n = Math.max(CHAPTERS.length, chapterOf(save.level).num + 1);
+  return { W, step, sign, band, n, total: band * n, r: step * .27 };
+}
+const bandTop = (G, i) => (G.n - 1 - i) * G.band;
+function stopPos(G, lv) { const i = Math.floor((lv - 1) / 10), j = (lv - 1) % 10; return { x: G.W * (.5 + .3 * Math.sin((lv - 1) * .8)), y: bandTop(G, i) + (9 - j + .5) * G.step }; }
+const mapLimits = G => [-90, G.total - MPH + 150];
+const clampScroll = (G, y) => { const [a, b] = mapLimits(G); return Math.max(a, Math.min(b, y)); };
+function bandImage(G, i) {
+  let c = mapBands.get(i); if (c) return c;
+  if (mapBands.size > 6) mapBands.delete(mapBands.keys().next().value);
+  c = document.createElement("canvas"); c.width = Math.ceil(G.W * MPD); c.height = Math.ceil(G.band * MPD);
+  const g = c.getContext("2d"); g.setTransform(MPD, 0, 0, MPD, 0, 0); const T = THEMES[i % THEMES.length];
+  paintSky(g, T, G.W, G.band, false);
+  const r = rng(i * 97 + 13); for (let k = 0; k < 70; k++) { g.fillStyle = `rgba(255,250,230,${.25 + r() * .5})`; const s = .6 + r() * 1.4; g.fillRect(r() * G.W, r() * G.band * .7, s, s); }
+  paintLand(g, T, G.W, G.band);
+  mapBands.set(i, c); return c;
+}
+function starPath(g, x, y, r) { g.beginPath(); for (let k = 0; k < 10; k++) { const a = -Math.PI / 2 + k * Math.PI / 5, rr = k % 2 ? r * .45 : r; g.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); } g.closePath(); }
+function lockIcon(g, x, y, s, col) {
+  g.strokeStyle = col; g.lineWidth = s * .16; g.beginPath(); g.arc(x, y - s * .2, s * .3, Math.PI, 0); g.stroke();
+  g.fillStyle = col; roundRect(g, x - s * .45, y - s * .2, s * .9, s * .7, s * .12, s * .12); g.fill();
+}
+function drawMap() {
+  if (!MPW) sizeMap(); if (!MPW) return;
+  const G = mapGeom(), g = mapG, t = now / 1000, dt = Math.min(.05, (now - (drawMap.last || now)) / 1000); drawMap.last = now;
+  // scrolling: a gentle glide after a flick, or the automatic climb to a new chapter
+  if (mapAnim) { const k = Math.max(0, Math.min(1, (now - mapAnim.t0) / mapAnim.dur)), e = k < .5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+    mapScroll = mapAnim.from + (mapAnim.to - mapAnim.from) * e; if (k >= 1) { const done = mapAnim.done; mapAnim = null; done && done(); } }
+  else if (!mapDrag && Math.abs(mapVel) > 1) { mapScroll += mapVel * dt; mapVel *= Math.pow(.93, dt * 60); }
+  mapScroll = clampScroll(G, mapScroll);
+  g.setTransform(MPD, 0, 0, MPD, 0, 0); g.fillStyle = "#050716"; g.fillRect(0, 0, MPW, MPH);
+  const cur = save.level, curCh = Math.floor((cur - 1) / 10);
+  const vis = []; for (let i = Math.max(0, G.n - 1 - Math.floor((mapScroll + MPH) / G.band)); i <= Math.min(G.n - 1, G.n - 1 - Math.floor(mapScroll / G.band)); i++) vis.push(i);
+  for (const i of vis) {
+    const T = THEMES[i % THEMES.length], y0 = bandTop(G, i) - mapScroll;
+    g.drawImage(bandImage(G, i), 0, y0, G.W, G.band);
+    g.save(); g.beginPath(); g.rect(0, y0, G.W, G.band); g.clip(); g.translate(0, y0);
+    paintLive(g, T, G.W, G.band, t, "sky"); paintLive(g, T, G.W, G.band, t, "ground"); g.restore();
+    if (i > curCh) { g.fillStyle = "rgba(4,6,16,.45)"; g.fillRect(0, y0, G.W, G.band); }
+  }
+  for (const i of vis) {   // soften the seam between two scenes
+    const y0 = bandTop(G, i) - mapScroll, sg = g.createLinearGradient(0, y0 - 70, 0, y0 + 90); sg.addColorStop(0, "rgba(3,4,12,0)"); sg.addColorStop(.45, "rgba(3,4,12,.9)"); sg.addColorStop(1, "rgba(3,4,12,0)");
+    g.fillStyle = sg; g.fillRect(0, y0 - 70, G.W, 160);
+  }
+  // the trail
+  const lo = Math.max(1, vis[0] * 10 - 1), hi = (vis[vis.length - 1] + 1) * 10 + 1;
+  const pts = []; for (let lv = lo; lv <= hi; lv++) { const p = stopPos(G, lv); pts.push({ lv, x: p.x, y: p.y - mapScroll }); }
+  g.lineCap = "round"; g.setLineDash([1, 13]);
+  for (const lit of [false, true]) {
+    g.beginPath(); let started = false;
+    for (let k = 0; k < pts.length - 1; k++) {
+      const a = pts[k], b = pts[k + 1]; if ((b.lv <= cur) !== lit) continue;
+      const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+      g.moveTo(a.x, a.y); g.bezierCurveTo(a.x, my, b.x, my, b.x, b.y); started = true;
+    }
+    if (!started) continue;
+    g.strokeStyle = lit ? "rgba(255,217,59,.9)" : "rgba(200,215,255,.28)"; g.lineWidth = lit ? 6 : 5;
+    if (lit) { g.shadowColor = "rgba(255,200,60,.8)"; g.shadowBlur = 10; }
+    g.stroke(); g.shadowBlur = 0;
+  }
+  g.setLineDash([]);
+  // chapter signs
+  for (const i of vis) {
+    const T = THEMES[i % THEMES.length], y = bandTop(G, i) - mapScroll + G.step * 10 + G.sign * .5, w = Math.min(G.W * .8, 330), h = G.sign * .62, x = G.W / 2;
+    const locked = i > curCh, done = i < curCh, burst = mapBanner && mapBanner.ch === i ? Math.max(0, 1 - (now - mapBanner.t0) / 2600) : 0;
+    if (burst) glow(g, x, y, w * .8, T.glow, .5 * burst);
+    roundRect(g, x - w / 2, y - h / 2, w, h, 16, 16); g.fillStyle = locked ? "rgba(12,14,30,.82)" : "rgba(10,14,36,.78)"; g.fill();
+    g.lineWidth = 2; g.strokeStyle = locked ? "rgba(160,170,200,.3)" : T.glow; g.globalAlpha = locked ? 1 : .75; g.stroke(); g.globalAlpha = 1;
+    g.textAlign = "center"; g.textBaseline = "middle";
+    g.fillStyle = locked ? "rgba(170,180,210,.55)" : "rgba(200,210,240,.85)"; g.font = `800 ${Math.round(h * .2)}px Nunito, sans-serif`;
+    g.fillText(`CHAPTER ${i + 1}`, x, y - h * .2);
+    g.fillStyle = locked ? "rgba(200,205,225,.5)" : "#fff6d0"; g.font = `700 ${Math.round(h * .34)}px 'Baloo 2', sans-serif`;
+    const nm = CHAPTERS[i % CHAPTERS.length] + (i >= CHAPTERS.length ? " " + (Math.floor(i / CHAPTERS.length) + 1) : "");
+    g.fillText(nm, x, y + h * .17);
+    if (locked) lockIcon(g, x - w / 2 + h * .45, y, h * .38, "rgba(190,200,225,.6)");
+    if (done) { g.fillStyle = "#7dff6b"; g.beginPath(); g.arc(x + w / 2 - h * .42, y, h * .2, 0, 6.283); g.fill(); g.strokeStyle = "#0a2a10"; g.lineWidth = 2.5; g.beginPath(); g.moveTo(x + w / 2 - h * .5, y); g.lineTo(x + w / 2 - h * .44, y + h * .07); g.lineTo(x + w / 2 - h * .33, y - h * .08); g.stroke(); }
+  }
+  // the stones
+  for (const p of pts) {
+    if (p.y < -60 || p.y > MPH + 60) continue;
+    const lv = p.lv, T = THEMES[Math.floor((lv - 1) / 10) % THEMES.length], hard = isHard(lv), r = G.r;
+    if (lv < cur) {
+      glow(g, p.x, p.y, r * 2.4, T.glow, .3);
+      const gr = g.createRadialGradient(p.x - r * .3, p.y - r * .3, r * .1, p.x, p.y, r); gr.addColorStop(0, "#fff6c2"); gr.addColorStop(1, hard ? "#ff8fc8" : "#ffb830");
+      g.fillStyle = gr; g.beginPath(); g.arc(p.x, p.y, r, 0, 6.283); g.fill();
+      g.fillStyle = "#3a2205";
+    } else if (lv === cur) {
+      const pu = .5 + .5 * Math.sin(t * 3);
+      glow(g, p.x, p.y, r * (3 + pu), "#ffd93b", .55);
+      g.strokeStyle = `rgba(255,240,180,${.35 + .4 * pu})`; g.lineWidth = 3; g.beginPath(); g.arc(p.x, p.y, r * (1.25 + .15 * pu), 0, 6.283); g.stroke();
+      const gr = g.createRadialGradient(p.x - r * .3, p.y - r * .3, r * .1, p.x, p.y, r * 1.12); gr.addColorStop(0, "#ffffff"); gr.addColorStop(1, hard ? "#ff5ca8" : "#ffd93b");
+      g.fillStyle = gr; g.beginPath(); g.arc(p.x, p.y, r * 1.12, 0, 6.283); g.fill();
+      g.fillStyle = "#3a2205";
+    } else {
+      g.fillStyle = "rgba(16,22,52,.88)"; g.beginPath(); g.arc(p.x, p.y, r, 0, 6.283); g.fill();
+      g.strokeStyle = hard ? "rgba(255,120,190,.55)" : "rgba(200,215,255,.25)"; g.lineWidth = 2; g.stroke();
+      g.fillStyle = "rgba(200,210,240,.6)";
+    }
+    g.textAlign = "center"; g.textBaseline = "middle"; g.font = `800 ${Math.round(r * (lv >= 100 ? .72 : .85))}px Nunito, sans-serif`;
+    g.fillText(lv, p.x, p.y + 1);
+    if (hard) { g.fillStyle = lv < cur ? "#ff5ca8" : "#ff8fc8"; starPath(g, p.x + r * .85, p.y - r * .85, r * .42); g.fill(); g.strokeStyle = "rgba(40,0,20,.6)"; g.lineWidth = 1.5; g.stroke(); }
+    if (lv === cur) { drawMap.flap = (drawMap.flap || 0) + .3; paintFly(g, p.x + Math.sin(t * 1.3) * r * .4, p.y - r * 2 + Math.sin(t * 2.1) * 4, r * .42, 0, drawMap.flap, true, true, 7); }
+  }
+  // sparkles when a new chapter opens
+  if (mapBurst.length) { mapBurst = mapBurst.filter(b => (b.life += dt) < b.max);
+    for (const b of mapBurst) { b.x += b.vx * dt; b.y += b.vy * dt; b.vy += 60 * dt; const a = 1 - b.life / b.max; glow(g, b.x, b.y - mapScroll, 10, b.col, .7 * a); g.fillStyle = `rgba(255,255,240,${a})`; g.fillRect(b.x - 1.5, b.y - mapScroll - 1.5, 3, 3); } }
+  if (mapBanner && now - mapBanner.t0 < 3200) {
+    const a = Math.min(1, (now - mapBanner.t0) / 300, (3200 - (now - mapBanner.t0)) / 500), y = MPH * .3;
+    g.globalAlpha = Math.max(0, a); g.textAlign = "center"; g.textBaseline = "middle"; g.font = "700 34px 'Baloo 2', sans-serif";
+    g.shadowColor = "rgba(255,200,60,.9)"; g.shadowBlur = 18; g.fillStyle = "#fff3c4"; g.fillText("New chapter!", MPW / 2, y); g.shadowBlur = 0; g.globalAlpha = 1;
+  }
+  for (const f of mapFlies) {
+    const x = (f.x + Math.sin(t * .25 * f.s + f.a) * .1) * MPW, y = (f.y + Math.cos(t * .2 * f.s + f.b) * .05) * MPH, tw = .3 + .7 * Math.abs(Math.sin(t * 1.2 * f.s + f.a));
+    glow(g, x, y, 12, COLORS[f.c], .3 * tw); g.fillStyle = `rgba(255,250,200,${.8 * tw})`; g.beginPath(); g.arc(x, y, 1.6, 0, 6.283); g.fill();
+  }
+}
+function newChapterWaiting() { return chapterOf(save.level).num > (save.mapCh || 1); }
+function showMap(from) {
+  mapFrom = from; const m = $("map"); m.hidden = false; sizeMap();
+  const G = mapGeom(), ch = chapterOf(save.level);
+  $("mapPlaySub").textContent = "Level " + save.level + (isHard(save.level) ? " · Hard" : ""); $("mapPlaySub").classList.toggle("hard", isHard(save.level));
+  $("mapCoins").textContent = save.coins;
+  const centre = lv => stopPos(G, lv).y - MPH * .55;
+  mapVel = 0; mapAnim = null; mapBurst = []; mapBanner = null;
+  if (save.mapCh === undefined) { save.mapCh = ch.num; store(); }
+  if (ch.num > save.mapCh && save.level > 1) {
+    // a chapter was just finished: start at the old chapter's last stone, then climb to the new one
+    mapScroll = clampScroll(G, centre(save.level - 1));
+    const to = clampScroll(G, centre(save.level)), i = ch.num - 1;
+    mapAnim = { from: mapScroll, to, t0: now + 700, dur: 1500, done: () => {
+      const sy = bandTop(G, i) + G.step * 10 + G.sign * .5;
+      for (let k = 0; k < 46; k++) { const a = Math.random() * 6.283, v = 80 + Math.random() * 220; mapBurst.push({ x: MPW / 2 + Math.cos(a) * 30, y: sy, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 80, life: 0, max: 1 + Math.random() * .8, col: COLORS[k % 7] }); }
+      mapBanner = { ch: i, t0: now }; Snd.play("sfx_unlock"); Analytics.log("chapter_open", { chapter: ch.num });
+    } };
+    save.mapCh = ch.num; store();
+  } else mapScroll = clampScroll(G, centre(save.level));
+}
+function hideMap() { $("map").hidden = true; mapAnim = null; }
+mapCv.addEventListener("pointerdown", e => { mapDrag = { y0: e.clientY, x0: e.clientX, s0: mapScroll, ly: e.clientY, lt: performance.now(), moved: 0 }; mapVel = 0; mapAnim = null; mapCv.setPointerCapture(e.pointerId); });
+mapCv.addEventListener("pointermove", e => {
+  if (!mapDrag) return; const d = mapDrag, tnow = performance.now();
+  d.moved = Math.max(d.moved, Math.abs(e.clientY - d.y0) + Math.abs(e.clientX - d.x0));
+  mapScroll = d.s0 - (e.clientY - d.y0);
+  const dtm = Math.max(1, tnow - d.lt); mapVel = mapVel * .5 + (-(e.clientY - d.ly) / dtm * 1000) * .5; d.ly = e.clientY; d.lt = tnow;
+});
+mapCv.addEventListener("pointerup", e => {
+  const d = mapDrag; mapDrag = null; if (!d) return;
+  if (performance.now() - d.lt > 120) mapVel = 0;
+  if (d.moved < 10) {
+    mapVel = 0; const G = mapGeom(), r = mapCv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top + mapScroll, p = stopPos(G, save.level);
+    if (Math.hypot(p.x - x, p.y - y) < G.r * 1.8) mapPlay();
+  }
+});
+mapCv.addEventListener("pointercancel", () => { mapDrag = null; });
+mapCv.addEventListener("wheel", e => { e.preventDefault(); mapAnim = null; mapVel = 0; mapScroll += e.deltaY; }, { passive: false });
+function mapPlay() { Snd.play("sfx_select"); hideMap(); startLevel(); }
+$("mapPlay").onclick = mapPlay;
+$("mapBack").onclick = () => { Snd.play("sfx_select"); hideMap(); if (mapFrom !== "menu") showMenu(); };
+window.addEventListener("resize", () => { if (!$("map").hidden) sizeMap(); });
 
 // ===================== layout =====================
 let W = 0, H = 0, DPR = 1, OX = 0, OY = 0;
@@ -1311,7 +1637,7 @@ function frame(t) {
   const dt = Math.min(.05, (t - (last || t)) / 1000); last = t; now = t;
   update(dt);
   // the backdrop only twinkles slowly, so on the level screen it is repainted every other frame
-  if (!$("menu").hidden) drawMenu(); else { if ((frameNo = (frameNo + 1) % 2) === 0 || bgKey === "") drawBackdrop(); draw(); }
+  if (!$("map").hidden) drawMap(); else if (!$("menu").hidden) drawMenu(); else { if ((frameNo = (frameNo + 1) % 2) === 0 || bgKey === "") drawBackdrop(); draw(); }
   requestAnimationFrame(frame);
 }
 
@@ -1689,9 +2015,9 @@ const firstTap = () => {
   if (!Snd.started || (save.music && Snd.musicEl && Snd.musicEl.paused)) { Snd.start(); if (save.music) Snd.setMusic(true); }
 };
 for (const ev of ["pointerup", "touchend", "click"]) document.addEventListener(ev, firstTap, { capture: true, passive: true });
-$("playBtn").onclick = () => { Snd.start(); startLevel(); };
+$("playBtn").onclick = () => { Snd.start(); Snd.play("sfx_select"); showMap("menu"); };
 $("dailyBtn").onclick = () => { Snd.start(); startDaily(); };
-$("nextBtn").onclick = () => { if (mode === "practice") return showMenu(); if (mode === "daily") return startLevel(); $("win").hidden = true; afterLevel(startLevel); };
+$("nextBtn").onclick = () => { if (mode === "practice") return showMenu(); if (mode === "daily") return startLevel(); $("win").hidden = true; afterLevel(() => mode === "level" && newChapterWaiting() ? showMap("win") : startLevel()); };
 // ===================== settings =====================
 $("settingsBtn").onclick = () => { Snd.start(); Snd.play("sfx_select"); refresh(); $("settings").hidden = false; };
 $("settingsDone").onclick = () => { Snd.play("sfx_select"); $("settings").hidden = true; };
