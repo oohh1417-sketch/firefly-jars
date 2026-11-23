@@ -348,7 +348,7 @@ svg.i { width: 1em; height: 1em; display: block; }
         <span class="txt"><b>Daily puzzle</b><span id="dailySub">A new puzzle every day</span></span>
         <span class="streak" id="dailyStreak" hidden></span>
       </button>
-      <div class="note"><span id="soundStatus">Tap anywhere to start the music</span> · Test build</div>
+      <div class="note"><span id="soundStatus">Tap anywhere to start the music</span> · Test build v0.16</div>
     </div>
   </div>
 </div>
@@ -702,9 +702,9 @@ function refresh() {
   $("chapterLabel").parentElement.classList.toggle("hard", hardNow() && !won);
   $("hardTint").classList.toggle("on", hardNow() && !won);
   const ml = $("movesLeft"), left = movesMax - moves;
-  ml.hidden = !movesMax || won;
-  ml.textContent = left === 1 ? "1 move left" : left + " moves left";
-  ml.classList.toggle("low", left <= 5 && left > 2); ml.classList.toggle("last", left <= 2);
+  ml.hidden = !hardNow() || won;
+  ml.textContent = !movesMax ? "…" : left === 1 ? "1 move left" : left + " moves left";
+  ml.classList.toggle("low", !!movesMax && left <= 5 && left > 2); ml.classList.toggle("last", !!movesMax && left <= 2);
   updateMenu(); refreshCoins(false); refreshStore();
   $("setMusic").checked = save.music; $("setSfx").checked = save.sfx; $("setVibrate").checked = save.vibrate; $("setCB").checked = save.colorBlind;
   Snd.updateStatus();
@@ -716,6 +716,17 @@ function startLevel() {
   Snd.start(); mode = "level";
   $("menu").hidden = true; $("win").hidden = true;
   hintPlan = null; startS = generate(save.level); moveLimit = moveLimitFor(save.level, startS); resetExtra(); loadState(copyS(startS), true); maybeTip();
+  if (isHard(save.level) && !moveLimit) {
+    // the move limit is still being worked out in small slices: the pill shows "…" until it is ready
+    const lv = save.level, st = startS;
+    prefetchLimit(lv, () => {
+      if (mode !== "level" || save.level !== lv || startS !== st || won) return;
+      const extraMoves = movesMax - moveLimit;
+      moveLimit = moveLimitFor(lv, st); movesMax = moveLimit + Math.max(0, extraMoves); refresh();
+      if (outOfMoves()) showOutOfMoves();
+    });
+  }
+  if (isHard(save.level + 1)) setTimeout(() => prefetchLimit(save.level + 1), 2500);   // get the next hard level ready while this one is played
   Analytics.log("level_start", { level: save.level, mode, hard: isHard(save.level) });
   if (isHard(save.level)) { $("hardBannerSub").textContent = `${moveLimit} moves. Win for +1 hint`; const b = $("hardBanner"); b.classList.remove("show"); void b.offsetWidth; b.classList.add("show"); later(250, () => Snd.play("sfx_unlock", .8)); }
 }
@@ -843,6 +854,7 @@ function drawMenu() {
   sky.addColorStop(0, "#050716"); sky.addColorStop(.55, "#101a44"); sky.addColorStop(.8, "#1c2b5e"); sky.addColorStop(1, "#0a1030");
   g.fillStyle = sky; g.fillRect(0, 0, MW, MH);
   for (const s of mStars) { const a = .25 + .55 * Math.abs(Math.sin(T * .6 * s[3] + s[2])); g.fillStyle = `rgba(255,250,230,${a})`; g.fillRect(s[0] * MW, s[1] * MH, s[3], s[3]); }
+  drawMeteors(g, T, MW, MH * .7, false, menuMeteors);
   // moon
   const mx = MW * .84, my = MH * .33, mr = Math.min(MW, MH) * .05;
   glow(g, mx, my, mr * 5, "#c9d8ff", .22); g.fillStyle = "#f4f1dc"; g.beginPath(); g.arc(mx, my, mr, 0, 6.283); g.fill();
@@ -935,7 +947,33 @@ function buildBg(T) {
   return c;
 }
 // Living sky: a shooting star every few seconds (more often in the Starfall sky), slow clouds, swaying grass.
-let meteors = [], nextMeteor = 0;
+const skyMeteors = { list: [], next: 0 }, menuMeteors = { list: [], next: 0 };
+// a bright streak with a glowing head and a long fading tail, then a little sparkle where it burns out
+function drawMeteors(g, t, W, H, often, st) {
+  if (!st.next) st.next = t + 1.2 + Math.random() * 1.5;
+  if (t > st.next) {
+    const left = Math.random() < .5, n = Math.random() < .2 ? 2 : 1;
+    for (let k = 0; k < n; k++) st.list.push({ t0: t + k * .3, x: W * (left ? .02 + Math.random() * .35 : .63 + Math.random() * .35), y: H * (.02 + Math.random() * .1),
+      dx: (left ? 1 : -1) * W * (.45 + Math.random() * .2), dy: H * (.05 + Math.random() * .06), dur: .9 + Math.random() * .4 });
+    st.next = t + (often ? 1 + Math.random() * 1.8 : 3 + Math.random() * 4);
+  }
+  st.list = st.list.filter(m => t - m.t0 < m.dur + .6);
+  for (const m of st.list) {
+    const u = (t - m.t0) / m.dur; if (u < 0) continue;
+    const e = Math.min(1, u), fade = u > 1 ? 1 - (u - 1) / .6 : Math.min(1, u * 6);
+    const hx = m.x + m.dx * e, hy = m.y + m.dy * e;
+    if (u <= 1) {
+      const tx = m.x + m.dx * Math.max(0, e - .4), ty = m.y + m.dy * Math.max(0, e - .4);
+      const gr = g.createLinearGradient(tx, ty, hx, hy); gr.addColorStop(0, "rgba(255,240,200,0)"); gr.addColorStop(.7, `rgba(255,245,215,${.55 * fade})`); gr.addColorStop(1, `rgba(255,255,245,${fade})`);
+      g.strokeStyle = gr; g.lineCap = "round"; g.lineWidth = 3.5; g.beginPath(); g.moveTo(tx, ty); g.lineTo(hx, hy); g.stroke();
+      glow(g, hx, hy, 26, "#fff3c0", .9 * fade); g.fillStyle = `rgba(255,255,250,${fade})`; g.beginPath(); g.arc(hx, hy, 2.6, 0, 6.283); g.fill();
+    } else {
+      glow(g, hx, hy, 22 + 30 * (u - 1), "#fff3c0", .6 * fade);
+      g.strokeStyle = `rgba(255,250,220,${.8 * fade})`; g.lineWidth = 1.5; const r = 4 + 10 * (u - 1);
+      g.beginPath(); g.moveTo(hx - r, hy); g.lineTo(hx + r, hy); g.moveTo(hx, hy - r); g.lineTo(hx, hy + r); g.stroke();
+    }
+  }
+}
 const clouds = Array.from({ length: 3 }, (_, i) => { const r = rng(i * 53 + 11); return { x: r(), y: .06 + r() * .22, s: .5 + r() * .7, v: .004 + r() * .006, w: .3 + r() * .25 }; });
 function skyLife(g, T, t) {
   // clouds: a few soft puffs drifting slowly sideways, sometimes across the moon
@@ -944,27 +982,7 @@ function skyLife(g, T, t) {
     const x = (((c.x + t * c.v) % 1.6) - .3) * BW, y = c.y * BH, w = c.w * BW;
     for (let k = 0; k < 5; k++) glow(g, x + (k - 2) * w * .22, y + Math.sin(k * 1.7) * w * .05, w * (.28 + (k % 2) * .08) * c.s, cc, .2);
   }
-  // shooting stars
-  const often = T.name === "starfall";
-  if (!nextMeteor) nextMeteor = t + 2 + Math.random() * 3;
-  if (t > nextMeteor) {
-    const left = Math.random() < .5, n = Math.random() < .15 ? 2 : 1;
-    for (let k = 0; k < n; k++) meteors.push({ t0: t + k * .25, x: BW * (left ? .05 + Math.random() * .4 : .55 + Math.random() * .4), y: BH * (.01 + Math.random() * .08),
-      dx: (left ? 1 : -1) * BW * (.4 + Math.random() * .2), dy: BH * (.04 + Math.random() * .05), dur: .8 + Math.random() * .5 });
-    nextMeteor = t + (often ? 1.2 + Math.random() * 2 : 4 + Math.random() * 6);
-  }
-  meteors = meteors.filter(m => t - m.t0 < m.dur + .5);
-  for (const m of meteors) {
-    const u = (t - m.t0) / m.dur; if (u < 0) continue;
-    const e = Math.min(1, u), fade = u > 1 ? 1 - (u - 1) / .5 : Math.min(1, u * 5);
-    const hx = m.x + m.dx * e, hy = m.y + m.dy * e, tail = .28;
-    const tx = m.x + m.dx * Math.max(0, e - tail), ty = m.y + m.dy * Math.max(0, e - tail);
-    if (u <= 1) {
-      const gr = g.createLinearGradient(tx, ty, hx, hy); gr.addColorStop(0, "rgba(255,255,255,0)"); gr.addColorStop(1, `rgba(255,250,225,${.85 * fade})`);
-      g.strokeStyle = gr; g.lineWidth = 2.2; g.lineCap = "round"; g.beginPath(); g.moveTo(tx, ty); g.lineTo(hx, hy); g.stroke();
-      glow(g, hx, hy, 14, "#fff6d0", .7 * fade);
-    } else glow(g, hx, hy, 18 * (1 + (u - 1)), "#fff6d0", .5 * fade);   // a soft puff where it burns out
-  }
+  drawMeteors(g, t, BW, BH, T.name === "starfall", skyMeteors);
   // grass and reeds along the bottom sway in the night breeze
   g.strokeStyle = T.hills[2]; g.lineWidth = 2;
   for (let i = 0; i < 60; i++) {
@@ -1554,6 +1572,11 @@ $("retryBtn").onclick = () => { $("outMoves").hidden = true; Snd.start(); loadSt
 // Fewest pours that solve the puzzle (A* search), as a list of moves. The estimate counts color changes
 // inside jars; one pour fixes at most one, so the answer is exact. null if not found within `limit` positions.
 function shortestPath(start, limit = 40000, weight = 1) {
+  const it = shortestPathSteps(start, limit, weight); let r; while (!(r = it.next()).done); return r.value;
+}
+// The same search as a generator that pauses every few hundred positions, so it can run in small
+// slices between frames (see prefetchLimit) instead of freezing the screen for up to a second.
+function* shortestPathSteps(start, limit = 40000, weight = 1) {
   const breaks = s => { let n = 0; for (const j of s.jars) for (let k = 1; k < j.length; k++) if (j[k] !== j[k - 1]) n++; return n; };
   const heap = [], best = new Map([[key(start), 0]]);
   const push = x => { heap.push(x); let i = heap.length - 1; while (i > 0) { const q = (i - 1) >> 1; if (heap[q][0] <= heap[i][0]) break; [heap[q], heap[i]] = [heap[i], heap[q]]; i = q; } };
@@ -1563,6 +1586,7 @@ function shortestPath(start, limit = 40000, weight = 1) {
     const [, d, s, path] = pop();
     if (solved(s)) return path;
     if (++nodes > limit) return null;
+    if ((nodes & 127) === 0) yield;
     if (best.get(key(s)) < d) continue;
     for (const [a, c] of moveList(s)) {
       const nx = copyS(s); pour(nx, a, c); const k = key(nx);
@@ -1576,15 +1600,32 @@ function shortestPath(start, limit = 40000, weight = 1) {
 // The search can take a few tenths of a second, so it is done ahead of time while the win card or menu
 // is showing (prefetchLimit), and the result is kept here.
 const limitCache = {};
-function prefetchLimit(lv) {
-  if (!isHard(lv) || limitCache[lv]) return;
-  const s = generate(lv), p = shortestPath(s) || solve(s);
-  limitCache[lv] = { key: key(s), path: p };
+let prefetching = null, limitWaiters = [];
+function prefetchLimit(lv, onDone) {
+  if (!isHard(lv)) return;
+  if (limitCache[lv]) { if (onDone) onDone(); return; }
+  if (onDone) limitWaiters.push([lv, onDone]);
+  if (prefetching === lv) return;
+  prefetching = lv;
+  const s = generate(lv), it = shortestPathSteps(s);
+  // about 6 ms of searching per slice, then the browser gets to draw a frame
+  const slice = () => {
+    if (prefetching !== lv) return;
+    const t0 = performance.now(); let r;
+    do { r = it.next(); } while (!r.done && performance.now() - t0 < 6);
+    if (!r.done) return setTimeout(slice, 0);
+    prefetching = null;
+    if (!limitCache[lv]) limitCache[lv] = { key: key(s), path: r.value || solve(s) };
+    const ready = limitWaiters.filter(w => w[0] === lv); limitWaiters = limitWaiters.filter(w => w[0] !== lv);
+    ready.forEach(w => w[1]());
+  };
+  setTimeout(slice, 0);
 }
 function moveLimitFor(lv, s) {
   if (!isHard(lv)) return 0;
   const c = limitCache[lv];
-  const p = c && c.key === key(s) ? c.path : shortestPath(s) || solve(s), best = p ? p.length : 60;
+  if (!c || c.key !== key(s)) return 0;   // not ready yet: startLevel waits for the sliced search
+  const p = c.path, best = p ? p.length : 60;
   if (p) hintPlan = planFrom(s, p);   // hints on this level follow the shortest route
   return best + Math.max(5, Math.ceil(best * .35));
 }
