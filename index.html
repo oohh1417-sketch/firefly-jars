@@ -1197,27 +1197,33 @@ const tutTarget = () => { if (tut && tut.key !== key(S)) tutNext(); return tut &
 function tutDraw() {
   if (tut && !winMode) tutTarget();
   if (!tut || !tut.step) return;
-  const lifted = selected === tut.step[0];
-  const msg = lifted ? (tut.pours ? "Drag them to the glowing jar, or tap it" : "Now tap this jar to pour them in") : tut.pours ? "Again! Tap this jar" : "Tap this jar to pick up the top fireflies";
+  const lifted = selected === tut.step[0], dragLesson = tut.pours >= 1;   // the 2nd guided pour teaches dragging
+  const msg = dragLesson ? (lifted ? "Drag them to the glowing jar, or tap it" : "Now try dragging: hold this jar and slide to the glowing one")
+    : lifted ? "Now tap this jar to pour them in" : "Tap this jar to pick up the top fireflies";
   if (msg !== tut.msg) { tut.msg = msg; clearTimeout(infoTimer); $("info").textContent = msg; $("info").classList.add("tut"); }
   if (now < busyUntil) return;
+  if (dragLesson && !dragging()) { tutDragDemo(lifted); return; }
   const r = rects[tutTarget()]; if (!r) return;
-  if (lifted && tut.pours && !dragging()) { tutDragDemo(r); return; }
   const fade = Math.min(1, (now - Math.max(busyUntil, tut.since) - 250) / 300); if (fade <= 0) return;
   const cyc = (now % 1300) / 1300, press = cyc < .5 ? Math.sin(cyc / .5 * Math.PI) : 0;   // tap... pause... tap
   const wig = now - tut.nudge < 400 ? Math.sin((now - tut.nudge) / 25) * 6 : 0;          // shakes when the wrong jar is tapped
   paintHand(ctx, r.x + r.w * .58 + wig, r.y + r.h * .55 + press * r.w * .12, r.w * 1.05, press, fade);
 }
-// Second guided pour: the hand grabs the lifted fireflies and drags a ghost firefly into the target jar.
-function tutDragDemo(r) {
-  const from = hoverPos(tut.step[0], 0, 1), R = radius(), col = COLORS[topOf(S.jars[tut.step[0]])];
-  const fx = from[0], fy = from[1] + R * 1.6, tx = r.x + r.w / 2, ty = r.y + r.h * .45;
-  const c = (now % 2000) / 2000, e = c < .2 ? 0 : c > .75 ? 1 : (c - .2) / .55, u = e * e * (3 - 2 * e);
-  const x = fx + (tx - fx) * u, y = fy + (ty - fy) * u - Math.sin(u * Math.PI) * R * 2;
-  const fade = c > .88 ? 1 - (c - .88) / .12 : Math.min(1, c / .08);
-  glow(ctx, tx, ty, r.w * 1.1, col, .4 * fade);
-  if (c > .2 && c < .88) { glow(ctx, x, y - R * 1.6, R * 2.2, col, .7 * fade); paintFly(ctx, x, y - R * 1.6, R * .8, topOf(S.jars[tut.step[0]]), now / 40, true, true, 999); }
-  paintHand(ctx, x + R * .3, y, r.w * 1.05, c < .2 ? Math.sin(c / .2 * Math.PI) * .6 : 0, fade);
+// Second guided pour: the hand presses the jar, carries its top fireflies along a glowing trail and drops them in.
+function tutDragDemo(lifted) {
+  const a = tut.step[0], rs = rects[a], r = rects[tut.step[1]]; if (!rs || !r) return;
+  const R = radius(), ci = topOf(S.jars[a]), col = COLORS[ci], n = Math.max(1, topRun(S.jars[a]));
+  const fx = rs.x + rs.w / 2, fy = lifted ? hoverPos(a, 0, 1)[1] + R * 1.6 : rs.y + rs.h * .45, tx = r.x + r.w / 2, ty = r.y + r.h * .45;
+  const T = 2600, c = (now % T) / T;   // press 0-.15, carry .15-.7, drop .7-.85, pause
+  const posAt = cc => { const e = cc < .15 ? 0 : cc > .7 ? 1 : (cc - .15) / .55, u = e * e * (3 - 2 * e); return [fx + (tx - fx) * u, fy + (ty - fy) * u - Math.sin(u * Math.PI) * R * 2.6, u]; };
+  const [x, y] = posAt(c), fade = c > .85 ? Math.max(0, 1 - (c - .85) / .1) : Math.min(1, c / .06);
+  glow(ctx, tx, ty, r.w * 1.15, col, (.25 + .25 * Math.sin(now / 150)) * fade);   // the jar to drop into glows
+  if (c > .15 && c < .85) {
+    for (let k = 1; k <= 10; k++) { const [px, py] = posAt(c - k * .012); glow(ctx, px, py - R * 1.6, R * (1.2 - k * .08), col, (.45 - k * .04) * fade); }   // glowing trail
+    for (let k = n - 1; k >= 0; k--) { const [px, py] = posAt(c - k * .03); glow(ctx, px, py - R * 1.6, R * 2.2, col, .6 * fade); paintFly(ctx, px, py - R * 1.6, R * .85, ci, now / 40 + k, true, true, 990 + k); }
+  }
+  const press = c < .15 ? Math.min(1, c / .08) * .7 : c > .7 && c < .8 ? .7 * (1 - (c - .7) / .1) : c < .7 ? .7 : 0;
+  paintHand(ctx, x + R * .3, y, rs.w * 1.05, press, fade);
 }
 // A cartoon pointing hand drawn in code; the fingertip is at (x, y).
 function paintHand(g, x, y, s, press, alpha) {
