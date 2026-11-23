@@ -391,7 +391,7 @@ svg.i { width: 1em; height: 1em; display: block; }
         <span class="txt"><b>Daily puzzle</b><span id="dailySub">A new puzzle every day</span></span>
         <span class="streak" id="dailyStreak" hidden></span>
       </button>
-      <div class="note"><span id="soundStatus">Tap anywhere to start the music</span> · Test build v0.21</div>
+      <div class="note"><span id="soundStatus">Tap anywhere to start the music</span> · Test build v0.22</div>
     </div>
   </div>
 </div>
@@ -686,45 +686,53 @@ const Snd = {
   // must run inside a tap: iPhones only allow sound to start from a user gesture
   start() {
     try { if (navigator.audioSession) navigator.audioSession.type = "playback"; } catch (e) {}
-    // music plays through a normal media element, which iPhones treat like music or video
-    if (!this.musicEl) {
-      this.musicEl = new window.Audio(SOUND_DATA.music);
-      this.musicEl.loop = true; this.musicEl.preload = "auto"; this.musicEl.setAttribute("playsinline", "");
-      this.musicEl.volume = 0.6;
-    }
+    this.prepare();
     if (save.music && this.musicEl.paused) {
       const pr = this.musicEl.play();
       if (pr && pr.then) pr.then(() => { this.musicState = "playing"; this.updateStatus(); })
         .catch(e => { this.musicState = "blocked"; this.err = e.name; this.updateStatus(); });
     }
-    // effects: media elements too, unlocked during this tap (each one has to be)
+    // effects: Web Audio, unlocked during this tap. The sound files are decoded a little later, one at a
+    // time, so the tap itself stays light and the menu opens smoothly.
     if (!this.started) {
       this.started = true;
-      for (const n of SFX_NAMES) {
-        this.pools[n] = [0, 1, 2].map(() => { const el = new window.Audio(SOUND_DATA[n]); el.preload = "auto"; el.setAttribute("playsinline", ""); return el; });
-        for (const el of this.pools[n]) {
-          el.muted = true;
-          const pr = el.play();
-          const done = () => { el.pause(); el.currentTime = 0; el.muted = false; };
-          if (pr && pr.then) pr.then(done).catch(done); else done();
-        }
-      }
-      // Web Audio as well, for snappier effects where it works
       try {
         const AC = window.AudioContext || window.webkitAudioContext;
         if (AC) {
           this.ctx = new AC(); this.ctx.resume().catch(() => {});
           const b = this.ctx.createBuffer(1, 1, 22050), s0 = this.ctx.createBufferSource(); s0.buffer = b; s0.connect(this.ctx.destination); s0.start(0);
           this.ctx.onstatechange = () => this.updateStatus();
-          for (const n of SFX_NAMES) {
-            const bin = atob(SOUND_DATA[n].split(",")[1]), arr = new Uint8Array(bin.length);
-            for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
-            this.ctx.decodeAudioData(arr.buffer, buf => { this.buffers[n] = buf; this.updateStatus(); }, () => {});
-          }
+          SFX_NAMES.forEach((n, k) => setTimeout(() => {
+            const dec = ab => this.ctx.decodeAudioData(ab, buf => { this.buffers[n] = buf; this.updateStatus(); }, () => {});
+            const slow = () => { try { const bin = atob(SOUND_DATA[n].split(",")[1]), arr = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i); dec(arr.buffer); } catch (e) {} };
+            try { fetch(SOUND_DATA[n]).then(r => r.arrayBuffer()).then(dec, slow); } catch (e) { slow(); }
+          }, 700 + k * 60));
         }
       } catch (e) { this.ctx = null; }
+      // no Web Audio: fall back to media elements (each must be unlocked inside a tap)
+      if (!this.ctx) this.unlockPools();
     } else if (this.ctx && this.ctx.state !== "running") this.ctx.resume().catch(() => {});
     this.updateStatus();
+  },
+  // music plays through a normal media element, which iPhones treat like music or video.
+  // It is made while the loading screen is up, so the tap only has to press play.
+  prepare() {
+    if (this.musicEl) return;
+    this.musicEl = new window.Audio(SOUND_DATA.music);
+    this.musicEl.loop = true; this.musicEl.preload = "auto"; this.musicEl.setAttribute("playsinline", "");
+    this.musicEl.volume = 0.6;
+  },
+  unlockPools() {
+    if (this.poolsMade) return; this.poolsMade = true;
+    for (const n of SFX_NAMES) {
+      this.pools[n] = [0, 1].map(() => { const el = new window.Audio(SOUND_DATA[n]); el.preload = "auto"; el.setAttribute("playsinline", ""); return el; });
+      for (const el of this.pools[n]) {
+        el.muted = true;
+        const pr = el.play();
+        const done = () => { el.pause(); el.currentTime = 0; el.muted = false; };
+        if (pr && pr.then) pr.then(done).catch(done); else done();
+      }
+    }
   },
   play(name, rate = 1, vol = 1) {
     if (!save.sfx) return;
@@ -755,6 +763,9 @@ const Snd = {
     if (btn) { const ok = this.started && (!save.music || this.musicState === "playing"); btn.innerHTML = ICONS[ok ? "sound" : "soundOff"]; btn.classList.toggle("pulse", !ok); }
   },
 };
+document.addEventListener("pointerdown", () => {
+  if (Snd.started && !Snd.poolsMade && (!Snd.ctx || Snd.ctx.state !== "running")) { if (Snd.ctx) Snd.ctx.resume().catch(() => {}); Snd.unlockPools(); }
+}, true);
 document.addEventListener("visibilitychange", () => {
   if (!Snd.musicEl) return;
   if (document.hidden) Snd.musicEl.pause(); else if (save.music) Snd.musicEl.play().catch(() => {});
@@ -2603,7 +2614,7 @@ requestAnimationFrame(frame);
     paintJarFront(g, r, St, 0, R);
     if (n >= 4 && fontsOk) { if (!ready) { ready = true; readyAt = t; } paintCap(g, r, t - readyAt); }
     if (ready && t - readyAt > CAP_TOTAL + 200 && !el.dataset.tap) {
-      el.dataset.tap = "1"; $("bootStatus").textContent = "Tap to play"; $("bootStatus").classList.add("ready"); el.style.pointerEvents = "auto";
+      el.dataset.tap = "1"; try { Snd.prepare(); } catch (e) {} $("bootStatus").textContent = "Tap to play"; $("bootStatus").classList.add("ready"); el.style.pointerEvents = "auto";
     }
     requestAnimationFrame(draw);
   }
@@ -2611,8 +2622,8 @@ requestAnimationFrame(frame);
   el.addEventListener("click", () => {
     if (!el.dataset.tap || done) return;
     Snd.start(); if (save.music) Snd.setMusic(true); Snd.play("sfx_select");
-    el.classList.add("gone"); showMenu();
-    setTimeout(() => { done = true; el.remove(); }, 550);
+    done = true; el.classList.add("gone"); showMenu();
+    setTimeout(() => el.remove(), 550);
   });
 })();
 </script>
