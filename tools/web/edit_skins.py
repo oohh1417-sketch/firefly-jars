@@ -318,3 +318,23 @@ rep('''  if (save.livesAt > Date.now()) save.livesAt = Date.now();''', '''  if (
 rep('''.chapter-name b { display: inline; margin-left: 6px; font-size: 17px; }''', '''.chapter-name b { display: inline; margin-inline-start: 6px; font-size: 17px; }''')
 open(p, "w", encoding="utf-8").write(s)
 print("stress fixes ok")
+
+# ---- v0.29: the finger that opens a popup must not press its buttons when lifted ----
+# (tapping the cracked jar opened "Mend the jar?" and the release landed on "Not now")
+s = open(p, encoding="utf-8").read()
+rep('''// keep the Skins button just above the Play card''', '''// A popup opened by a press ignores the click from that same press (the finger lifting off).
+// Only a fresh press after the popup is on screen can use its buttons.
+let lastPress = 0;
+document.addEventListener("pointerdown", () => { lastPress = performance.now(); }, true);
+document.querySelectorAll(".overlay").forEach(o => {
+  o._shownAt = o.hidden ? 0 : performance.now();
+  new MutationObserver(() => { if (!o.hidden) o._shownAt = performance.now(); }).observe(o, { attributes: true, attributeFilter: ["hidden"] });
+});
+document.addEventListener("click", e => {
+  if (e.detail === 0) return;   // keyboard
+  const o = e.target.closest && e.target.closest(".overlay");
+  if (o && o._shownAt > lastPress) { e.stopPropagation(); e.preventDefault(); }
+}, true);
+// keep the Skins button just above the Play card''')
+open(p, "w", encoding="utf-8").write(s)
+print("popup guard ok")
