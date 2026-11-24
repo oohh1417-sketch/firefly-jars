@@ -532,7 +532,7 @@ func _build_menu() -> void:
 	gear.pressed.connect(_show_settings)
 
 	# logo: "Firefly" in glowing gold, "JARS" spaced out in a glass pill
-	var logo := _label("Firefly", 170, GOLD, LOGO_FONT)
+	var logo := _label("Firefly", 124, GOLD, LOGO_FONT)   # small enough to stay clear of the side buttons on the right
 	logo.set_anchors_preset(Control.PRESET_TOP_WIDE)
 	logo.offset_top = 150
 	logo.offset_bottom = 340
@@ -998,6 +998,8 @@ func _side_btn(icon_name: String, text: String) -> Button:
 		var txt: String = str(b.get_meta("label", tr(text)))
 		var tw := UI_FONT_HEAVY.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 		var pill := Rect2(c.x - tw * 0.5 - 14, 98, tw + 28, 38)
+		# a long label (like "Ohne Werbung") slides inward so it stays on screen (buttons sit 24 px from the edge)
+		pill.position.x = maxf(pill.position.x, -20.0) if b.get_meta("left", false) else minf(pill.position.x, b.size.x + 20.0 - pill.size.x)
 		var sb := StyleBoxFlat.new()
 		sb.bg_color = Color(0.04, 0.055, 0.14, 0.9)
 		sb.border_color = Color(1.0, 0.85, 0.23, 0.45)
@@ -1041,6 +1043,7 @@ func _build_side() -> void:
 	# the skins shop sits on the left, under the moon, where the right column has no room left
 	side_skins = _side_btn("skins", "Skins")
 	side_skins.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	side_skins.set_meta("left", true)
 	side_skins.position = Vector2(24, 520)
 	side_skins.pressed.connect(_show_skins)
 	menu_layer.add_child(side_skins)
@@ -1056,8 +1059,8 @@ func _refresh_side() -> void:
 	side_streak.queue_redraw()
 
 ## The biggest font size (up to fs) at which the text fits in max_w.
-func _fit_fs(text: String, fs: int, max_w: float) -> int:
-	var w := UI_FONT_HEAVY.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+func _fit_fs(text: String, fs: int, max_w: float, font: Font = null) -> int:
+	var w := (font if font else UI_FONT_HEAVY).get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 	return fs if w <= max_w else maxi(12, int(fs * max_w / w))
 
 static func _gift_label(g: Dictionary) -> String:
@@ -1325,6 +1328,9 @@ func _show_hard_banner() -> void:
 	_banner_title.text = Puzzle.tier_name(Save.level) + " level"   # an English key: the label translates it
 	var prize := COIN_EXTREME if ext else COIN_HARD
 	_banner_sub.text = I18n.t("{0} moves. Win for {1} coins + 1 hint", [move_limit, prize]) if move_limit > 0 else I18n.t("Limited moves. Win for {0} coins + 1 hint", [prize])
+	# a long name ("Сложный уровень") gets a smaller size so the banner never reaches the screen edges
+	_banner_title.add_theme_font_size_override("font_size", _fit_fs(tr(_banner_title.text), 68, 540, LOGO_FONT))
+	_banner_sub.add_theme_font_size_override("font_size", _fit_fs(_banner_sub.text, 28, 540))
 	_banner_sb.bg_color = Color("#c4261a") if ext else Color("#b02a8e")
 	_banner_sb.border_color = Color(1.0, 0.8, 0.68, 0.9) if ext else Color(1.0, 0.75, 0.9, 0.85)
 	_banner_sb.shadow_color = Color(1.0, 0.24, 0.12, 0.55) if ext else Color(1.0, 0.24, 0.63, 0.5)
@@ -1465,6 +1471,10 @@ func _refresh() -> void:
 	daily_sub.text = I18n.t("Solved! Next puzzle in {0}", [_until_midnight()]) if done_today else tr("A new puzzle every day")
 	daily_streak.text = str(Save.streak) if alive and Save.streak > 0 else ""
 	daily_streak.get_parent().get_child(daily_streak.get_index() - 1).visible = daily_streak.text != ""
+	# long translations ("Gelöst! Nächstes in 12 Std. 7 Min.") shrink to fit, so the flame and count stay inside the row
+	var text_w := 528.0 - 84.0 - 24.0 * 3 - (96.0 if daily_streak.text != "" else 0.0)
+	daily_title.add_theme_font_size_override("font_size", _fit_fs(tr(daily_title.text), 40, text_w))
+	daily_sub.add_theme_font_size_override("font_size", _fit_fs(daily_sub.text, 26, text_w))
 	daily_icon.queue_redraw()
 
 func _until_midnight() -> String:
@@ -2795,6 +2805,7 @@ func _refresh_skins() -> void:
 			b.add_theme_stylebox_override(st, sb)
 		b.add_theme_color_override("font_color", Color("#3a2205") if on else Color.WHITE)
 		b.add_theme_color_override("font_hover_color", Color("#3a2205") if on else Color.WHITE)
+		b.add_theme_font_size_override("font_size", _fit_fs(tr(b.text), 32, 180))   # "Glühwürmchen" stays on one line
 	for t in skins_grid.get_children():
 		t.queue_redraw()
 	# the button under the tiles: buy the picked skin, or a short note
@@ -2807,6 +2818,8 @@ func _refresh_skins() -> void:
 		skins_action.text = tr("Tap a look to choose it") if it == null else tr("You're using it now")
 	else:
 		_set_coin_btn(skins_action, int(it[2]), "Buy for {0}")
+	# one line in every language, so the card never grows past the bottom of the screen
+	skins_action.add_theme_font_size_override("font_size", _fit_fs(skins_action.text, 34, 490))
 
 func _skins_action() -> void:
 	for it in _skin_list():
