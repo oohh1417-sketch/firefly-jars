@@ -141,9 +141,20 @@ var _toast_queue: Array = []
 var _toast_busy := false
 var moves_coin_btn: Button
 var remove_ads_btn: Button
+var skins_layer: Control
+var skins_tab := "jar"
+var skins_pick := ""
+var skins_grid: GridContainer
+var skins_tabs := {}
+var skins_coins: Label
+var skins_action: Button
+var side_skins: Button
+var privacy_choices_btn: Button
 var _extra_token := 0
 
 func _ready() -> void:
+	Art.jar_skin = Save.jar_skin
+	Art.fly_skin = Save.fly_skin
 	theme = _make_theme()
 	_build_game_ui()
 	_build_menu()
@@ -158,6 +169,11 @@ func _ready() -> void:
 		_refresh_side())
 	Store.restore_done.connect(func(found: bool): _top_toast("Restore purchases", "Remove ads is active" if found else "No purchases found", false); _refresh_store())
 	Store.test_store_requested.connect(_show_test_store)
+	Store.coins_bought.connect(func(n: int):
+		_add_coins(n, "purchase")
+		Sound.play("jar_done")
+		_top_toast("Thank you!", I18n.t("+{0} coins", [n]), false)
+		_refresh_skins())
 	Services.changed.connect(_refresh)
 	I18n.changed.connect(_on_language_changed)
 	_build_offer()
@@ -202,6 +218,11 @@ func _process(delta: float) -> void:
 			side_gift.queue_redraw()
 	if side_streak and menu_layer.visible and Save.skill > 0:
 		side_streak.queue_redraw()
+	if side_skins and menu_layer.visible:
+		side_skins.queue_redraw()
+	if skins_layer and skins_layer.visible:
+		for t in skins_grid.get_children():
+			t.queue_redraw()
 	_clock += delta
 	if _clock > 20.0 and menu_layer.visible:
 		_clock = 0.0
@@ -488,7 +509,7 @@ func _build_menu() -> void:
 	coin_chip = _icon_btn("coin", Vector2(28 + 124 + 10, 48), Vector2(150, 84))
 	coin_chip.round_shape = false
 	coin_chip.label = "0"
-	coin_chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	coin_chip.pressed.connect(_show_skins)
 	menu_layer.add_child(coin_chip)
 	lives_chip = _lives_chip(Vector2(28 + 124 + 10 + 150 + 10, 48))
 	menu_layer.add_child(lives_chip)
@@ -1017,6 +1038,12 @@ func _build_side() -> void:
 		Sound.play("select")
 		_show_tip("streak"))
 	col.add_child(side_streak)
+	# the skins shop sits on the left, under the moon, where the right column has no room left
+	side_skins = _side_btn("skins", "Skins")
+	side_skins.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	side_skins.position = Vector2(24, 520)
+	side_skins.pressed.connect(_show_skins)
+	menu_layer.add_child(side_skins)
 
 func _refresh_side() -> void:
 	if side_noads == null:
@@ -1660,6 +1687,9 @@ func _on_win() -> void:
 	if won:
 		return
 	won = true
+	# a happy double tap on the phone
+	Save.buzz(40)
+	get_tree().create_timer(0.18).timeout.connect(func(): Save.buzz(70))
 	var round_id := _round
 	var title := "All glowing!"
 	var text := I18n.t("Solved in {0} moves", [moves])
@@ -2012,7 +2042,11 @@ func _show_settings() -> void:
 			settings_layer.hide()
 			_start_practice())
 		var priv_btn := _ghost_btn("Privacy policy", _show_privacy)
-		for b in [tut_btn, priv_btn]:
+		# Europe and the UK: players can change their ads choice at any time
+		privacy_choices_btn = _ghost_btn("Privacy choices", func():
+			Sound.play("select")
+			Ads.show_privacy_options())
+		for b in [tut_btn, priv_btn, privacy_choices_btn]:
 			b.custom_minimum_size = Vector2(0, 84)
 			b.add_theme_font_size_override("font_size", 32)
 			box.add_child(b)
@@ -2031,6 +2065,7 @@ func _show_settings() -> void:
 		_switches[k].text = "ON" if v else "OFF"
 	_refresh_store()
 	_refresh_lang_btn()
+	privacy_choices_btn.visible = Ads.privacy_options_required()
 	move_child(settings_layer, -1)
 	settings_layer.show()
 
@@ -2405,29 +2440,44 @@ func _refresh_store() -> void:
 		remove_ads_btn.text = tr("Ads removed ✓") if Save.ads_removed else I18n.t("Remove ads · {0}", [Store.price_text])
 		remove_ads_btn.disabled = Save.ads_removed
 
-func _show_test_store() -> void:
+var _test_title: Label
+var _test_text: Label
+var _test_buy: Button
+
+func _show_test_store(product: String) -> void:
 	if store_layer == null:
 		store_layer = _overlay()
 		var box := _card(store_layer, 620)
 		box.add_child(_label("TEST STORE", 24, Color("#3a2400"), _spaced(UI_FONT_HEAVY, 4)))
 		box.get_child(0).add_theme_color_override("font_color", GOLD)
-		box.add_child(_label("Remove ads", 60, GOLD, LOGO_FONT))
-		var t := _label(tr("No more ads between levels, forever. Videos you choose to watch for rewards stay available.") + "\n\n" + tr("In the real game, the App Store or Google Play asks you to confirm. No money is charged in this test version."), 28, INK)
-		t.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		t.custom_minimum_size = Vector2(520, 0)
-		box.add_child(t)
-		var buy := Button.new()
-		buy.text = I18n.t("Buy for {0}", [Store.price_text])
-		buy.custom_minimum_size = Vector2(0, 110)
-		buy.add_theme_font_size_override("font_size", 42)
-		buy.pressed.connect(func():
+		_test_title = _label("", 60, GOLD, LOGO_FONT)
+		box.add_child(_test_title)
+		_test_text = _label("", 28, INK)
+		_test_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_test_text.custom_minimum_size = Vector2(520, 0)
+		box.add_child(_test_text)
+		_test_buy = Button.new()
+		_test_buy.custom_minimum_size = Vector2(0, 110)
+		_test_buy.add_theme_font_size_override("font_size", 42)
+		_test_buy.pressed.connect(func():
 			store_layer.hide()
 			Sound.play("jar_done")
 			Store.confirm_test_purchase())
-		box.add_child(buy)
+		box.add_child(_test_buy)
 		box.add_child(_ghost_btn("Cancel", func():
 			Sound.play("drop")
 			store_layer.hide()))
+	var note := tr("In the real game, the App Store or Google Play asks you to confirm. No money is charged in this test version.")
+	if product == Store.PRODUCT_ID:
+		_test_title.text = tr("Remove ads")
+		_test_text.text = tr("No more ads between levels, forever. Videos you choose to watch for rewards stay available.") + "\n\n" + note
+		_test_buy.text = I18n.t("Buy for {0}", [Store.price_text])
+	else:
+		for pk in Store.COIN_PACKS:
+			if pk[0] == product:
+				_test_title.text = I18n.t("{0} coins", [pk[1]])
+				_test_text.text = note
+		_test_buy.text = I18n.t("Buy for {0}", [Store.pack_price(product)])
 	move_child(store_layer, -1)
 	store_layer.show()
 
@@ -2480,7 +2530,7 @@ func _next_top_toast() -> void:
 		return
 	_toast_busy = true
 	var t: Array = _toast_queue.pop_front()
-	top_toast_kind.text = str(t[0]).to_upper()
+	top_toast_kind.text = I18n.up(tr(str(t[0])))
 	top_toast_text.text = t[1]
 	if t[2]:
 		Sound.play("hint", 1.1)
@@ -2569,3 +2619,215 @@ func _exit_tree() -> void:
 			WorkerThreadPool.wait_for_task_completion(t)
 	_limit_task = -1
 	_prefetch_task = -1
+
+
+# ---------- skins shop: new looks for the jars and the fireflies, paid with coins ----------
+
+func _skin_list() -> Array:
+	return Art.SKINS[skins_tab]
+
+func _skin_owned(kind: String, id: String) -> bool:
+	return id == "classic" or Save.skins.has(kind + "_" + id)
+
+func _skin_in_use(kind: String, id: String) -> bool:
+	return (Save.jar_skin if kind == "jar" else Save.fly_skin) == id
+
+func _show_skins() -> void:
+	Sound.play("select")
+	if skins_layer == null:
+		skins_layer = _overlay()
+		var box := _card(skins_layer, 660)
+		box.add_theme_constant_override("separation", 16)
+		var crow := HBoxContainer.new()
+		crow.add_theme_constant_override("separation", 10)
+		var title := _label("Skins", 60, GOLD, LOGO_FONT, HORIZONTAL_ALIGNMENT_LEFT)
+		title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		crow.add_child(title)
+		crow.add_child(_coin_icon(40))
+		skins_coins = _label("0", 38, Color("#ffe8a3"), UI_FONT_HEAVY)
+		crow.add_child(skins_coins)
+		box.add_child(crow)
+		var tabs := HBoxContainer.new()
+		tabs.add_theme_constant_override("separation", 14)
+		for k in ["jar", "fly"]:
+			var b := _ghost_btn("Jars" if k == "jar" else "Fireflies", func():
+				Sound.play("select")
+				skins_tab = k
+				skins_pick = ""
+				_refresh_skins())
+			b.custom_minimum_size = Vector2(0, 76)
+			b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			b.add_theme_font_size_override("font_size", 32)
+			skins_tabs[k] = b
+			tabs.add_child(b)
+		box.add_child(tabs)
+		skins_grid = GridContainer.new()
+		skins_grid.columns = 3
+		skins_grid.add_theme_constant_override("h_separation", 14)
+		skins_grid.add_theme_constant_override("v_separation", 14)
+		for n in 5:
+			skins_grid.add_child(_skin_tile(n))
+		box.add_child(skins_grid)
+		skins_action = _coin_btn("")
+		skins_action.pressed.connect(_skins_action)
+		box.add_child(skins_action)
+		box.add_child(_label("Get more coins", 28, MUTED, UI_FONT_HEAVY))
+		var packs := HBoxContainer.new()
+		packs.add_theme_constant_override("separation", 14)
+		for n in Store.COIN_PACKS.size():
+			packs.add_child(_pack_btn(n))
+		box.add_child(packs)
+		var done := Button.new()
+		done.text = "Done"
+		done.custom_minimum_size = Vector2(0, 92)
+		done.add_theme_font_size_override("font_size", 40)
+		done.pressed.connect(func():
+			Sound.play("select")
+			skins_layer.hide())
+		box.add_child(done)
+	skins_pick = ""
+	_refresh_skins()
+	move_child(skins_layer, -1)
+	skins_layer.show()
+
+## One tile: a live preview, the skin's name, and its price or "In use".
+func _skin_tile(n: int) -> Button:
+	var b := Button.new()
+	b.flat = true
+	b.focus_mode = Control.FOCUS_NONE
+	b.custom_minimum_size = Vector2(176, 232)
+	for st in ["normal", "hover", "pressed", "disabled", "focus", "hover_pressed"]:
+		b.add_theme_stylebox_override(st, StyleBoxEmpty.new())
+	b.pressed.connect(func():
+		var it: Array = _skin_list()[n]
+		Sound.play("select")
+		if _skin_owned(skins_tab, it[0]):
+			_use_skin(skins_tab, it[0])
+		skins_pick = it[0]
+		_refresh_skins())
+	b.draw.connect(func():
+		var it: Array = _skin_list()[n]
+		var id: String = it[0]
+		var owned := _skin_owned(skins_tab, id)
+		var using := _skin_in_use(skins_tab, id)
+		var picked := skins_pick == id
+		var sb := _glass(26, 0.5)
+		sb.bg_color = Color(1.0, 0.85, 0.23, 0.12) if using or picked else Color(0.12, 0.15, 0.36, 0.55)
+		sb.border_color = Color(1.0, 0.85, 0.23, 0.9) if using or picked else Color(0.6, 0.7, 1.0, 0.25)
+		sb.set_border_width_all(4 if using or picked else 2)
+		b.draw_style_box(sb, Rect2(Vector2.ZERO, b.size))
+		var t := Time.get_ticks_msec() / 1000.0
+		var cx := b.size.x * 0.5
+		if skins_tab == "jar":
+			var r := Rect2(cx - 40, 26, 80, 124)
+			Art.jar_back(b, r, null, id)
+			for k in 2:
+				var p := Vector2(cx + (-14 if k == 0 else 14), 118 - k * 34 + sin(t * 2.0 + k) * 2.0)
+				Art.fly(b, p, 14, Art.COLORS[[0, 2][k]], t * 9.0 + k, true, false, k * 3.0, t)
+			Art.jar_front(b, r, Art.jar_line(id), 3.0, id)
+		else:
+			var p := Vector2(cx, 96 + sin(t * 2.2 + n) * 5.0)
+			Art.glow(b, p, 70, Art.COLORS[(n * 3) % 10], 0.25)
+			Art.fly(b, p, 30, Art.COLORS[(n * 3) % 10], t * 9.0 + n, true, true, n * 2.0, t, id)
+		var name := tr(it[1])
+		var fs := _fit_fs(name, 26, b.size.x - 16)
+		var nw := UI_FONT_HEAVY.get_string_size(name, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+		b.draw_string(UI_FONT_HEAVY, Vector2(cx - nw * 0.5, 180), name, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, INK)
+		var st := ""
+		var col := MUTED
+		if using:
+			st = tr("In use")
+			col = GOLD
+		elif owned:
+			st = tr("Owned")
+		else:
+			st = str(it[2])
+			col = Color("#ffe8a3") if Save.coins >= int(it[2]) else MUTED
+		var sfs := _fit_fs(st, 26, b.size.x - 60)
+		var sw := UI_FONT_HEAVY.get_string_size(st, HORIZONTAL_ALIGNMENT_LEFT, -1, sfs).x
+		var x0 := cx - sw * 0.5
+		if not owned:
+			x0 += 16
+			Art.icon(b, "coin", Vector2(x0 - 20, 208), 28, Color.WHITE)
+		elif using:
+			x0 += 14
+			Art.icon(b, "check", Vector2(x0 - 20, 208), 26, GOLD)
+		b.draw_string(UI_FONT_HEAVY, Vector2(x0, 218), st, HORIZONTAL_ALIGNMENT_LEFT, -1, sfs, col))
+	return b
+
+## A coin pack for real money: a little pile of coins, how many, and the price.
+func _pack_btn(n: int) -> Button:
+	var pk: Array = Store.COIN_PACKS[n]
+	var b := Button.new()
+	b.focus_mode = Control.FOCUS_NONE
+	b.custom_minimum_size = Vector2(0, 132)
+	b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var sb := _glass(26, 0.5)
+	sb.bg_color = Color(1.0, 0.78, 0.24, 0.12)
+	sb.border_color = Color(1.0, 0.78, 0.24, 0.6)
+	for st in ["normal", "hover", "pressed", "focus"]:
+		b.add_theme_stylebox_override(st, sb)
+	b.pressed.connect(func():
+		Sound.play("select")
+		Store.buy_coins(pk[0]))
+	b.draw.connect(func():
+		var cx := b.size.x * 0.5
+		for k in n + 1:
+			Art.icon(b, "coin", Vector2(cx - n * 12 + k * 24, 34 - (k % 2) * 6), 40, Color.WHITE)
+		var amt := str(pk[1])
+		var aw := UI_FONT_HEAVY.get_string_size(amt, HORIZONTAL_ALIGNMENT_LEFT, -1, 34).x
+		b.draw_string(UI_FONT_HEAVY, Vector2(cx - aw * 0.5, 88), amt, HORIZONTAL_ALIGNMENT_LEFT, -1, 34, Color("#ffe8a3"))
+		var pr := Store.pack_price(pk[0])
+		var pfs := _fit_fs(pr, 26, b.size.x - 12)
+		var pw := UI_FONT_HEAVY.get_string_size(pr, HORIZONTAL_ALIGNMENT_LEFT, -1, pfs).x
+		b.draw_string(UI_FONT_HEAVY, Vector2(cx - pw * 0.5, 122), pr, HORIZONTAL_ALIGNMENT_LEFT, -1, pfs, INK))
+	return b
+
+func _refresh_skins() -> void:
+	if skins_layer == null:
+		return
+	skins_coins.text = str(Save.coins)
+	for k in skins_tabs:
+		var b: Button = skins_tabs[k]
+		var on: bool = k == skins_tab
+		var sb := _gold(false) if on else _glass(30, 0.5)
+		for st in ["normal", "hover", "pressed", "focus"]:
+			b.add_theme_stylebox_override(st, sb)
+		b.add_theme_color_override("font_color", Color("#3a2205") if on else Color.WHITE)
+		b.add_theme_color_override("font_hover_color", Color("#3a2205") if on else Color.WHITE)
+	for t in skins_grid.get_children():
+		t.queue_redraw()
+	# the button under the tiles: buy the picked skin, or a short note
+	var it = null
+	for x in _skin_list():
+		if x[0] == skins_pick:
+			it = x
+	if it == null or _skin_owned(skins_tab, it[0]):
+		skins_action.disabled = true
+		skins_action.text = tr("Tap a look to choose it") if it == null else tr("You're using it now")
+	else:
+		_set_coin_btn(skins_action, int(it[2]), "Buy for {0}")
+
+func _skins_action() -> void:
+	for it in _skin_list():
+		if it[0] == skins_pick and not _skin_owned(skins_tab, it[0]):
+			if not _spend_coins(int(it[2]), "skin_" + skins_tab + "_" + it[0]):
+				return
+			Save.skins[skins_tab + "_" + it[0]] = true
+			_use_skin(skins_tab, it[0])
+			Sound.play("jar_done")
+			Save.buzz(25)
+			_top_toast("New look!", tr(it[1]), false)
+			_refresh_skins()
+			return
+
+func _use_skin(kind: String, id: String) -> void:
+	if kind == "jar":
+		Save.jar_skin = id
+		Art.jar_skin = id
+	else:
+		Save.fly_skin = id
+		Art.fly_skin = id
+	Save.save_game()
+	Analytics.log_event("skin_use", {"kind": kind, "skin": id})
+	_redraw_all(self)

@@ -72,7 +72,7 @@ func _draw() -> void:
 		var target_y := r.end.y - jw * 0.16 - step * (n + 0.5)
 		var from_y := r.position.y - jh * 0.6
 		Art.fly(self, Vector2(W * 0.5 + sin(t * 5.0 + n) * W * 0.25 * (1.0 - t), lerpf(from_y, target_y, t)), R, Art.COLORS[n], _now * 12.0, true, true, n * 3.0, _now)
-	Art.jar_front(self, r, Color(0.84, 0.92, 1.0, 0.6), max(2.0, R * 0.11))
+	Art.jar_front(self, r, Art.jar_line(), max(2.0, R * 0.11))
 	if _ready_at >= 0.0:
 		Art.cap(self, r, _now - _ready_at)
 	# status and tip

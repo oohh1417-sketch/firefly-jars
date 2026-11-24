@@ -24,6 +24,9 @@ var lives_at: float = 0.0     # unix time the next heart started refilling
 var gift_day: int = 0         # daily rewards: days claimed in the current run (0-7)
 var gift_last: String = ""    # date of the last claimed daily gift
 var map_ch: int = 0          # highest chapter whose opening was celebrated on the map (0 = not set yet)
+var skins: Dictionary = {}    # skins bought in the shop: id -> true ("jar_frost", "fly_royal", ...)
+var jar_skin: String = "classic"
+var fly_skin: String = "classic"
 var updated: int = 0          # unix time of the last save, used to merge with the cloud copy
 
 signal saved
@@ -64,6 +67,9 @@ func load_game() -> void:
 	ach = _dict(cfg.get_value("progress", "ach", {}))
 	stats = _dict(cfg.get_value("progress", "stats", {}))
 	updated = int(cfg.get_value("progress", "updated", 0))
+	skins = _dict(cfg.get_value("shop", "skins", {}))
+	jar_skin = str(cfg.get_value("shop", "jar_skin", "classic"))
+	fly_skin = str(cfg.get_value("shop", "fly_skin", "classic"))
 	_fix_stats()
 
 static func _dict(v) -> Dictionary:
@@ -101,6 +107,9 @@ func save_game() -> void:
 	cfg.set_value("progress", "gift_last", gift_last)
 	cfg.set_value("progress", "ach", ach)
 	cfg.set_value("progress", "stats", stats)
+	cfg.set_value("shop", "skins", skins)
+	cfg.set_value("shop", "jar_skin", jar_skin)
+	cfg.set_value("shop", "fly_skin", fly_skin)
 	updated = int(Time.get_unix_time_from_system())
 	cfg.set_value("progress", "updated", updated)
 	# write a side file, then swap it in, so a crash mid-save never leaves a broken save
@@ -113,7 +122,7 @@ func save_game() -> void:
 ## Progress as plain data, for the cloud copy (Game Center / Play Games). Settings stay on the phone.
 func to_dict() -> Dictionary:
 	return {"v": 1, "level": level, "best_level": best_level, "hints": hints, "coins": coins, "ads_removed": ads_removed,
-		"seen": seen, "daily_done": daily_done, "streak": streak, "ach": ach, "stats": stats, "updated": updated}
+		"seen": seen, "daily_done": daily_done, "streak": streak, "ach": ach, "stats": stats, "skins": skins, "updated": updated}
 
 ## Combine a cloud copy with this phone's progress, so nothing is lost when a player changes phones
 ## or plays on two. Progress counters take the higher value; coins and hints come from the newer copy.
@@ -134,6 +143,8 @@ func merge_cloud(d: Dictionary) -> bool:
 		seen[k] = true
 	for k in d.get("ach", {}):
 		ach[k] = true
+	for k in d.get("skins", {}):
+		skins[k] = true
 	var st: Dictionary = d.get("stats", {})
 	for k in STAT_KEYS:
 		stats[k] = maxi(int(stats.get(k, 0)), int(st.get(k, 0)))

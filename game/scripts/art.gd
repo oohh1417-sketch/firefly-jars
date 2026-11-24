@@ -8,6 +8,24 @@ const COLORS := [
 	Color("#ff9f43"), Color("#4d8bff"), Color("#ffffff"), Color("#ff4040"), Color("#2fe0a0"),
 ]
 
+## Skins sold for coins in the shop. The first of each list is free and always owned.
+## GUESS: prices, so the first skin takes about 20 levels and the last about 80.
+const SKINS := {
+	"jar": [["classic", "Clear glass", 0], ["frost", "Frosted glass", 200], ["honey", "Honey glass", 350], ["moon", "Moonlight glass", 500], ["rose", "Rose glass", 800]],
+	"fly": [["classic", "Classic", 0], ["bug", "Little antennae", 200], ["fairy", "Fairy wings", 350], ["star", "Starlight", 500], ["royal", "Royal crown", 800]],
+}
+static var jar_skin := "classic"   # set by main.gd from the save
+static var fly_skin := "classic"
+
+## The outline color of a plain jar in this skin.
+static func jar_line(skin := "") -> Color:
+	match skin if skin != "" else jar_skin:
+		"frost": return Color(0.93, 0.97, 1.0, 0.75)
+		"honey": return Color(1.0, 0.8, 0.45, 0.7)
+		"moon": return Color(0.75, 0.72, 1.0, 0.7)
+		"rose": return Color(1.0, 0.7, 0.82, 0.7)
+	return Color(0.84, 0.92, 1.0, 0.6)
+
 ## One night scene per chapter (every 10 levels): 20 scenes, so 200 levels before any repeat. Same themes as the web version.
 ## The scenes themselves are drawn in scenes.gd.
 const THEMES := [
@@ -151,13 +169,16 @@ static func jar_points(r: Rect2, mouth := 0.0) -> PackedVector2Array:
 	return pts
 
 ## Glass behind the fireflies: light at the edges, clearer in the middle.
-static func jar_back(ci: CanvasItem, r: Rect2, tint = null) -> void:
+static func jar_back(ci: CanvasItem, r: Rect2, tint = null, skin := "") -> void:
 	var pts := jar_points(r)
 	var cols := PackedColorArray()
 	for p in pts:
 		var edge: float = absf((p.x - r.get_center().x) / (r.size.x * 0.5))
 		cols.append(Color(0.67, 0.8, 1.0, lerpf(0.06, 0.2, edge)))
 	ci.draw_polygon(pts, cols)
+	var glass = {"frost": Color(0.92, 0.96, 1.0, 0.13), "honey": Color(1.0, 0.7, 0.28, 0.14), "moon": Color(0.5, 0.42, 1.0, 0.14), "rose": Color(1.0, 0.45, 0.7, 0.13)}.get(skin if skin != "" else jar_skin)
+	if glass != null:
+		ci.draw_colored_polygon(pts, glass)
 	if tint != null:
 		ci.draw_colored_polygon(pts, tint)
 	ci.draw_set_transform(Vector2(r.get_center().x, r.end.y - r.size.x * 0.09), 0.0, Vector2(1.0, 0.18))
@@ -165,15 +186,61 @@ static func jar_back(ci: CanvasItem, r: Rect2, tint = null) -> void:
 	ci.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 ## Glass in front of the fireflies: outline, shine and screw threads.
-static func jar_front(ci: CanvasItem, r: Rect2, line: Color, width: float) -> void:
+static func jar_front(ci: CanvasItem, r: Rect2, line: Color, width: float, skin := "") -> void:
 	var pts := jar_points(r)
 	pts.append(pts[0])
 	ci.draw_polyline(pts, line, width, true)
 	var w := r.size.x
+	_jar_deco(ci, r, skin if skin != "" else jar_skin)
 	ci.draw_rect(Rect2(r.position.x + w * 0.12, r.position.y + w * 0.42, w * 0.12, r.size.y * 0.55), Color(1, 1, 1, 0.16))
 	ci.draw_rect(Rect2(r.position.x + w * 0.8, r.position.y + w * 0.5, w * 0.05, r.size.y * 0.3), Color(1, 1, 1, 0.1))
 	for k in [0.03, 0.08]:
 		ci.draw_line(Vector2(r.position.x + w * 0.1, r.position.y + w * k), Vector2(r.position.x + w * 0.9, r.position.y + w * (k + 0.015)), Color(0.84, 0.92, 1.0, 0.5), max(1.5, width * 0.6))
+
+## The small painted extras of each jar skin, on the glass in front of the fireflies.
+static func _jar_deco(ci: CanvasItem, r: Rect2, skin: String) -> void:
+	var w := r.size.x
+	var x := r.position.x
+	var bot := r.end.y
+	match skin:
+		"frost":
+			# a frosty drift along the bottom and a few snowflakes
+			var d := PackedVector2Array([Vector2(x + w * 0.16, bot - w * 0.02)])
+			for k in 13:
+				var t := k / 12.0
+				d.append(Vector2(x + w * (0.06 + 0.88 * t), bot - w * (0.12 + 0.05 * sin(t * 9.0))))
+			d.append(Vector2(x + w * 0.84, bot - w * 0.02))
+			ci.draw_colored_polygon(d, Color(0.95, 0.98, 1.0, 0.22))
+			for f in [Vector2(0.74, 0.55), Vector2(0.3, 0.78), Vector2(0.68, 1.25)]:
+				var c := Vector2(x + w * f.x, r.position.y + w * f.y)
+				for k in 3:
+					var a := PI * k / 3.0
+					ci.draw_line(c - Vector2(cos(a), sin(a)) * w * 0.06, c + Vector2(cos(a), sin(a)) * w * 0.06, Color(1, 1, 1, 0.55), max(1.0, w * 0.018), true)
+		"honey":
+			# golden threads and a drop of honey running down from the neck
+			for k in [0.03, 0.08]:
+				ci.draw_line(Vector2(x + w * 0.1, r.position.y + w * k), Vector2(x + w * 0.9, r.position.y + w * (k + 0.015)), Color(1.0, 0.82, 0.4, 0.8), max(1.5, w * 0.025))
+			var dx := x + w * 0.72
+			var top := r.position.y + w * 0.16
+			ci.draw_line(Vector2(dx, top), Vector2(dx, top + w * 0.3), Color(1.0, 0.72, 0.2, 0.6), max(2.0, w * 0.05), true)
+			ci.draw_circle(Vector2(dx, top + w * 0.33), w * 0.05, Color(1.0, 0.72, 0.2, 0.65))
+			for hx in [Vector2(0.3, 0.88), Vector2(0.42, 0.95)]:
+				var hc := Vector2(x + w * hx.x, bot - w * hx.y * 0.5)
+				var hp := PackedVector2Array()
+				for k in 7:
+					hp.append(hc + Vector2(cos(PI / 3.0 * k), sin(PI / 3.0 * k)) * w * 0.06)
+				ci.draw_polyline(hp, Color(1.0, 0.82, 0.4, 0.45), max(1.0, w * 0.015), true)
+		"moon":
+			# a little painted moon and stars
+			var mc := Vector2(x + w * 0.72, r.position.y + w * 0.62)
+			ci.draw_circle(mc, w * 0.1, Color(1.0, 0.95, 0.75, 0.7))
+			ci.draw_circle(mc + Vector2(w * 0.045, -w * 0.03), w * 0.085, Color(0.3, 0.26, 0.6, 0.85))
+			for st in [Vector2(0.3, 0.75), Vector2(0.62, 1.05), Vector2(0.36, 1.35), Vector2(0.75, 1.55)]:
+				ci.draw_colored_polygon(star_points(Vector2(x + w * st.x, r.position.y + w * st.y), w * 0.05, w * 0.02), Color(1.0, 0.95, 0.75, 0.6))
+		"rose":
+			# three small painted hearts
+			for h in [Vector2(0.28, 0.16), Vector2(0.72, 0.24), Vector2(0.5, 0.42)]:
+				ci.draw_colored_polygon(heart_points(Vector2(x + w * h.x, bot - w * h.y), w * 0.14), Color(1.0, 0.55, 0.75, 0.5))
 
 static func shelf(ci: CanvasItem, sh: Rect2) -> void:
 	ci.draw_set_transform(Vector2(sh.get_center().x, sh.end.y + sh.size.y * 0.7), 0.0, Vector2(1.0, 0.12))
@@ -187,7 +254,7 @@ static func shelf(ci: CanvasItem, sh: Rect2) -> void:
 	glow(ci, Vector2(sh.get_center().x, sh.position.y), sh.size.x * 0.5, Color("#ffcf4a"), 0.1)
 
 ## The firefly: round glowing body with little wings. Asleep: dim, wings folded, eyes closed.
-static func fly(ci: CanvasItem, pos: Vector2, r: float, col: Color, flap: float, awake: bool, moving: bool, phase: float, now: float) -> void:
+static func fly(ci: CanvasItem, pos: Vector2, r: float, col: Color, flap: float, awake: bool, moving: bool, phase: float, now: float, skin := "") -> void:
 	if not awake:
 		for side in [-1.0, 1.0]:
 			ci.draw_set_transform(pos + Vector2(side * r * 0.5, -r * 0.5), side * 0.5, Vector2(1.0, 0.55))
@@ -200,12 +267,61 @@ static func fly(ci: CanvasItem, pos: Vector2, r: float, col: Color, flap: float,
 	var flicker := 0.75 + 0.25 * sin(now / 0.2 + phase * 1.3)
 	glow(ci, pos, r * (3.2 if moving else 2.8), col, 0.5 * flicker * col.a)
 	var wy := 0.35 + 0.65 * absf(sin(flap))
-	for side in [-1.0, 1.0]:
-		ci.draw_set_transform(pos + Vector2(side * r * 0.62, -r * 0.5), side * 0.5, Vector2(1.0, wy))
-		ci.draw_circle(Vector2.ZERO, r * 0.42, Color(0.9, 0.94, 1.0, 0.45 * col.a))
+	if (skin if skin != "" else fly_skin) == "fairy":
+		# butterfly wings in the firefly's own color: a big upper pair and a small lower pair
+		var wc := Color(col.lightened(0.35), 0.55 * col.a)
+		for side in [-1.0, 1.0]:
+			ci.draw_set_transform(pos + Vector2(side * r * 0.72, -r * 0.55), side * 0.7, Vector2(1.0, wy))
+			ci.draw_circle(Vector2.ZERO, r * 0.55, wc)
+			ci.draw_circle(Vector2.ZERO, r * 0.25, Color(1, 1, 1, 0.35 * col.a))
+			ci.draw_set_transform(pos + Vector2(side * r * 0.62, r * 0.12), side * -0.5, Vector2(1.0, wy))
+			ci.draw_circle(Vector2.ZERO, r * 0.32, wc)
+	else:
+		for side in [-1.0, 1.0]:
+			ci.draw_set_transform(pos + Vector2(side * r * 0.62, -r * 0.5), side * 0.5, Vector2(1.0, wy))
+			ci.draw_circle(Vector2.ZERO, r * 0.42, Color(0.9, 0.94, 1.0, 0.45 * col.a))
 	ci.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	ci.draw_circle(pos, r * 0.74, col)
 	ci.draw_circle(pos + Vector2(-r * 0.22, -r * 0.25), r * 0.2, Color(1, 1, 1, 0.8 * col.a))
+	fly_extra(ci, pos, r, col, now, phase, skin if skin != "" else fly_skin)
+
+## The extra look of each firefly skin, drawn over the body. The body color never changes,
+## so the puzzle colors stay easy to tell apart.
+static func fly_extra(ci: CanvasItem, pos: Vector2, r: float, col: Color, now: float, phase: float, skin: String) -> void:
+	var a := col.a
+	match skin:
+		"bug":
+			for sx in [-1.0, 1.0]:
+				var p0 := pos + Vector2(sx * r * 0.22, -r * 0.62)
+				var p2 := pos + Vector2(sx * r * 0.55, -r * 1.2)
+				var pts := PackedVector2Array([p0])
+				_quad(p0, pos + Vector2(sx * r * 0.18, -r * 1.05), p2, pts, 8)
+				ci.draw_polyline(pts, Color(0.1, 0.12, 0.25, 0.85 * a), max(1.0, r * 0.09), true)
+				ci.draw_circle(p2, r * 0.13, Color(col.lightened(0.45), a))
+		"star":
+			var tw := 0.55 + 0.45 * sin(now * 3.0 + phase)
+			var c := pos + Vector2(-r * 0.2, -r * 0.24)
+			ci.draw_colored_polygon(_spark(c, r * 0.36, r * 0.07), Color(1, 1, 1, 0.95 * a))
+			var sp := pos + Vector2(r * 0.95, -r * 0.7)
+			ci.draw_colored_polygon(_spark(sp, r * 0.3 * tw, r * 0.06 * tw), Color(1, 1, 0.9, 0.85 * a * tw))
+		"royal":
+			var b := pos.y - r * 0.6
+			var cw := r * 0.42
+			var pts := PackedVector2Array([Vector2(pos.x - cw, b), Vector2(pos.x - cw, b - r * 0.3), Vector2(pos.x - cw * 0.5, b - r * 0.12),
+				Vector2(pos.x, b - r * 0.42), Vector2(pos.x + cw * 0.5, b - r * 0.12), Vector2(pos.x + cw, b - r * 0.3), Vector2(pos.x + cw, b)])
+			ci.draw_colored_polygon(pts, Color(Color("#ffc83c"), a))
+			pts.append(pts[0])
+			ci.draw_polyline(pts, Color(0.55, 0.33, 0.05, 0.9 * a), max(1.0, r * 0.06), true)
+			ci.draw_circle(Vector2(pos.x, b - r * 0.42), r * 0.07, Color(Color("#fff3b0"), a))
+			ci.draw_circle(Vector2(pos.x, b - r * 0.1), r * 0.06, Color(Color("#ff5c8a"), a))
+
+## A four-pointed twinkle.
+static func _spark(c: Vector2, ro: float, ri: float) -> PackedVector2Array:
+	var pts := PackedVector2Array()
+	for k in 8:
+		var ang := PI / 4.0 * k - PI / 2.0
+		pts.append(c + Vector2(cos(ang), sin(ang)) * (ro if k % 2 == 0 else ri))
+	return pts
 
 ## Simple line icons for the buttons, so no emoji font is needed on the phone.
 static func icon(ci: CanvasItem, name: String, c: Vector2, s: float, col: Color) -> void:
@@ -284,6 +400,15 @@ static func icon(ci: CanvasItem, name: String, c: Vector2, s: float, col: Color)
 			ci.draw_line(c + Vector2(s * .06, -s * .14), c + Vector2(s * .06, s * .14), Color.WHITE, aw * 0.6)
 			ci.draw_arc(c + Vector2(s * .1, 0), s * .14, -PI * 0.5, PI * 0.5, 12, Color.WHITE, aw * 0.6, true)
 			ci.draw_line(c + Vector2(-s * .4, s * .4), c + Vector2(s * .4, -s * .4), Color("#ff4d6d"), max(3.0, s * 0.1))
+		"skins":   # a little jar with a pink firefly and a gold sparkle
+			var jr := Rect2(c + Vector2(-s * .3, -s * .34), Vector2(s * .6, s * .74))
+			jar_back(ci, jr, Color(0.6, 0.8, 1.0, 0.15), "classic")
+			ci.draw_circle(c + Vector2(0, s * .14), s * .16, Color("#ff5c8a"))
+			ci.draw_circle(c + Vector2(-s * .05, s * .09), s * .05, Color(1, 1, 1, 0.8))
+			var jp := jar_points(jr)
+			jp.append(jp[0])
+			ci.draw_polyline(jp, Color(0.84, 0.92, 1.0, 0.9), max(2.0, s * 0.05), true)
+			ci.draw_colored_polygon(_spark(c + Vector2(s * .34, -s * .3), s * .2, s * .05), Color("#ffd93b"))
 		"check":
 			ci.draw_polyline(PackedVector2Array([c + Vector2(-s * .3, 0), c + Vector2(-s * .08, s * .24), c + Vector2(s * .34, -s * .26)]), col, w * 1.4, true)
 		"flame":
