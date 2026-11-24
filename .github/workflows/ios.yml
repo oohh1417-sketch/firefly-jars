@@ -62,7 +62,10 @@ jobs:
           rm -rf godot
           git clone --depth 1 --branch "${GODOT_VERSION}-stable" https://github.com/godotengine/godot.git godot
           python3 -m pip install --break-system-packages scons
-          ./scripts/generate_headers.sh 4.0 || true     # stops after 90 s on purpose: we only need the headers
+          # Godot's generated headers (*.gen.h) are made early in an engine build;
+          # run the iOS build for a few minutes, then stop it on purpose.
+          (cd godot && timeout 300 scons platform=ios target=template_release -j"$(sysctl -n hw.ncpu)" || true)
+          test -f godot/core/version_generated.gen.h
           for p in $IOS_PLUGINS; do
             ./scripts/generate_xcframework.sh $p release 4.0
             ./scripts/generate_xcframework.sh $p release_debug 4.0
