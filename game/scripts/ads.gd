@@ -228,6 +228,8 @@ func _pause_game_audio(paused: bool) -> void:
 ## Privacy & messaging, and NSUserTrackingUsageDescription in the iOS export).
 ## Any error simply carries on, so ads (non-personalized if needed) still work.
 var _started := false
+var _form_open := false
+signal privacy_changed   # the consent answer is known, so Settings can show "Privacy choices"
 
 func _gather_consent_then_start() -> void:
 	if not (_classes.has("UserMessagingPlatform") and _classes.has("ConsentRequestParameters")):
@@ -239,24 +241,32 @@ func _gather_consent_then_start() -> void:
 	ump.consent_information.update(params,
 		func() -> void: _consent_info_ready(),
 		func(_err) -> void: _start_ads())
-	# safety net: never wait more than 8 seconds for the consent service
-	get_tree().create_timer(8.0, true).timeout.connect(_start_ads)
+	# safety net: never wait more than 8 seconds for the consent service,
+	# but never start ads while the player is still reading the consent message
+	get_tree().create_timer(8.0, true).timeout.connect(func() -> void:
+		if not _form_open:
+			_start_ads())
 
 func _consent_info_ready() -> void:
 	var ump = _cls("UserMessagingPlatform")
 	var info = ump.consent_information
 	# ConsentStatus.REQUIRED == 2
 	if info.get_is_consent_form_available() and info.get_consent_status() == 2:
-		ump.load_consent_form(
-			func(form) -> void: form.show(func(_err) -> void: _start_ads()),
-			func(_err) -> void: _start_ads())
+		_form_open = true
+		ump.load_consent_form(func(form) -> void: form.show(_consent_done), _consent_done)
 	else:
 		_start_ads()
+
+## The consent message was answered (or could not be shown): ads can start now.
+func _consent_done(_err = null) -> void:
+	_form_open = false
+	_start_ads()
 
 func _start_ads() -> void:
 	if _started:
 		return
 	_started = true
+	privacy_changed.emit()
 	_cls("MobileAds").initialize()
 	_load_rewarded()
 	_load_interstitial()

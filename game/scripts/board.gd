@@ -633,7 +633,7 @@ func _draw_jar_front(i: int, r: Rect2, rad: float) -> void:
 	var only: int = state.only[i]
 	var w := r.size.x
 	var done := corks.has(i) and not jar.is_empty()
-	var line := Color(0.84, 0.92, 1.0, 0.6)
+	var line := Art.jar_line()
 	if done:
 		line = COLORS[jar[0]]
 	if i == selected:

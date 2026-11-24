@@ -374,6 +374,26 @@ S = [
 ["Streak lost: a heart was lost", "انتهت السلسلة: خسرت قلبًا", "Racha perdida: perdiste un corazón", "Sequência perdida: perdeu um coração", "Série perdue : un cœur perdu", "Serie verloren: Herz verloren", "Seri bitti: kalp kaybedildi", "Серия прервана: потеряно сердце", "連続記録リセット：ハートを失った", "연승 끝: 하트를 잃었어요", "连胜中断：失去了红心"],
 ["Streak lost: win with 3 moves to spare", "انتهت السلسلة: يجب أن تبقى 3 حركات", "Racha perdida: gana con 3 movimientos de sobra", "Sequência perdida: vença com 3 jogadas sobrando", "Série perdue : gagne avec 3 coups d'avance", "Serie verloren: gewinne mit 3 Zügen übrig", "Seri bitti: 3 hamle artırarak kazan", "Серия прервана: нужно 3 хода в запасе", "連続記録リセット：3手残してクリアしよう", "연승 끝: 3번 이상 남기고 이겨야 해요", "连胜中断：需剩余3步通关"],
 ["Move the glowing fireflies into the gold jar", "انقل اليراعات المضيئة إلى الجرة الذهبية", "Mueve las luciérnagas brillantes al frasco dorado", "Mova os vaga-lumes brilhantes para o pote dourado", "Mets les lucioles brillantes dans le bocal doré", "Bring die leuchtenden Glühwürmchen ins goldene Glas", "Parlayan ateş böceklerini altın kavanoza taşı", "Перенеси светящихся светлячков в золотую банку", "光っているホタルを金色のビンへ", "빛나는 반딧불이를 금색 병으로 옮기세요", "把发光的萤火虫移到金色的罐子里"],
+# ---------- skins shop, coin packs, privacy choices (v0.27) ----------
+["Skins", "المظاهر", "Aspectos", "Visuais", "Apparences", "Designs", "Görünümler", "Облики", "スキン", "스킨", "皮肤"],
+["Jars", "الجِرار", "Frascos", "Potes", "Bocaux", "Gläser", "Kavanozlar", "Банки", "ビン", "유리병", "罐子"],
+["Fireflies", "اليراعات", "Luciérnagas", "Vaga-lumes", "Lucioles", "Glühwürmchen", "Ateş böcekleri", "Светлячки", "ホタル", "반딧불이", "萤火虫"],
+["Get more coins", "احصل على المزيد من العملات", "Consigue más monedas", "Ganhe mais moedas", "Obtenir plus de pièces", "Mehr Münzen holen", "Daha fazla altın al", "Получить больше монет", "コインを増やす", "코인 더 받기", "获取更多金币"],
+["In use", "مستخدم", "En uso", "Em uso", "Utilisé", "Aktiv", "Kullanımda", "Выбрано", "使用中", "사용 중", "使用中"],
+["Owned", "تملكه", "Tuyo", "Seu", "Acquis", "Gekauft", "Sende var", "Куплено", "所持", "보유", "已拥有"],
+["Tap a look to choose it", "اضغط على مظهر لتختاره", "Toca un aspecto para elegirlo", "Toque num visual para escolher", "Touche une apparence pour la choisir", "Tippe ein Design an, um es zu wählen", "Seçmek için bir görünüme dokun", "Нажми на облик, чтобы выбрать", "スキンをタップして選んでね", "스킨을 눌러 선택하세요", "点一个皮肤来选择"],
+["You're using it now", "أنت تستخدمه الآن", "Ya lo estás usando", "Você já está usando", "Tu l'utilises déjà", "Ist gerade aktiv", "Şu an bunu kullanıyorsun", "Уже используется", "使用中です", "지금 사용 중이에요", "正在使用"],
+["New look!", "مظهر جديد!", "¡Nuevo aspecto!", "Visual novo!", "Nouvelle apparence !", "Neues Design!", "Yeni görünüm!", "Новый облик!", "新しいスキン！", "새 스킨!", "新皮肤！"],
+["Privacy choices", "خيارات الخصوصية", "Opciones de privacidad", "Opções de privacidade", "Choix de confidentialité", "Datenschutz-Optionen", "Gizlilik seçenekleri", "Настройки конфиденциальности", "プライバシーの選択", "개인정보 선택", "隐私选项"],
+["Clear glass", "زجاج شفاف", "Cristal claro", "Vidro claro", "Verre clair", "Klarglas", "Şeffaf cam", "Прозрачное стекло", "クリアガラス", "투명 유리", "透明玻璃"],
+["Frosted glass", "زجاج مثلّج", "Cristal escarchado", "Vidro gelado", "Verre givré", "Frostglas", "Buzlu cam", "Морозное стекло", "霜ガラス", "서리 유리", "霜花玻璃"],
+["Honey glass", "زجاج العسل", "Cristal de miel", "Vidro de mel", "Verre de miel", "Honigglas", "Bal camı", "Медовое стекло", "はちみつガラス", "꿀 유리", "蜂蜜玻璃"],
+["Moonlight glass", "زجاج القمر", "Cristal lunar", "Vidro do luar", "Verre de lune", "Mondglas", "Ay ışığı camı", "Лунное стекло", "月夜のガラス", "달빛 유리", "月光玻璃"],
+["Rose glass", "زجاج الورد", "Cristal rosa", "Vidro rosa", "Verre rose", "Rosenglas", "Gül camı", "Розовое стекло", "ローズガラス", "장미 유리", "玫瑰玻璃"],
+["Classic", "الكلاسيكي", "Clásico", "Clássico", "Classique", "Klassisch", "Klasik", "Классика", "クラシック", "클래식", "经典"],
+["Little antennae", "قرون صغيرة", "Antenitas", "Anteninhas", "Petites antennes", "Kleine Fühler", "Küçük antenler", "Усики", "ちいさな触角", "작은 더듬이", "小触角"],
+["Fairy wings", "أجنحة الجنية", "Alas de hada", "Asas de fada", "Ailes de fée", "Feenflügel", "Peri kanatları", "Крылья феи", "妖精の羽", "요정 날개", "仙子翅膀"],
+["Royal crown", "التاج الملكي", "Corona real", "Coroa real", "Couronne royale", "Königskrone", "Kraliyet tacı", "Королевская корона", "王冠", "왕관", "皇冠"],
 ]
 
 # Month names for the daily puzzle date ("Nov 24"). {0} = month name, {1} = day.
