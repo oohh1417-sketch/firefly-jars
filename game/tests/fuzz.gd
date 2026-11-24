@@ -1,7 +1,7 @@
 extends Node
 func _ready():
 	var S = get_tree().root.get_node("Save")
-	S.level = 28; S.seen = {"cracked_jar": true, "color_jar": true, "lid": true, "daily": true, "hard": true, "extreme": true, "coins": true, "map": true, "lives": true}
+	S.level = 28; S.seen = {"cracked_jar": true, "color_jar": true, "lid": true, "daily": true, "hard": true, "extreme": true, "coins": true, "map": true, "lives": true, "streak": true}
 	var main = load("res://scenes/main.tscn").instantiate()
 	get_tree().root.add_child.call_deferred(main)
 	await get_tree().create_timer(0.5).timeout

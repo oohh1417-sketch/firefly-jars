@@ -174,7 +174,10 @@ const hapticEl = (() => { try { const l = document.createElement("label"), i = d
 function buzz(p) {
   if (!save.vibrate) return;
   if (navigator.vibrate) { try { navigator.vibrate(p); } catch (e) {} return; }
-  try { if (hapticEl) { hapticEl.click(); if (Array.isArray(p) && p.length > 2) setTimeout(() => hapticEl.click(), 130); } } catch (e) {}
+  // only straight from a tap: from a timer it does nothing for haptics, and on iPhone it can cut off the sound that just started
+  const ua = navigator.userActivation;
+  if (ua && !ua.isActive) return;
+  try { if (hapticEl) hapticEl.click(); } catch (e) {}
 }''')
 rep('''function celebrate() {
   let title''', '''function celebrate() {
@@ -236,6 +239,27 @@ $("skAction").onclick = () => {
 };
 $("skDone").onclick = () => { $("skins").hidden = true; Snd.play("sfx_drop"); refresh(); };
 $("skinsSide").onclick = () => { Snd.start(); showSkins(); };
+// keep the Skins button just above the Play card, whatever the screen height (Safari's bars make it shorter)
+function placeSkinsBtn() {
+  const c = document.querySelector(".panel"), s = document.querySelector(".sideL");
+  if (!c || !s || !c.offsetHeight) return;
+  const host = s.offsetParent || document.body, hr = host.getBoundingClientRect();
+  const top = c.getBoundingClientRect().top - hr.top - s.offsetHeight - 12;
+  s.style.top = Math.max(56, Math.min(top, hr.height * .46)) + "px";
+}
+window.addEventListener("resize", placeSkinsBtn);
+try { new ResizeObserver(placeSkinsBtn).observe(document.querySelector(".panel")); } catch (e) {}
+setTimeout(placeSkinsBtn, 300);
+// a long label under a right-side button (like "Ohne Werbung") slides left so it stays on screen
+function fitSideLabels() {
+  document.querySelectorAll(".side .sideBtn b").forEach(b => {
+    b.style.transform = ""; const r = b.getBoundingClientRect(); if (!r.width) return;
+    const over = r.right - (innerWidth - 4); if (over > 0) b.style.transform = `translateX(${-over}px)`;
+  });
+}
+window.addEventListener("resize", fitSideLabels);
+setTimeout(fitSideLabels, 300);
+try { new MutationObserver(fitSideLabels).observe(document.querySelector(".side"), { subtree: true, childList: true, characterData: true }); } catch (e) {}
 $("coinChip").onclick = () => { Snd.start(); showSkins(); };
 $("skPacks").innerHTML = COIN_PACKS.map(([id, n, price], k) => `<button data-id="${id}"><span class="pc">${ICONS.coin.repeat(k + 1)}</span><b>${n}</b><small>${price}</small></button>`).join("");
 $("skPacks").querySelectorAll("button").forEach(b => b.onclick = () => { Snd.play("sfx_select"); openStore(b.dataset.id); });
@@ -266,3 +290,31 @@ $("storeBuy").onclick = () => {
 
 open(p, "w", encoding="utf-8").write(s)
 print("skins ok")
+
+# ---- sounds that start from a timer (jar closing, jar mended, win) must not go silent if iPhone paused the audio ----
+s = open(p, encoding="utf-8").read()
+rep('''  play(name, rate = 1, vol = 1) {
+    if (!save.sfx) return;
+    const n = name;
+    if (this.ctx && this.ctx.state === "running" && this.buffers[n]) {
+      const s = this.ctx.createBufferSource(), g = this.ctx.createGain();''', '''  play(name, rate = 1, vol = 1, again = false) {
+    if (!save.sfx) return;
+    const n = name;
+    if (!again && this.ctx && this.ctx.state !== "running" && this.ctx.state !== "closed" && this.buffers[n]) {
+      // iPhone can pause ("interrupt") the audio between taps: wake it up and play as soon as it runs
+      const t = performance.now();
+      this.ctx.resume().then(() => { if (performance.now() - t < 600) this.play(name, rate, vol, true); }).catch(() => {});
+      return;
+    }
+    if (this.ctx && this.ctx.state === "running" && this.buffers[n]) {
+      const s = this.ctx.createBufferSource(), g = this.ctx.createGain();''')
+open(p, "w", encoding="utf-8").write(s)
+print("sound ok")
+
+# ---- stress test fixes (v0.28): hearts timer from an old save, Arabic chapter gap ----
+s = open(p, encoding="utf-8").read()
+rep('''  if (save.livesAt > Date.now()) save.livesAt = Date.now();''', '''  if (!(save.livesAt >= 0)) save.livesAt = Date.now();   // missing or broken time: never show NaN:NaN
+  if (save.livesAt > Date.now()) save.livesAt = Date.now();''')
+rep('''.chapter-name b { display: inline; margin-left: 6px; font-size: 17px; }''', '''.chapter-name b { display: inline; margin-inline-start: 6px; font-size: 17px; }''')
+open(p, "w", encoding="utf-8").write(s)
+print("stress fixes ok")

@@ -11,7 +11,7 @@ func _shot(main: Node, name: String) -> void:
 func _ready():
 	var S = get_tree().root.get_node("Save")
 	S.level = 15; S.coins = 120; S.hints = 0
-	S.seen = {"cracked_jar": true, "color_jar": true, "lid": true, "daily": true, "hard": true, "extreme": true, "coins": true, "map": true, "lives": true, "tutorial": true}
+	S.seen = {"cracked_jar": true, "color_jar": true, "lid": true, "daily": true, "hard": true, "extreme": true, "coins": true, "map": true, "lives": true, "tutorial": true, "streak": true}
 	var main = load("res://scenes/main.tscn").instantiate()
 	get_tree().root.add_child.call_deferred(main)
 	await get_tree().create_timer(4.0).timeout
@@ -45,6 +45,9 @@ func _ready():
 		main._show_tip("lid")
 		await _shot(main, "8tip")
 		main.tip_layer.hide()
+		main._show_skins()
+		await _shot(main, "skins")
+		main.skins_layer.hide()
 		main._show_languages()
 		await _shot(main, "9langs")
 		main.lang_layer.hide()
