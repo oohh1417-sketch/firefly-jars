@@ -111,7 +111,8 @@ jobs:
           mkdir -p game/ios/plugins && cp -R ios-plugins/* game/ios/plugins/
           VER="${{ github.event.inputs.version || '1.0.0' }}"
           BUILD=$((GITHUB_RUN_NUMBER + 100))
-          python3 tools/ios_prepare.py game "${{ secrets.APPLE_TEAM_ID }}" "$VER" "$BUILD"
+          TEAM="${{ secrets.APPLE_TEAM_ID }}"; TEAM="${TEAM:-AAAAAAAAAA}"   # placeholder for the unsigned check
+          python3 tools/ios_prepare.py game "$TEAM" "$VER" "$BUILD"
 
       - name: Export the Xcode project from Godot
         working-directory: game
