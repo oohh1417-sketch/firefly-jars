@@ -2065,6 +2065,7 @@ func _reward_or_say(kind: String) -> void:
 		Ads.show_rewarded(kind)
 	else:
 		_say("No video available right now. Try again soon")
+		Ads.reload_rewarded()
 		if kind == "double":
 			double_btn.disabled = false
 

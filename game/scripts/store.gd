@@ -131,8 +131,10 @@ func _process(_delta: float) -> void:
 				else:
 					purchase_done.emit(false, "The purchase didn't go through")
 			"restore":
+				# one event per restored item; the "completion" event below reports once at the end
 				if e.get("result", "") == "ok" and e.get("product_id", "") == PRODUCT_ID:
 					Ads.set_ads_removed(true)
-					restore_done.emit(true)
+				elif e.get("result", "") != "ok":
+					restore_done.emit(Save.ads_removed)   # restore failed (offline, cancelled sign-in)
 			"completion":
 				restore_done.emit(Save.ads_removed)

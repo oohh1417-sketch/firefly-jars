@@ -162,7 +162,9 @@ func _load_rewarded() -> void:
 	var load_cb = _cls("RewardedAdLoadCallback").new()
 	load_cb.on_ad_failed_to_load = func(err) -> void:
 		push_warning("Rewarded ad failed to load: %s" % err.message)
+		_retry_later(_load_rewarded)
 	load_cb.on_ad_loaded = func(ad) -> void:
+		_retry_wait = 30.0
 		_rewarded = ad
 		_rewarded.full_screen_content_callback = _callbacks(_on_rewarded_closed)
 	_cls("RewardedAdLoader").new().load(_unit("rewarded"), _cls("AdRequest").new(), load_cb)
@@ -192,6 +194,28 @@ func _on_interstitial_closed() -> void:
 	_load_interstitial()
 	if then.is_valid():
 		then.call()
+
+## No ad (offline, no fill): try again later, waiting longer each time (30 s up to 5 min),
+## so videos come back by themselves when the phone is online again.
+var _retry_wait := 30.0
+var _retry_queued := {}
+func _retry_later(f: Callable) -> void:
+	var key := f.get_method()
+	if _retry_queued.get(key, false):
+		return
+	_retry_queued[key] = true
+	var wait := _retry_wait
+	_retry_wait = minf(_retry_wait * 2.0, 300.0)
+	get_tree().create_timer(wait, true).timeout.connect(func() -> void:
+		_retry_queued[key] = false
+		if key == "_load_rewarded" and _rewarded != null:
+			return
+		f.call())
+
+## Called when the player asks for a video and none is ready: start loading one now.
+func reload_rewarded() -> void:
+	if backend == "admob" and _started and _rewarded == null:
+		_load_rewarded()
 
 ## Game sound is muted while an ad plays, as AdMob recommends.
 func _pause_game_audio(paused: bool) -> void:

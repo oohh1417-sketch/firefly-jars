@@ -34,8 +34,12 @@ func _ready() -> void:
 
 func load_game() -> void:
 	var cfg := ConfigFile.new()
+	# the save is written to a side file first and then swapped in; if the phone died in between,
+	# the side file still holds the latest progress
 	if cfg.load(PATH) != OK:
-		return
+		cfg = ConfigFile.new()
+		if cfg.load(PATH + ".tmp") != OK:
+			return
 	level = int(cfg.get_value("progress", "level", 1))
 	best_level = int(cfg.get_value("progress", "best_level", level))
 	hints = int(cfg.get_value("progress", "hints", 3))
@@ -44,7 +48,7 @@ func load_game() -> void:
 	sfx_on = bool(cfg.get_value("settings", "sfx", true))
 	vibrate_on = bool(cfg.get_value("settings", "vibrate", true))
 	color_blind = bool(cfg.get_value("settings", "color_blind", false))
-	seen = cfg.get_value("progress", "seen", {})
+	seen = _dict(cfg.get_value("progress", "seen", {}))
 	daily_done = str(cfg.get_value("daily", "done", ""))
 	streak = int(cfg.get_value("daily", "streak", 0))
 	coins = maxi(0, int(cfg.get_value("progress", "coins", 0)))
@@ -53,10 +57,13 @@ func load_game() -> void:
 	lives_at = float(cfg.get_value("progress", "lives_at", 0.0))
 	gift_day = int(cfg.get_value("progress", "gift_day", 0))
 	gift_last = str(cfg.get_value("progress", "gift_last", ""))
-	ach = cfg.get_value("progress", "ach", {})
-	stats = cfg.get_value("progress", "stats", {})
+	ach = _dict(cfg.get_value("progress", "ach", {}))
+	stats = _dict(cfg.get_value("progress", "stats", {}))
 	updated = int(cfg.get_value("progress", "updated", 0))
 	_fix_stats()
+
+static func _dict(v) -> Dictionary:
+	return v if v is Dictionary else {}
 
 func _fix_stats() -> void:
 	for k in STAT_KEYS:
@@ -90,7 +97,11 @@ func save_game() -> void:
 	cfg.set_value("progress", "stats", stats)
 	updated = int(Time.get_unix_time_from_system())
 	cfg.set_value("progress", "updated", updated)
-	cfg.save(PATH)
+	# write a side file, then swap it in, so a crash mid-save never leaves a broken save
+	if cfg.save(PATH + ".tmp") == OK and DirAccess.rename_absolute(PATH + ".tmp", PATH) == OK:
+		pass
+	else:
+		cfg.save(PATH)
 	saved.emit()
 
 ## Progress as plain data, for the cloud copy (Game Center / Play Games). Settings stay on the phone.
@@ -162,6 +173,10 @@ const LIVES_MAX := 5
 const LIFE_SECONDS := 20 * 60
 
 func lives_now() -> int:
+	# if the phone's clock was moved back, don't make the player wait for hours
+	var now := Time.get_unix_time_from_system()
+	if lives_at > now:
+		lives_at = now
 	if lives >= LIVES_MAX:
 		lives = LIVES_MAX
 		return lives
