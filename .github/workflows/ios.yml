@@ -64,7 +64,7 @@ jobs:
           python3 -m pip install --break-system-packages scons
           # Godot's generated headers (*.gen.h) are made early in an engine build;
           # run the iOS build for a few minutes, then stop it on purpose.
-          (cd godot && timeout 300 scons platform=ios target=template_release -j"$(sysctl -n hw.ncpu)" || true)
+          (cd godot && perl -e 'alarm shift; exec @ARGV' 300 scons platform=ios target=template_release -j"$(sysctl -n hw.ncpu)" || true)
           test -f godot/core/version_generated.gen.h
           for p in $IOS_PLUGINS; do
             ./scripts/generate_xcframework.sh $p release 4.0
@@ -117,7 +117,7 @@ jobs:
         working-directory: game
         run: |
           G=/Applications/Godot.app/Contents/MacOS/Godot
-          timeout 600 $G --headless --import --quit || true
+          perl -e 'alarm shift; exec @ARGV' 600 $G --headless --import --quit || true
           mkdir -p ../build/ios
           $G --headless --export-release "iOS" ../build/ios/FireflyJars.xcodeproj
           test -d ../build/ios/FireflyJars.xcodeproj
