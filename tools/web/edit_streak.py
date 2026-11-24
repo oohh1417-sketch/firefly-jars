@@ -134,5 +134,5 @@ rep('''  if (k === "map") {''', '''  if (k === "streak") { glow(g, cx, cy, 95, "
   if (k === "map") {''')
 open(p, "w", encoding="utf-8").write(s)
 print("streak ok")
-s = s.replace("· Test build v0.24</div>", "· Test build v0.25</div>")
+s = s.replace("· Test build v0.24</div>", "· Test build v0.26</div>")
 open(p, "w", encoding="utf-8").write(s)

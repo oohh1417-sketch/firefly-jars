@@ -359,21 +359,28 @@ static func cap(ci: CanvasItem, r: Rect2, age: float) -> void:
 	var x0 := cx - cw * 0.5
 	var bh: float = w * 0.2 * T.squash
 	var top: float = r.position.y - w * 0.07 - T.lift * w + (w * 0.2 - bh)
-	var band := Rect2(x0, top, cw, bh)
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(Color("#d6a24c"), a)
-	sb.set_corner_radius_all(int(w * 0.05))
-	sb.anti_aliasing = true
-	ci.draw_style_box(sb, band)
+	# a round lid seen a little from above: its top is an oval and the band curves along it
+	var bend := w * 0.055
+	var half := cw * 0.5
+	var dy := func(x: float) -> float:
+		var t := clampf((x - cx) / half, -1.0, 1.0)
+		return bend * sqrt(1.0 - t * t)
+	# the flat top of the lid
+	ci.draw_colored_polygon(_oval(Vector2(cx, top), half, bend, 0.0, TAU, 40).slice(0, -1), Color(Color("#b9843a"), a))
+	ci.draw_colored_polygon(_oval(Vector2(cx, top + bend * 0.12), half * 0.86, bend * 0.78, 0.0, TAU, 40).slice(0, -1), Color(Color("#ecc675"), a))
 	# metal cylinder shading: dark at the sides, bright just left of center
-	var inner := band.grow(-w * 0.012)
-	var stops := [[0.0, Color("#8a5d22")], [0.18, Color("#d9a74e")], [0.4, Color("#fbe7a6")], [0.62, Color("#d6a24c")], [1.0, Color("#7a5220")]]
-	for k in stops.size() - 1:
-		var xa: float = inner.position.x + inner.size.x * stops[k][0]
-		var xb: float = inner.position.x + inner.size.x * stops[k + 1][0]
-		var ca := Color(stops[k][1], a)
-		var cb := Color(stops[k + 1][1], a)
-		ci.draw_polygon(PackedVector2Array([Vector2(xa, inner.position.y), Vector2(xb, inner.position.y), Vector2(xb, inner.end.y), Vector2(xa, inner.end.y)]), PackedColorArray([ca, cb, cb, ca]))
+	var grad := Gradient.new()
+	grad.offsets = PackedFloat32Array([0.0, 0.18, 0.4, 0.62, 1.0])
+	grad.colors = PackedColorArray([Color("#8a5d22"), Color("#d9a74e"), Color("#fbe7a6"), Color("#d6a24c"), Color("#7a5220")])
+	var cols := 32
+	for k in cols:
+		var xa := x0 + cw * k / cols
+		var xb := x0 + cw * (k + 1) / cols
+		var ya: float = top + dy.call(xa)
+		var yb: float = top + dy.call(xb)
+		var ca := Color(grad.sample(float(k) / cols), a)
+		var cb := Color(grad.sample(float(k + 1) / cols), a)
+		ci.draw_polygon(PackedVector2Array([Vector2(xa, ya), Vector2(xb, yb), Vector2(xb, yb + bh), Vector2(xa, ya + bh)]), PackedColorArray([ca, cb, cb, ca]))
 	# ridges around the band travel across the front as it turns, bunching up at the sides
 	var spin: float = T.spin
 	for k in 18:
@@ -383,14 +390,15 @@ static func cap(ci: CanvasItem, r: Rect2, age: float) -> void:
 			continue
 		var x := cx + cos(ang) * cw * 0.5
 		x = clampf(x, x0 + w * 0.03, x0 + cw - w * 0.03)
-		ci.draw_line(Vector2(x, top + bh * 0.28), Vector2(x, top + bh * 0.94), Color(0.31, 0.19, 0.05, (0.15 + 0.35 * front) * a), max(1.0, w * 0.022 * front))
-		ci.draw_line(Vector2(x + w * 0.014, top + bh * 0.3), Vector2(x + w * 0.014, top + bh * 0.92), Color(1, 0.94, 0.75, 0.25 * front * a), max(1.0, w * 0.01 * front))
+		var ry: float = top + dy.call(x)
+		ci.draw_line(Vector2(x, ry + bh * 0.28), Vector2(x, ry + bh * 0.94), Color(0.31, 0.19, 0.05, (0.15 + 0.35 * front) * a), max(1.0, w * 0.022 * front))
+		ci.draw_line(Vector2(x + w * 0.014, ry + bh * 0.3), Vector2(x + w * 0.014, ry + bh * 0.92), Color(1, 0.94, 0.75, 0.25 * front * a), max(1.0, w * 0.01 * front))
 	# one bright mark so the turning is easy to follow
 	var ma := spin + 1.2
 	var mf := sin(ma)
 	if mf > 0.0:
 		var mx: float = clampf(cx + cos(ma) * cw * 0.5, x0 + w * 0.05, x0 + cw - w * 0.05)
-		ci.draw_rect(Rect2(mx - w * 0.03 * mf, top + bh * 0.3, w * 0.06 * mf, bh * 0.6), Color(1, 1, 1, 0.55 * mf * a))
+		ci.draw_rect(Rect2(mx - w * 0.03 * mf, top + dy.call(mx) + bh * 0.3, w * 0.06 * mf, bh * 0.6), Color(1, 1, 1, 0.55 * mf * a))
 	# shine sweeping across once it clicks shut
 	var gt := (age - CAP_TOTAL - 0.12) / 0.42
 	if gt > 0.0 and gt < 1.0:
@@ -401,18 +409,24 @@ static func cap(ci: CanvasItem, r: Rect2, age: float) -> void:
 		var c0 := Color(1, 1, 1, 0)
 		var c1 := Color(1, 1, 1, 0.75)
 		if gx > l:
-			ci.draw_polygon(PackedVector2Array([Vector2(l, top), Vector2(gx, top), Vector2(gx, top + bh), Vector2(l, top + bh)]), PackedColorArray([c0, c1, c1, c0]))
+			ci.draw_polygon(PackedVector2Array([Vector2(l, top + dy.call(l)), Vector2(gx, top + dy.call(gx)), Vector2(gx, top + dy.call(gx) + bh), Vector2(l, top + dy.call(l) + bh)]), PackedColorArray([c0, c1, c1, c0]))
 		if rr > gx:
-			ci.draw_polygon(PackedVector2Array([Vector2(gx, top), Vector2(rr, top), Vector2(rr, top + bh), Vector2(gx, top + bh)]), PackedColorArray([c1, c0, c0, c1]))
-	# rolled top edge and outline
-	ci.draw_rect(Rect2(x0 + w * 0.03, top + 1, cw - w * 0.06, max(2.0, bh * 0.22)), Color(Color("#fff1c2"), a))
-	var ol := StyleBoxFlat.new()
-	ol.draw_center = false
-	ol.border_color = Color(0.27, 0.16, 0.04, 0.55 * a)
-	ol.set_border_width_all(int(max(1.0, w * 0.015)))
-	ol.set_corner_radius_all(int(w * 0.05))
-	ol.anti_aliasing = true
-	ci.draw_style_box(ol, band)
+			ci.draw_polygon(PackedVector2Array([Vector2(gx, top + dy.call(gx)), Vector2(rr, top + dy.call(rr)), Vector2(rr, top + dy.call(rr) + bh), Vector2(gx, top + dy.call(gx) + bh)]), PackedColorArray([c1, c0, c0, c1]))
+	# rolled top edge and outline, both following the round shape
+	ci.draw_polyline(_oval(Vector2(cx, top + bh * 0.08), half * 0.97, bend, 0.08, PI - 0.08, 24), Color(Color("#fff1c2"), a), max(2.0, bh * 0.18), true)
+	var ol := _oval(Vector2(cx, top), half, bend, PI, TAU, 20)
+	ol.append_array(_oval(Vector2(cx, top + bh), half, bend, 0.0, PI, 24))
+	ol.append(ol[0])
+	ci.draw_polyline(ol, Color(0.27, 0.16, 0.04, 0.55 * a), max(1.0, w * 0.015), true)
+
+
+## Points along an oval from angle a0 to a1 (y grows downward, so 0..PI is the lower half).
+static func _oval(c: Vector2, rx: float, ry: float, a0: float, a1: float, n: int) -> PackedVector2Array:
+	var pts := PackedVector2Array()
+	for k in n + 1:
+		var ang := a0 + (a1 - a0) * k / n
+		pts.append(c + Vector2(cos(ang) * rx, sin(ang) * ry))
+	return pts
 
 # ---------------- tutorial hand ----------------
 
