@@ -270,7 +270,8 @@ static func _ordered_moves(s: Dictionary) -> Array:
 ## Fewest pours that solve the puzzle (A* search), as an Array of [from, to] moves, or null if not
 ## found within `limit` positions. The estimate counts color changes inside jars: one pour can fix
 ## at most one, so the answer is exact.
-static func shortest_path(start: Dictionary, limit := 40000):
+## weight > 1 trades the guaranteed shortest route for a much faster search (a near-shortest one).
+static func shortest_path(start: Dictionary, limit := 40000, weight := 1):
 	var best := {_key(start): 0}
 	var heap := [[_breaks(start), 0, copy(start), []]]
 	var nodes := 0
@@ -294,7 +295,7 @@ static func shortest_path(start: Dictionary, limit := 40000):
 			best[k] = d + 1
 			var np: Array = item[3].duplicate()
 			np.append(m)
-			_heap_push(heap, [d + 1 + _breaks(nx), d + 1, nx, np])
+			_heap_push(heap, [d + 1 + weight * _breaks(nx), d + 1, nx, np])
 	return null
 
 static func _breaks(s: Dictionary) -> int:

@@ -21,7 +21,7 @@ func do_drag(a: int, b: int, shot := "") -> void:
 	ev_btn(p1, false); await get_tree().create_timer(0.8).timeout
 func _ready():
 	var S = get_tree().root.get_node("Save")
-	S.level = 3; S.seen = {"cracked_jar": true, "color_jar": true, "lid": true, "daily": true, "hard": true, "extreme": true, "coins": true, "map": true, "lives": true, "tutorial": true}
+	S.level = 3; S.seen = {"cracked_jar": true, "color_jar": true, "lid": true, "daily": true, "hard": true, "extreme": true, "coins": true, "map": true, "lives": true, "tutorial": true, "streak": true}
 	main = load("res://scenes/main.tscn").instantiate()
 	get_tree().root.add_child.call_deferred(main)
 	await get_tree().create_timer(4.0).timeout

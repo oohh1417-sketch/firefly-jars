@@ -295,11 +295,21 @@ func _draw() -> void:
 			var w := r * 0.8
 			var h := w * 0.62
 			var cy := p.y - r * 1.05
-			var crown := PackedVector2Array([Vector2(p.x - w / 2, cy + h / 2), Vector2(p.x - w / 2, cy - h * 0.2), Vector2(p.x - w / 4, cy + h * 0.1), Vector2(p.x, cy - h / 2),
-				Vector2(p.x + w / 4, cy + h * 0.1), Vector2(p.x + w / 2, cy - h * 0.2), Vector2(p.x + w / 2, cy + h / 2)])
+			# three soft points with a little glowing orb on each, sitting on a darker band (same as the web crown)
+			var bh := h * 0.26
+			var b := cy + h * 0.5
+			var tips := [Vector2(p.x - w * 0.5, cy - h * 0.32), Vector2(p.x, cy - h * 0.54), Vector2(p.x + w * 0.5, cy - h * 0.32)]
+			var crown := PackedVector2Array([Vector2(p.x - w * 0.46, b - bh), tips[0] + Vector2(w * 0.02, 0), Vector2(p.x - w * 0.22, cy + h * 0.04), tips[1],
+				Vector2(p.x + w * 0.22, cy + h * 0.04), tips[2] - Vector2(w * 0.02, 0), Vector2(p.x + w * 0.46, b - bh)])
+			var line := Color(0.43, 0.2, 0, 0.65)
 			draw_colored_polygon(crown, Color("#ffcf3a"))
 			crown.append(crown[0])
-			draw_polyline(crown, Color(0.35, 0.12, 0, 0.7), 1.5 * k_scale)
+			draw_polyline(crown, line, 1.5 * k_scale, true)
+			var band := Rect2(p.x - w * 0.5, b - bh, w, bh)
+			draw_rect(band, Color("#e0961f"))
+			draw_rect(band, line, false, 1.5 * k_scale)
+			for tip in tips:
+				draw_circle(tip, w * 0.07, Color("#fff8d0"))
 		elif hard:
 			var sc := p + Vector2(r, -r) * 0.85
 			draw_colored_polygon(Art.star_points(sc, r * 0.42, r * 0.19), Color("#ff5ca8") if lv < cur else Color("#ff8fc8"))

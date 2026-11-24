@@ -434,13 +434,23 @@ func _draw() -> void:
 		_draw_jar_back(i, _jar_rect(i))
 	if dragging():
 		_draw_drag()
+	# a hint: the fireflies that should move glow and bob, the jar they go into glows gold
+	var hn := 0
+	if hint_move.size() == 2:
+		hn = mini(Puzzle.top_run(state.jars[hint_move[0]]), Puzzle.CAPACITY - state.jars[hint_move[1]].size())
 	for i in flies.size():
-		for f in flies[i]:
+		for k in flies[i].size():
+			var f = flies[i][k]
 			var moving: bool = f.speed > 25.0
 			f.flap += 0.9 if moving else 0.12
-			var awake: bool = state.locks[i] == 0 or not f.arc.is_empty()
+			var lit: bool = hn > 0 and i == hint_move[0] and k >= flies[i].size() - hn and f.arc.is_empty()
+			var awake: bool = state.locks[i] == 0 or not f.arc.is_empty() or lit
 			var wob := Vector2(_cap_wobble(i) * _rects[i].size.x, 0) if f.arc.is_empty() else Vector2.ZERO
-			Art.fly(self, f.pos + wob, rad, COLORS[f.c], f.flap, awake, moving, float(f.id), _now)
+			if lit:
+				wob.y = -rad * 0.25 * absf(sin(_now / 0.3))
+				Art.glow(self, f.pos + wob, rad * 3.2, Color("#fff3a0"), 0.55 + 0.25 * sin(_now / 0.2))
+				f.flap += 0.6
+			Art.fly(self, f.pos + wob, rad, COLORS[f.c], f.flap, awake, moving or lit, float(f.id), _now)
 			if Save.color_blind and awake:
 				Art.symbol(self, f.pos + wob + Vector2(rad * 0.08, rad * 0.12), rad * 0.3, f.c)
 	for i in jars.size():
@@ -448,6 +458,14 @@ func _draw() -> void:
 	var xi := extra_index()
 	if xi >= 0 and xi < _rects.size():
 		_draw_cracked(_rects[xi], mend_amount(), rad, extra_state == "cracked")
+	if hint_move.size() == 2 and hint_move[1] < _rects.size():
+		var hr: Rect2 = _rects[hint_move[1]]
+		var ay := hr.position.y - rad * 0.9 - rad * 0.35 * absf(sin(_now / 0.25))
+		var ax := hr.get_center().x
+		var tri := PackedVector2Array([Vector2(ax - rad * 0.55, ay - rad * 0.5), Vector2(ax + rad * 0.55, ay - rad * 0.5), Vector2(ax, ay + rad * 0.2)])
+		draw_colored_polygon(tri, Color("#ffd93b"))
+		tri.append(tri[0])
+		draw_polyline(tri, Color(0.24, 0.14, 0, 0.6), 2.0, true)
 	_draw_helpers(rad)
 	for p in _particles:
 		var a: float = 1.0 - p.life / p.max
@@ -621,8 +639,10 @@ func _draw_jar_front(i: int, r: Rect2, rad: float) -> void:
 	if i == selected:
 		line = Color("#ffe27a")
 		Art.glow(self, r.get_center(), r.size.y * 0.7, Color("#ffd93b"), 0.12)
-	if hint_move.size() == 2 and (hint_move[0] == i or hint_move[1] == i):
-		line = Color(1, 1, 1, 0.45 + 0.55 * absf(sin(_now / 0.25)))
+	if hint_move.size() == 2 and hint_move[1] == i:
+		var pu := absf(sin(_now / 0.25))
+		line = Color(1.0, 0.85, 0.23, 0.55 + 0.45 * pu)
+		Art.glow(self, r.get_center(), r.size.y * 0.75, Color("#ffd93b"), 0.16 + 0.14 * pu)
 	Art.jar_front(self, r, line, max(2.0, rad * 0.11))
 	if only >= 0:
 		# a ribbon in the jar's color tied around the neck, with a bow
