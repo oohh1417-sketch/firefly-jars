@@ -115,6 +115,14 @@ var win_total_label: Label
 var double_btn: Button
 var _win_gain := 0
 var _used_hint := false
+# Skill streak: on normal levels (from level 3) finish within `target` pours and without a hint.
+# On Hard/Extreme levels, win with 3+ pours to spare and without losing a heart on that level.
+const STREAK_FROM := 3
+const STREAK_SPARE := 3
+const STREAK_BONUS := {3: 15, 5: 30, 10: 60}   # GUESS: bonus sizes
+var target := 0
+var _heart_lost_at := 0
+var side_streak: Button
 var offer_layer: Control
 var offer_title: Label
 var offer_text: Label
@@ -170,7 +178,12 @@ func _process(delta: float) -> void:
 		WorkerThreadPool.wait_for_task_completion(_limit_task)
 		_limit_task = -1
 		if _limit_result.size() == 3 and _limit_result[0] == Save.level and mode == "level":
-			move_limit = _limit_result[1]
+			if Puzzle.is_hard(Save.level):
+				move_limit = _limit_result[1]
+			else:
+				target = _limit_result[1]
+				if target > 0 and not Save.seen.has("streak"):
+					_show_tip("streak")
 			if not _limit_result[2].is_empty():
 				_hint_plan = _plan_from(start_state, _limit_result[2])   # hints on this level follow the shortest route
 			if moves_max == 0:
@@ -187,6 +200,8 @@ func _process(delta: float) -> void:
 		_refresh_lives()
 		if side_gift and menu_layer.visible and side_gift.get_meta("badge"):
 			side_gift.queue_redraw()
+	if side_streak and menu_layer.visible and Save.skill > 0:
+		side_streak.queue_redraw()
 	_clock += delta
 	if _clock > 20.0 and menu_layer.visible:
 		_clock = 0.0
@@ -749,6 +764,7 @@ const TIPS := {
 	"extreme": ["Extreme level", "The last level of every chapter is Extreme: even more colors and fewer spare moves. Win for 50 coins and a hint. If you give up, you lose a heart."],
 	"lives": ["Hearts", "You lost a heart. You have 5 for Hard and Extreme levels, and one comes back every 20 minutes. Normal levels never cost hearts."],
 	"coins": ["Coins", "You earn coins for every level you solve. Spend them on hints, undos, extra moves, hearts and mending cracked jars."],
+	"streak": ["Skill streak", "Finish a level within the target moves, without a hint, and your streak grows. On Hard and Extreme levels, win with 3 or more moves to spare without losing a heart. Bonus coins at 3, 5 and 10 in a row! Miss, and it starts again from 0."],
 	"map": ["Your firefly trail", "Every level is a stone on this trail. Gold ones are done and yours glows. Hard levels have a pink star, Extreme levels a gold crown. Tap your level or Play to start."],
 }
 
@@ -841,6 +857,8 @@ func _leaving_costs_life() -> bool:
 
 func _lose_life(why: String) -> void:
 	Save.lose_life()
+	if mode == "level":
+		_heart_lost_at = Save.level
 	_refresh_lives()
 	Analytics.log_event("life_lost", {"level": Save.level, "why": why, "left": Save.lives})
 	if not Save.seen.has("lives"):
@@ -949,13 +967,14 @@ func _side_btn(icon_name: String, text: String) -> Button:
 	b.draw.connect(func():
 		var c := Vector2(b.size.x * 0.5, 56)
 		var r := 54.0 * (0.94 if b.is_pressed() else 1.0)
-		Art.glow(b, c, r * 1.6, Color("#ffc83c"), 0.3)
+		var hot: bool = b.has_meta("streak") and Save.skill > 0
+		Art.glow(b, c, r * (1.6 + (0.25 * sin(Time.get_ticks_msec() / 280.0) if hot else 0.0)), Color("#ff8a2a") if hot else Color("#ffc83c"), 0.55 if hot else 0.3)
 		b.draw_circle(c, r, Color(0.07, 0.09, 0.22, 0.95))
 		b.draw_circle(c - Vector2(r, r) * 0.18, r * 0.75, Color(0.24, 0.29, 0.59, 0.55))
 		b.draw_arc(c, r, 0, TAU, 48, Color(1.0, 0.85, 0.23, 0.75), 4.0, true)
-		Art.icon(b, icon_name, c, r * 1.15, Color.WHITE)
+		Art.icon(b, icon_name, c, r * 1.15, Color("#ff9f43") if b.has_meta("streak") else Color.WHITE)
 		var fs := 26
-		var txt := tr(text)
+		var txt: String = str(b.get_meta("label", tr(text)))
 		var tw := UI_FONT_HEAVY.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 		var pill := Rect2(c.x - tw * 0.5 - 14, 98, tw + 28, 38)
 		var sb := StyleBoxFlat.new()
@@ -992,6 +1011,12 @@ func _build_side() -> void:
 	side_gift = _side_btn("gift", "Daily")
 	side_gift.pressed.connect(_show_gifts)
 	col.add_child(side_gift)
+	side_streak = _side_btn("flame", "0")
+	side_streak.set_meta("streak", true)
+	side_streak.pressed.connect(func():
+		Sound.play("select")
+		_show_tip("streak"))
+	col.add_child(side_streak)
 
 func _refresh_side() -> void:
 	if side_noads == null:
@@ -999,6 +1024,9 @@ func _refresh_side() -> void:
 	side_noads.visible = not Save.ads_removed
 	side_gift.set_meta("badge", Save.gift_state().ready)
 	side_gift.queue_redraw()
+	side_streak.visible = Save.skill > 0 or Save.seen.has("streak")
+	side_streak.set_meta("label", str(Save.skill))
+	side_streak.queue_redraw()
 
 ## The biggest font size (up to fs) at which the text fits in max_w.
 func _fit_fs(text: String, fs: int, max_w: float) -> int:
@@ -1201,6 +1229,9 @@ func _start_level() -> void:
 	menu_layer.hide()
 	win_layer.hide()
 	move_limit = 0
+	target = 0
+	if _heart_lost_at != Save.level:
+		_heart_lost_at = 0
 	_hint_plan = {}
 	# never wait for the background search: if it isn't finished, make the level now and work out
 	# the move limit on a background thread (the pill shows "..." for a moment)
@@ -1213,17 +1244,22 @@ func _start_level() -> void:
 	if _prefetch_task == -1 and _prefetch.get("level", -1) == Save.level:
 		start_state = Puzzle.copy(_prefetch.state)
 		if not _prefetch.path.is_empty():
-			move_limit = Puzzle.limit_for(_prefetch.path.size(), Save.level)
+			if Puzzle.is_hard(Save.level):
+				move_limit = Puzzle.limit_for(_prefetch.path.size(), Save.level)
+			else:
+				target = _streak_target(_prefetch.path.size(), Save.level)
 			_hint_plan = _plan_from(start_state, _prefetch.path)
 	elif not made.is_empty():
 		start_state = Puzzle.copy(made.state)   # the level is made; the limit is still being searched
 	else:
 		start_state = Puzzle.generate(Save.level)
-	if move_limit == 0:
+	if move_limit == 0 and target == 0:
 		_start_limit_task()
 	_reset_extra()
 	_load_state(Puzzle.copy(start_state), true)
 	_maybe_tip()
+	if target > 0 and not Save.seen.has("streak"):
+		_show_tip("streak")
 	Analytics.log_event("level_start", {"level": Save.level, "mode": mode, "hard": Puzzle.is_hard(Save.level), "extreme": Puzzle.is_extreme(Save.level)})
 	if Puzzle.is_hard(Save.level):
 		_show_hard_banner()
@@ -1344,7 +1380,23 @@ func _refresh() -> void:
 	hard_tint.texture = _tint_extreme if ext else _tint_hard
 	hard_tint.visible = hard
 	var limited := mode == "level" and Puzzle.is_hard(Save.level) and not won and not menu_layer.visible
-	moves_pill.visible = limited
+	var tgt := mode == "level" and not Puzzle.is_hard(Save.level) and target > 0 and not won and not menu_layer.visible
+	moves_pill.visible = limited or tgt
+	if tgt:
+		moves_label.text = I18n.t("Target: {0} / {1}", [moves, target])
+		var off := _used_hint or moves > target
+		var tsb := StyleBoxFlat.new()
+		tsb.set_corner_radius_all(22)
+		tsb.set_border_width_all(2)
+		tsb.content_margin_left = 22
+		tsb.content_margin_right = 22
+		tsb.content_margin_top = 4
+		tsb.content_margin_bottom = 4
+		tsb.anti_aliasing = true
+		tsb.bg_color = Color(1, 1, 1, 0.06) if off else Color(0.24, 0.67, 1.0, 0.16)
+		tsb.border_color = Color(1, 1, 1, 0.18) if off else Color(0.47, 0.78, 1.0, 0.55)
+		moves_label.add_theme_color_override("font_color", Color(0.86, 0.9, 1.0, 0.55) if off else Color("#d9f6ff"))
+		moves_pill.add_theme_stylebox_override("panel", tsb)
 	if limited:
 		var left := moves_max - moves
 		moves_label.text = "..." if moves_max == 0 else (tr("1 move left") if left == 1 else I18n.t("{0} moves left", [left]))
@@ -1601,7 +1653,7 @@ func _use_hint() -> void:
 	board.selected = -1
 	board.hint_move = path[0]
 	Sound.play("hint")
-	_say("Pour the glowing jar into the other one")
+	_say("Move the glowing fireflies into the gold jar")
 	_refresh()
 
 func _on_win() -> void:
@@ -1632,6 +1684,28 @@ func _on_win() -> void:
 			Save.seen["tutorial"] = true
 			_tut_stop()
 		gain = COIN_LEVEL
+		# skill streak: -1 = this level doesn't count (too early, or the target isn't known yet)
+		var ok := -1   # -1 = doesn't count, 0 = missed, 1 = kept
+		var why := ""
+		if Puzzle.is_hard(Save.level) and move_limit > 0:
+			ok = 1 if move_limit - moves >= STREAK_SPARE and _heart_lost_at != Save.level else 0
+			why = "Streak lost: a heart was lost" if _heart_lost_at == Save.level else "Streak lost: win with 3 moves to spare"
+		elif not Puzzle.is_hard(Save.level) and target > 0:
+			ok = 1 if not _used_hint and moves <= target else 0
+			why = "Streak lost: a hint was used" if _used_hint else "Streak lost: over the target moves"
+		var streak_text := ""
+		var bonus := 0
+		if ok == 1:
+			Save.skill += 1
+			Save.stats.best_skill = maxi(int(Save.stats.get("best_skill", 0)), Save.skill)
+			bonus = _streak_bonus(Save.skill)
+			streak_text = "\n" + I18n.t("Skill streak: {0}", [Save.skill])
+			if bonus > 0:
+				streak_text += "\n" + I18n.t("Streak bonus: +{0} coins", [bonus])
+		elif ok == 0 and Save.skill > 0:
+			Save.skill = 0
+			streak_text = "\n" + tr(why)
+		Analytics.log_event("skill_streak", {"level": Save.level, "ok": ["na", "no", "yes"][ok + 1], "streak": Save.skill})
 		if Puzzle.is_hard(Save.level):
 			var ext := Puzzle.is_extreme(Save.level)
 			title = "Extreme level beaten!" if ext else "Hard level beaten!"
@@ -1642,6 +1716,8 @@ func _on_win() -> void:
 		if not Save.seen.has("tutorial_done"):
 			Save.seen["tutorial_done"] = true
 			Analytics.log_event("tutorial_complete", {})
+		gain += bonus
+		text += streak_text
 		Save.complete_level()
 		next_btn.text = "Next level"
 		_prefetch_level(Save.level)
@@ -1725,8 +1801,19 @@ func _tut_update() -> void:
 
 # ---------- move limit on Hard levels ----------
 
+## Normal levels: the fewest possible pours plus a little room (25%, at least 3). 0 = no target.
+static func _streak_target(best: int, lv: int) -> int:
+	if Puzzle.is_hard(lv) or lv < STREAK_FROM or best <= 0:
+		return 0
+	return best + maxi(3, ceili(best * 0.25))
+
+static func _streak_bonus(n: int) -> int:
+	if STREAK_BONUS.has(n):
+		return STREAK_BONUS[n]
+	return 60 if n > 10 and n % 5 == 0 else 0
+
 func _start_limit_task() -> void:
-	if not Puzzle.is_hard(Save.level):
+	if not Puzzle.is_hard(Save.level) and Save.level < STREAK_FROM:
 		return
 	if _limit_task != -1:
 		WorkerThreadPool.wait_for_task_completion(_limit_task)
@@ -1737,7 +1824,8 @@ func _start_limit_task() -> void:
 		var p = Puzzle.shortest_path(s)
 		if p == null:
 			p = Puzzle.solve(s)
-		_limit_result = [lv, Puzzle.limit_for(p.size() if p != null else 60, lv), p if p != null else []])
+		var n: int = p.size() if p != null else 60
+		_limit_result = [lv, Puzzle.limit_for(n, lv) if Puzzle.is_hard(lv) else _streak_target(n if p != null else 0, lv), p if p != null else []])
 
 func _out_of_moves() -> bool:
 	return moves_max > 0 and moves >= moves_max and not won and not Puzzle.is_solved(state)
@@ -2064,7 +2152,10 @@ func _hint_path() -> Array:
 		var i: int = _hint_plan.keys.find(Puzzle._key(state))
 		if i >= 0:
 			return _hint_plan.moves.slice(i)
-	var p = Puzzle.shortest_path(state, 6000) if moves_max > 0 else null   # with a move limit, prefer the shortest route
+	# a hint always comes from a real route to the finish: the shortest one, else a quick near-shortest one
+	var p = Puzzle.shortest_path(state, 8000)
+	if p == null:
+		p = Puzzle.shortest_path(state, 20000, 3)
 	if p == null:
 		p = Puzzle.solve(state)
 	if p == null or p.is_empty():
@@ -2087,7 +2178,7 @@ func _prefetch_level(lv: int) -> void:
 		_prefetch_state = {"level": lv, "state": s}   # the level itself is ready; its move limit may follow later
 		_prefetch_mutex.unlock()
 		var p = []
-		if Puzzle.is_hard(lv):
+		if Puzzle.is_hard(lv) or lv >= STREAK_FROM:
 			p = Puzzle.shortest_path(s)
 			if p == null:
 				p = Puzzle.solve(s)

@@ -15,6 +15,7 @@ var language: String = ""     # "" = the phone's language, else a code like "ar"
 var seen: Dictionary = {}     # which new-twist explainer cards were shown
 var daily_done: String = ""  # date of the last solved daily puzzle
 var streak: int = 0
+var skill: int = 0           # skill streak: levels in a row won within the target (see main.gd)
 var coins: int = 0            # earned by solving puzzles, spent on hints, undos, moves and mending jars
 var ach: Dictionary = {}      # trophy id -> true
 var stats: Dictionary = {}    # hard, pure, daily, best_streak, repairs, earned
@@ -27,7 +28,7 @@ var updated: int = 0          # unix time of the last save, used to merge with t
 
 signal saved
 
-const STAT_KEYS := ["hard", "extreme", "pure", "daily", "best_streak", "repairs", "earned"]
+const STAT_KEYS := ["hard", "extreme", "pure", "daily", "best_streak", "best_skill", "repairs", "earned"]
 
 func _ready() -> void:
 	load_game()
@@ -53,6 +54,7 @@ func load_game() -> void:
 	seen = _dict(cfg.get_value("progress", "seen", {}))
 	daily_done = str(cfg.get_value("daily", "done", ""))
 	streak = int(cfg.get_value("daily", "streak", 0))
+	skill = maxi(0, int(cfg.get_value("progress", "skill", 0)))
 	coins = maxi(0, int(cfg.get_value("progress", "coins", 0)))
 	map_ch = int(cfg.get_value("progress", "map_ch", 0))
 	lives = clampi(int(cfg.get_value("progress", "lives", LIVES_MAX)), 0, LIVES_MAX)
@@ -90,6 +92,7 @@ func save_game() -> void:
 	cfg.set_value("progress", "seen", seen)
 	cfg.set_value("daily", "done", daily_done)
 	cfg.set_value("daily", "streak", streak)
+	cfg.set_value("progress", "skill", skill)
 	cfg.set_value("progress", "coins", coins)
 	cfg.set_value("progress", "map_ch", map_ch)
 	cfg.set_value("progress", "lives", lives)
