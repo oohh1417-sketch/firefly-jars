@@ -461,7 +461,7 @@ svg.i { width: 1em; height: 1em; display: block; }
         <span class="txt"><b>Daily puzzle</b><span id="dailySub">A new puzzle every day</span></span>
         <span class="streak" id="dailyStreak" hidden></span>
       </button>
-      <div class="note"><span id="soundStatus">Tap anywhere to start the music</span> · Test build v0.28</div>
+      <div class="note"><span id="soundStatus">Tap anywhere to start the music</span> · Test build v0.29</div>
     </div>
   </div>
 </div>
@@ -2705,6 +2705,19 @@ $("skAction").onclick = () => {
 };
 $("skDone").onclick = () => { $("skins").hidden = true; Snd.play("sfx_drop"); refresh(); };
 $("skinsSide").onclick = () => { Snd.start(); showSkins(); };
+// A popup opened by a press ignores the click from that same press (the finger lifting off).
+// Only a fresh press after the popup is on screen can use its buttons.
+let lastPress = 0;
+document.addEventListener("pointerdown", () => { lastPress = performance.now(); }, true);
+document.querySelectorAll(".overlay").forEach(o => {
+  o._shownAt = o.hidden ? 0 : performance.now();
+  new MutationObserver(() => { if (!o.hidden) o._shownAt = performance.now(); }).observe(o, { attributes: true, attributeFilter: ["hidden"] });
+});
+document.addEventListener("click", e => {
+  if (e.detail === 0) return;   // keyboard
+  const o = e.target.closest && e.target.closest(".overlay");
+  if (o && o._shownAt > lastPress) { e.stopPropagation(); e.preventDefault(); }
+}, true);
 // keep the Skins button just above the Play card, whatever the screen height (Safari's bars make it shorter)
 function placeSkinsBtn() {
   const c = document.querySelector(".panel"), s = document.querySelector(".sideL");

@@ -33,7 +33,7 @@ env:
 
 jobs:
   ios:
-    runs-on: macos-15
+    runs-on: macos-latest   # macos-15 jobs sat unassigned and were cancelled after 15 min (Nov 24)
     timeout-minutes: 90
     env:
       HAS_SIGNING: ${{ secrets.ASC_KEY_P8 != '' && secrets.APPLE_TEAM_ID != '' }}
