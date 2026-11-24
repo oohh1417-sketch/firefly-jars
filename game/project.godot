@@ -1,0 +1,47 @@
+; Engine configuration file.
+; Open this folder in Godot 4.3 or newer (Import > select this file).
+
+config_version=5
+
+[application]
+
+config/name="Firefly Jars"
+config/description="Pour glowing fireflies between jars until every jar holds one color."
+run/main_scene="res://scenes/main.tscn"
+config/icon="res://icon.png"
+config/features=PackedStringArray("4.7", "GL Compatibility")
+boot_splash/bg_color=Color(0.02, 0.03, 0.09, 1)
+boot_splash/show_image=true
+boot_splash/image="res://splash.png"
+boot_splash/fullsize=true
+boot_splash/use_filter=true
+
+[autoload]
+
+Save="*res://scripts/save.gd"
+Ads="*res://scripts/ads.gd"
+Sound="*res://scripts/sound.gd"
+Analytics="*res://scripts/analytics.gd"
+Store="*res://scripts/store.gd"
+Services="*res://scripts/services.gd"
+
+[display]
+
+window/size/viewport_width=720
+window/size/viewport_height=1280
+window/size/window_width_override=405
+window/size/window_height_override=720
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
+window/handheld/orientation=1
+
+[input_devices]
+
+pointing/emulate_mouse_from_touch=true
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+textures/vram_compression/import_etc2_astc=true
+environment/defaults/default_clear_color=Color(0.04, 0.05, 0.12, 1)
