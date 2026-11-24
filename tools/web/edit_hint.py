@@ -79,3 +79,54 @@ rep('''g.fillStyle = "#ffcf3a"; crownPath(g, p.x, p.y - r * 1.05, r * .8); g.fil
     '''drawCrown(g, p.x, p.y - r * 1.05, r * .85, false); }''')
 open(p, "w", encoding="utf-8").write(s)
 print("crown ok")
+
+# ---- the menu jar's gold lid is a real round lid: its side curves along an oval, like a short cylinder ----
+s = open(p, encoding="utf-8").read()
+rep('''  g.fillStyle = lg; roundRect(g, -lid, -lh, lid, lh, lh * .22, lh * .22); g.fill();
+  g.strokeStyle = "rgba(90,50,10,.55)"; g.lineWidth = Math.max(1, w * .008);
+  for (let k = 1; k < 14; k++) { const lx = -lid + k * lid / 14; g.beginPath(); g.moveTo(lx, -lh * .78); g.lineTo(lx, -lh * .12); g.stroke(); }''',
+'''  const ry = lh * .42;   // the same oval as the top of the lid
+  g.fillStyle = lg; g.beginPath(); g.moveTo(-lid, -lh); g.lineTo(-lid, 0); g.ellipse(-lid / 2, 0, lid / 2, ry, 0, Math.PI, 0, true);
+  g.lineTo(0, -lh); g.ellipse(-lid / 2, -lh, lid / 2, ry, 0, 0, Math.PI); g.closePath(); g.fill();
+  g.strokeStyle = "rgba(110,60,12,.6)"; g.lineWidth = Math.max(1, w * .008); g.beginPath(); g.ellipse(-lid / 2, 0, lid / 2, ry, 0, .02, Math.PI - .02); g.stroke();
+  // ridges around the side, closer together toward the edges as they turn away
+  g.strokeStyle = "rgba(90,50,10,.55)";
+  for (let k = 1; k < 18; k++) { const a = Math.PI - k * Math.PI / 18, lx = -lid / 2 + Math.cos(a) * lid / 2, dy = Math.sin(a) * ry;
+    g.lineWidth = Math.max(.6, w * .008 * (.4 + .6 * Math.sin(a))); g.beginPath(); g.moveTo(lx, -lh * .78 + dy); g.lineTo(lx, -lh * .12 + dy); g.stroke(); }''')
+open(p, "w", encoding="utf-8").write(s)
+print("lid ok")
+
+# ---- the closed cap on finished jars and the loading jar is round too: a short cylinder seen a little from above ----
+s = open(p, encoding="utf-8").read()
+rep('''  g.save(); g.globalAlpha = T.alpha;
+  // the band, shaded like a metal cylinder
+  const mg = g.createLinearGradient(x0, 0, x0 + cw, 0);
+  mg.addColorStop(0, "#8a5d22"); mg.addColorStop(.18, "#d9a74e"); mg.addColorStop(.4, "#fbe7a6"); mg.addColorStop(.62, "#d6a24c"); mg.addColorStop(1, "#7a5220");
+  g.fillStyle = mg; roundRect(g, x0, top, cw, bh, w * .05, w * .05); g.fill();
+  g.save(); roundRect(g, x0, top, cw, bh, w * .05, w * .05); g.clip();''',
+'''  g.save(); g.globalAlpha = T.alpha;
+  const half = cw / 2, bend = w * .055, dy = x => { const t = Math.max(-1, Math.min(1, (x - cx) / half)); return bend * Math.sqrt(1 - t * t); };
+  const band = () => { g.beginPath(); g.moveTo(x0, top); g.lineTo(x0, top + bh); g.ellipse(cx, top + bh, half, bend, 0, Math.PI, 0, true); g.lineTo(x0 + cw, top); g.ellipse(cx, top, half, bend, 0, 0, Math.PI); g.closePath(); };
+  // the flat top of the lid
+  g.fillStyle = "#b9843a"; g.beginPath(); g.ellipse(cx, top, half, bend, 0, 0, 6.283); g.fill();
+  g.fillStyle = "#ecc675"; g.beginPath(); g.ellipse(cx, top + bend * .12, half * .86, bend * .78, 0, 0, 6.283); g.fill();
+  // the band, shaded like a metal cylinder
+  const mg = g.createLinearGradient(x0, 0, x0 + cw, 0);
+  mg.addColorStop(0, "#8a5d22"); mg.addColorStop(.18, "#d9a74e"); mg.addColorStop(.4, "#fbe7a6"); mg.addColorStop(.62, "#d6a24c"); mg.addColorStop(1, "#7a5220");
+  g.fillStyle = mg; band(); g.fill();
+  g.save(); band(); g.clip();''')
+rep('''    g.beginPath(); g.moveTo(x, top + bh * .28); g.lineTo(x, top + bh * .94); g.stroke();''',
+'''    const yy = top + dy(x);
+    g.beginPath(); g.moveTo(x, yy + bh * .28); g.lineTo(x, yy + bh * .94); g.stroke();''')
+rep('''    g.beginPath(); g.moveTo(x + w * .014, top + bh * .3); g.lineTo(x + w * .014, top + bh * .92); g.stroke();''',
+'''    g.beginPath(); g.moveTo(x + w * .014, yy + bh * .3); g.lineTo(x + w * .014, yy + bh * .92); g.stroke();''')
+rep('''g.fillRect(cx + Math.cos(ma) * cw / 2 - w * .03 * mf, top + bh * .3, w * .06 * mf, bh * .6); }''',
+'''const mx = cx + Math.cos(ma) * cw / 2; g.fillRect(mx - w * .03 * mf, top + dy(mx) + bh * .3, w * .06 * mf, bh * .6); }''')
+rep('''g.fillStyle = gg; g.fillRect(x0, top, cw, bh); }''', '''g.fillStyle = gg; g.fillRect(x0, top - bend, cw, bh + bend * 2); }''')
+rep('''  g.fillStyle = tg; roundRect(g, x0 + w * .02, top, cw - w * .04, Math.max(2, bh * .22), w * .04, w * .02); g.fill();
+  g.strokeStyle = "rgba(70,40,10,.55)"; g.lineWidth = Math.max(1, w * .015); roundRect(g, x0, top, cw, bh, w * .05, w * .05); g.stroke();''',
+'''  g.strokeStyle = tg; g.lineWidth = Math.max(2, bh * .18); g.lineCap = "round"; g.beginPath(); g.ellipse(cx, top + bh * .08, half * .97, bend, 0, .08, Math.PI - .08); g.stroke();
+  g.strokeStyle = "rgba(70,40,10,.55)"; g.lineWidth = Math.max(1, w * .015);
+  g.beginPath(); g.ellipse(cx, top, half, bend, 0, Math.PI, 6.283); g.lineTo(x0 + cw, top + bh); g.ellipse(cx, top + bh, half, bend, 0, 0, Math.PI); g.closePath(); g.stroke();''')
+open(p, "w", encoding="utf-8").write(s)
+print("cap ok")

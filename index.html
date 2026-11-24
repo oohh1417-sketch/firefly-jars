@@ -436,7 +436,7 @@ svg.i { width: 1em; height: 1em; display: block; }
         <span class="txt"><b>Daily puzzle</b><span id="dailySub">A new puzzle every day</span></span>
         <span class="streak" id="dailyStreak" hidden></span>
       </button>
-      <div class="note"><span id="soundStatus">Tap anywhere to start the music</span> · Test build v0.25</div>
+      <div class="note"><span id="soundStatus">Tap anywhere to start the music</span> · Test build v0.26</div>
     </div>
   </div>
 </div>
@@ -1098,7 +1098,7 @@ function hill(g, baseY, amp, freq, phase, color) {
   g.lineTo(MW, MH); g.closePath(); g.fillStyle = color; g.fill();
 }
 // ---- the big menu jar: a glass mason jar with thick walls, a screw neck and a gold lid propped open ----
-function heroBody(J) { return { x: J.x, y: J.y + J.h * .1, w: J.w, h: J.h * .9, m: J.w * .1 }; }
+function heroBody(J) { return { x: J.x, y: J.y + J.h * .1, w: J.w, h: J.h * .9, m: J.w * .15 }; }
 function heroBack(g, J, T, ground) {
   const b = heroBody(J), cx = b.x + b.w / 2;
   // shadow and warm light pooling on the ground
@@ -1144,9 +1144,14 @@ function heroFront(g, J, T) {
   g.save(); g.translate(x + w * .92, top + w * .005); g.rotate(.4 + .03 * Math.sin(T * 1.3));
   glow(g, -lid * .5, lh * .3, lid * .6, "#ffd36a", .25);
   const lg = g.createLinearGradient(0, -lh, 0, 0); lg.addColorStop(0, "#f5cf6a"); lg.addColorStop(.5, "#d79b34"); lg.addColorStop(1, "#8f5a17");
-  g.fillStyle = lg; roundRect(g, -lid, -lh, lid, lh, lh * .22, lh * .22); g.fill();
-  g.strokeStyle = "rgba(90,50,10,.55)"; g.lineWidth = Math.max(1, w * .008);
-  for (let k = 1; k < 14; k++) { const lx = -lid + k * lid / 14; g.beginPath(); g.moveTo(lx, -lh * .78); g.lineTo(lx, -lh * .12); g.stroke(); }
+  const ry = lh * .42;   // the same oval as the top of the lid
+  g.fillStyle = lg; g.beginPath(); g.moveTo(-lid, -lh); g.lineTo(-lid, 0); g.ellipse(-lid / 2, 0, lid / 2, ry, 0, Math.PI, 0, true);
+  g.lineTo(0, -lh); g.ellipse(-lid / 2, -lh, lid / 2, ry, 0, 0, Math.PI); g.closePath(); g.fill();
+  g.strokeStyle = "rgba(110,60,12,.6)"; g.lineWidth = Math.max(1, w * .008); g.beginPath(); g.ellipse(-lid / 2, 0, lid / 2, ry, 0, .02, Math.PI - .02); g.stroke();
+  // ridges around the side, closer together toward the edges as they turn away
+  g.strokeStyle = "rgba(90,50,10,.55)";
+  for (let k = 1; k < 18; k++) { const a = Math.PI - k * Math.PI / 18, lx = -lid / 2 + Math.cos(a) * lid / 2, dy = Math.sin(a) * ry;
+    g.lineWidth = Math.max(.6, w * .008 * (.4 + .6 * Math.sin(a))); g.beginPath(); g.moveTo(lx, -lh * .78 + dy); g.lineTo(lx, -lh * .12 + dy); g.stroke(); }
   const tg = g.createLinearGradient(0, -lh * 1.45, 0, -lh * .6); tg.addColorStop(0, "#fff0b0"); tg.addColorStop(1, "#e2a940");
   g.fillStyle = tg; g.beginPath(); g.ellipse(-lid / 2, -lh, lid / 2, lh * .42, 0, 0, 6.283); g.fill();
   g.strokeStyle = "rgba(150,95,25,.6)"; g.lineWidth = Math.max(1, w * .01); g.beginPath(); g.ellipse(-lid / 2, -lh, lid * .36, lh * .26, 0, 0, 6.283); g.stroke();
@@ -1893,11 +1898,16 @@ function paintCap(g, r, age) {
   const w = r.w, T = capTimeline(age), cx = r.x + w / 2;
   const cw = w * .9, x0 = cx - cw / 2, bh = w * .2 * T.squash, top = r.y - w * .07 - T.lift * w + (w * .2 - bh);
   g.save(); g.globalAlpha = T.alpha;
+  const half = cw / 2, bend = w * .055, dy = x => { const t = Math.max(-1, Math.min(1, (x - cx) / half)); return bend * Math.sqrt(1 - t * t); };
+  const band = () => { g.beginPath(); g.moveTo(x0, top); g.lineTo(x0, top + bh); g.ellipse(cx, top + bh, half, bend, 0, Math.PI, 0, true); g.lineTo(x0 + cw, top); g.ellipse(cx, top, half, bend, 0, 0, Math.PI); g.closePath(); };
+  // the flat top of the lid
+  g.fillStyle = "#b9843a"; g.beginPath(); g.ellipse(cx, top, half, bend, 0, 0, 6.283); g.fill();
+  g.fillStyle = "#ecc675"; g.beginPath(); g.ellipse(cx, top + bend * .12, half * .86, bend * .78, 0, 0, 6.283); g.fill();
   // the band, shaded like a metal cylinder
   const mg = g.createLinearGradient(x0, 0, x0 + cw, 0);
   mg.addColorStop(0, "#8a5d22"); mg.addColorStop(.18, "#d9a74e"); mg.addColorStop(.4, "#fbe7a6"); mg.addColorStop(.62, "#d6a24c"); mg.addColorStop(1, "#7a5220");
-  g.fillStyle = mg; roundRect(g, x0, top, cw, bh, w * .05, w * .05); g.fill();
-  g.save(); roundRect(g, x0, top, cw, bh, w * .05, w * .05); g.clip();
+  g.fillStyle = mg; band(); g.fill();
+  g.save(); band(); g.clip();
   // ridges around the band: they travel across the front as it turns, bunching up at the sides
   const N = 18;
   for (let k = 0; k < N; k++) {
@@ -1905,21 +1915,23 @@ function paintCap(g, r, age) {
     if (front <= 0) continue;
     const x = cx + Math.cos(a) * cw / 2;
     g.strokeStyle = `rgba(80,48,12,${.15 + .35 * front})`; g.lineWidth = Math.max(1, w * .022 * front);
-    g.beginPath(); g.moveTo(x, top + bh * .28); g.lineTo(x, top + bh * .94); g.stroke();
+    const yy = top + dy(x);
+    g.beginPath(); g.moveTo(x, yy + bh * .28); g.lineTo(x, yy + bh * .94); g.stroke();
     g.strokeStyle = `rgba(255,240,190,${.25 * front})`; g.lineWidth = Math.max(.5, w * .01 * front);
-    g.beginPath(); g.moveTo(x + w * .014, top + bh * .3); g.lineTo(x + w * .014, top + bh * .92); g.stroke();
+    g.beginPath(); g.moveTo(x + w * .014, yy + bh * .3); g.lineTo(x + w * .014, yy + bh * .92); g.stroke();
   }
   // one bright mark on the band so the turning is easy to follow
   const ma = T.spin + 1.2, mf = Math.sin(ma);
-  if (mf > 0) { g.fillStyle = `rgba(255,255,255,${.55 * mf})`; g.fillRect(cx + Math.cos(ma) * cw / 2 - w * .03 * mf, top + bh * .3, w * .06 * mf, bh * .6); }
+  if (mf > 0) { g.fillStyle = `rgba(255,255,255,${.55 * mf})`; const mx = cx + Math.cos(ma) * cw / 2; g.fillRect(mx - w * .03 * mf, top + dy(mx) + bh * .3, w * .06 * mf, bh * .6); }
   // shine sweeping across once it clicks shut
   const gt = (age - CAP_TOTAL - 120) / 420;
-  if (gt > 0 && gt < 1) { const gx = x0 - w * .3 + gt * (cw + w * .6), gg = g.createLinearGradient(gx - w * .15, 0, gx + w * .15, 0); gg.addColorStop(0, "rgba(255,255,255,0)"); gg.addColorStop(.5, "rgba(255,255,255,.8)"); gg.addColorStop(1, "rgba(255,255,255,0)"); g.fillStyle = gg; g.fillRect(x0, top, cw, bh); }
+  if (gt > 0 && gt < 1) { const gx = x0 - w * .3 + gt * (cw + w * .6), gg = g.createLinearGradient(gx - w * .15, 0, gx + w * .15, 0); gg.addColorStop(0, "rgba(255,255,255,0)"); gg.addColorStop(.5, "rgba(255,255,255,.8)"); gg.addColorStop(1, "rgba(255,255,255,0)"); g.fillStyle = gg; g.fillRect(x0, top - bend, cw, bh + bend * 2); }
   g.restore();
   // rolled top edge
   const tg = g.createLinearGradient(x0, 0, x0 + cw, 0); tg.addColorStop(0, "#c99a4a"); tg.addColorStop(.4, "#fff3c8"); tg.addColorStop(1, "#b9873a");
-  g.fillStyle = tg; roundRect(g, x0 + w * .02, top, cw - w * .04, Math.max(2, bh * .22), w * .04, w * .02); g.fill();
-  g.strokeStyle = "rgba(70,40,10,.55)"; g.lineWidth = Math.max(1, w * .015); roundRect(g, x0, top, cw, bh, w * .05, w * .05); g.stroke();
+  g.strokeStyle = tg; g.lineWidth = Math.max(2, bh * .18); g.lineCap = "round"; g.beginPath(); g.ellipse(cx, top + bh * .08, half * .97, bend, 0, .08, Math.PI - .08); g.stroke();
+  g.strokeStyle = "rgba(70,40,10,.55)"; g.lineWidth = Math.max(1, w * .015);
+  g.beginPath(); g.ellipse(cx, top, half, bend, 0, Math.PI, 6.283); g.lineTo(x0 + cw, top + bh); g.ellipse(cx, top + bh, half, bend, 0, 0, Math.PI); g.closePath(); g.stroke();
   g.restore();
 }
 // after the click the whole jar gives a tiny wobble

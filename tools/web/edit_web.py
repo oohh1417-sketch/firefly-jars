@@ -223,7 +223,7 @@ rep('''  g.quadraticCurveTo(x + w, top + w * .14, x + w - nx, top + w * .12); g.
   g.closePath();
 }''')
 rep('''function heroBody(J) { return { x: J.x, y: J.y + J.h * .1, w: J.w, h: J.h * .9 }; }''',
-    '''function heroBody(J) { return { x: J.x, y: J.y + J.h * .1, w: J.w, h: J.h * .9, m: J.w * .1 }; }''')
+    '''function heroBody(J) { return { x: J.x, y: J.y + J.h * .1, w: J.w, h: J.h * .9, m: J.w * .15 }; }''')
 s = s.replace("jarPath(g, b);", "jarPath(g, b, b.m);")
 rep("h: b.h - inset * 1.3 });", "h: b.h - inset * 1.3 }, b.m * .85);")
 rep('''  // back edge of the open mouth
