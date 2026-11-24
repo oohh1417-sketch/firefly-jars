@@ -145,15 +145,17 @@ func _hero_back(J: Rect2, T: float, ground: float) -> void:
 	draw_colored_polygon(_ell(Vector2(cx, ground + 2), b.size.x * 0.62, b.size.x * 0.09), Color(0, 0, 0.04, 0.45))
 	Art.glow(self, Vector2(cx, ground), b.size.x * 1.1, Color("#ffc94a"), 0.2 + 0.03 * sin(T * 2.0))
 	# the glass behind the fireflies: clearer in the middle, denser toward the edges
-	var pts := Art.jar_points(b)
+	var pts := Art.jar_points(b, b.size.x * 0.1)
 	_tex_poly(pts, _grad("glass", [[0.0, Color8(175, 210, 255, 66)], [0.18, Color8(140, 180, 240, 23)], [0.6, Color8(120, 160, 230, 13)], [0.88, Color8(150, 190, 250, 26)], [1.0, Color8(175, 210, 255, 61)]]), b)
 	# warm glow of the fireflies inside, kept inside the glass
 	var gr := b.size.x * 0.85
 	var gc := Vector2(cx, b.position.y + b.size.y * 0.62)
 	var glow_a := 0.32 + 0.05 * sin(T * 1.6)
 	_tex_poly(pts, _grad("inglow", [[0.0, Color(1, 1, 1, 1)], [0.35, Color(1, 1, 1, 0.53)], [1.0, Color(1, 1, 1, 0)]], true), Rect2(gc - Vector2(gr, gr), Vector2(gr, gr) * 2.0), Color(Color("#ffcf4a"), glow_a))
-	# back edge of the open mouth
-	draw_polyline(_ell(Vector2(cx, b.position.y), b.size.x * 0.4, b.size.x * 0.055, PI, TAU), Color8(200, 225, 255, 89), max(1.5, b.size.x * 0.012), true)
+	# the open mouth: a dark oval inside the rim, and the glass thickness along its back edge
+	var m := b.size.x * 0.1
+	draw_colored_polygon(_ell(Vector2(cx, b.position.y), b.size.x * 0.37, m * 0.82), Color(0.02, 0.03, 0.1, 0.28))
+	draw_polyline(_ell(Vector2(cx, b.position.y), b.size.x * 0.37, m * 0.82, PI, TAU), Color8(200, 225, 255, 77), max(1.5, b.size.x * 0.012), true)
 
 func _hero_front(J: Rect2, T: float) -> void:
 	var b := _hero_body(J)
@@ -163,23 +165,20 @@ func _hero_front(J: Rect2, T: float) -> void:
 	var bot := b.end.y
 	var cx := x + w / 2.0
 	var lw: float = max(2.5, w * 0.022)
-	var pts := Art.jar_points(b)
+	var pts := Art.jar_points(b, b.size.x * 0.1)
 	# thick glass bottom with a bright lens edge
 	_tex_poly(pts, _grad("bottom", [[0.0, Color8(200, 230, 255, 0)], [1.0, Color8(200, 230, 255, 56)]], false, true), Rect2(x, bot - w * 0.2, w, w * 0.2))
 	draw_polyline(_ell(Vector2(cx, bot - w * 0.11), w * 0.38, w * 0.05, 0.1, PI - 0.1), Color8(230, 245, 255, 89), lw * 0.7, true)
 	# the wall: a bright outer line and a fainter inner line give the glass its thickness
 	draw_polyline(_closed(pts), Color8(215, 235, 255, 158), lw, true)
 	var inset := w * 0.035
-	draw_polyline(_closed(Art.jar_points(Rect2(x + inset, top + inset * 0.3, w - inset * 2.0, b.size.y - inset * 1.3))), Color8(190, 220, 255, 46), lw * 0.6, true)
+	draw_polyline(_closed(Art.jar_points(Rect2(x + inset, top + inset * 0.3, w - inset * 2.0, b.size.y - inset * 1.3), w * 0.085)), Color8(190, 220, 255, 46), lw * 0.6, true)
 	# screw threads on the neck
 	for k in 2:
-		var y := top + w * (0.035 + k * 0.045)
-		var th := PackedVector2Array()
-		Art._quad(Vector2(x + w * 0.11, y + w * 0.012), Vector2(cx, y + w * 0.04), Vector2(x + w * 0.89, y - w * 0.004), th, 14)
-		th.insert(0, Vector2(x + w * 0.11, y + w * 0.012))
-		draw_polyline(th, Color8(220, 240, 255, 115), lw * 0.7, true)
+		var y := top + w * (0.04 + k * 0.045)
+		draw_polyline(_ell(Vector2(cx, y), w * 0.4, w * 0.09, 0.12, PI - 0.12), Color8(220, 240, 255, 115), lw * 0.7, true)
 	# front edge of the mouth
-	draw_polyline(_ell(Vector2(cx, top), w * 0.4, w * 0.055, 0.0, PI), Color8(235, 248, 255, 179), lw * 0.9, true)
+	draw_polyline(_ell(Vector2(cx, top), w * 0.4, w * 0.1, 0.0, PI), Color8(235, 248, 255, 179), lw * 0.9, true)
 	# highlights: a long soft streak on the left, a thin one on the right, a glint on the shoulder
 	var hr := Rect2(x + w * 0.09, top + w * 0.3, w * 0.075, b.size.y - w * 0.52)
 	_tex_poly(_rrect(hr, w * 0.04), _grad("streak", [[0.0, Color(1, 1, 1, 0)], [0.25, Color(1, 1, 1, 0.34)], [0.75, Color(1, 1, 1, 0.2)], [1.0, Color(1, 1, 1, 0)]], false, true), Rect2(x, top + w * 0.3, w, bot - w * 0.2 - (top + w * 0.3)))

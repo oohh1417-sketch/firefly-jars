@@ -49,26 +49,39 @@ func _draw() -> void:
 	if label == "":
 		Art.icon(self, icon_name, size * 0.5, size.y * 0.5, col)
 		return
+	var txt := tr(label)   # "Undo", "Hint", "Full": English keys, shown in the player's language
+	var bdg := tr(badge)
 	var fs := 40
-	var tw := font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+	var bfs := 30
+	var tw := font.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 	var bw := 0.0
-	if badge != "":
-		bw = max(52.0, font.get_string_size(badge, HORIZONTAL_ALIGNMENT_LEFT, -1, 30).x + 28.0) + 16.0
+	if bdg != "":
+		bw = max(52.0, font.get_string_size(bdg, HORIZONTAL_ALIGNMENT_LEFT, -1, bfs).x + 28.0) + 16.0
 	var isz := size.y * 0.42
 	var total := isz + 18.0 + tw + bw
+	if total > size.x - 24.0:
+		# a longer word in another language: shrink the text so it stays inside the button
+		var k := (size.x - 24.0 - isz - 18.0) / (tw + bw)
+		fs = int(fs * k)
+		bfs = int(bfs * k)
+		tw = font.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+		if bdg != "":
+			bw = max(52.0 * k, font.get_string_size(bdg, HORIZONTAL_ALIGNMENT_LEFT, -1, bfs).x + 28.0 * k) + 16.0 * k
+		total = isz + 18.0 + tw + bw
 	var x := (size.x - total) * 0.5
 	var ic := col
 	if icon_name == "bulb":
 		ic = Color(Color("#ffd93b"), a)
 	Art.icon(self, icon_name, Vector2(x + isz * 0.5, size.y * 0.5), isz, ic)
 	x += isz + 18.0
-	draw_string(font, Vector2(x, size.y * 0.5 + font.get_ascent(fs) * 0.5 - fs * 0.12), label, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(Color("#f3f5ff"), a))
-	if badge != "":
-		var br := Rect2(x + tw + 16.0, size.y * 0.5 - 26.0, bw - 16.0, 52.0)
+	draw_string(font, Vector2(x, size.y * 0.5 + font.get_ascent(fs) * 0.5 - fs * 0.12), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(Color("#f3f5ff"), a))
+	if bdg != "":
+		var bh := 52.0 * bfs / 30.0
+		var br := Rect2(x + tw + 16.0 * bfs / 30.0, size.y * 0.5 - bh * 0.5, bw - 16.0 * bfs / 30.0, bh)
 		var bs := StyleBoxFlat.new()
 		bs.bg_color = badge_color
 		bs.set_corner_radius_all(26)
 		bs.anti_aliasing = true
 		draw_style_box(bs, br)
-		var bt := font.get_string_size(badge, HORIZONTAL_ALIGNMENT_LEFT, -1, 30).x
-		draw_string(font, Vector2(br.get_center().x - bt * 0.5, br.get_center().y + font.get_ascent(30) * 0.5 - 4), badge, HORIZONTAL_ALIGNMENT_LEFT, -1, 30, badge_text_color)
+		var bt := font.get_string_size(bdg, HORIZONTAL_ALIGNMENT_LEFT, -1, bfs).x
+		draw_string(font, Vector2(br.get_center().x - bt * 0.5, br.get_center().y + font.get_ascent(bfs) * 0.5 - 4.0 * bfs / 30.0), bdg, HORIZONTAL_ALIGNMENT_LEFT, -1, bfs, badge_text_color)

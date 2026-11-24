@@ -36,6 +36,9 @@ var play_sub: Label
 var hint_chip: Button
 var settings_layer: Control
 var privacy_layer: Control
+var lang_layer: Control
+var lang_btn: Button
+var _lang_grid: GridContainer
 var _switches := {}
 var chapter_num: Label
 var chapter_name: Label
@@ -148,6 +151,7 @@ func _ready() -> void:
 	Store.restore_done.connect(func(found: bool): _top_toast("Restore purchases", "Remove ads is active" if found else "No purchases found", false); _refresh_store())
 	Store.test_store_requested.connect(_show_test_store)
 	Services.changed.connect(_refresh)
+	I18n.changed.connect(_on_language_changed)
 	_build_offer()
 	_build_top_toast()
 	Services.check_trophies()   # quietly unlock anything earned before trophies existed
@@ -434,7 +438,24 @@ func _card(layer: Control, width := 600) -> VBoxContainer:
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 26)
 	panel.add_child(box)
+	_wrap_texts.call_deferred(box)
 	return box
+
+## Long words in some languages (German, Russian...) must not push a card off the screen:
+## titles, texts and buttons that span the card's width wrap onto a second line instead.
+func _wrap_texts(n: Node) -> void:
+	for c in n.get_children():
+		if not c is Control:
+			continue
+		var in_column: bool = n is VBoxContainer and (n.get_parent() is PanelContainer or (n as Control).size_flags_horizontal & Control.SIZE_EXPAND)
+		var in_row: bool = n is HBoxContainer and (c as Control).size_flags_horizontal & Control.SIZE_EXPAND
+		var spans := in_column or in_row
+		if spans and c is Label and c.autowrap_mode == TextServer.AUTOWRAP_OFF:
+			c.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		elif spans and c is Button and not c is IconButton and c.text != "":
+			c.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		if c is Container:
+			_wrap_texts(c)
 
 func _build_menu() -> void:
 	menu_layer = Control.new()
@@ -526,6 +547,7 @@ func _build_menu() -> void:
 	chapter_name = _label("Meadow Glow", 40, INK, UI_FONT_HEAVY, HORIZONTAL_ALIGNMENT_LEFT)
 	names.add_child(chapter_name)
 	chapter_count = _label("0 / 10", 30, MUTED, UI_FONT_HEAVY, HORIZONTAL_ALIGNMENT_RIGHT)
+	chapter_count.text_direction = Control.TEXT_DIRECTION_LTR   # "4 / 10" must not turn into "10 / 4" in Arabic
 	chapter_count.vertical_alignment = VERTICAL_ALIGNMENT_TOP
 	row.add_child(chapter_count)
 	chapter_bar = ProgressBar.new()
@@ -761,7 +783,7 @@ func _show_next_tip() -> void:
 	var k: String = tip_queue.pop_front()
 	Save.seen[k] = true
 	Save.save_game()
-	tip_title.text = "New: " + TIPS[k][0]
+	tip_title.text = I18n.t("New: {0}", [tr(TIPS[k][0])])
 	tip_text.text = TIPS[k][1]
 	move_child(tip_layer, -1)
 	tip_layer.show()
@@ -812,7 +834,7 @@ func _refresh_lives() -> void:
 			b.badge = "Full" if n >= Save.LIVES_MAX else _mmss(t)
 			b.queue_redraw()
 	if nolives_layer and nolives_layer.visible:
-		nolives_time.text = "You have a heart again!" if n > 0 else "Next heart in " + _mmss(t)
+		nolives_time.text = tr("You have a heart again!") if n > 0 else I18n.t("Next heart in {0}", [_mmss(t)])
 
 func _leaving_costs_life() -> bool:
 	return mode == "level" and Puzzle.is_hard(Save.level) and not won and moves > 0 and not menu_layer.visible
@@ -846,7 +868,7 @@ func _confirm_leave(what: String, go: Callable) -> void:
 			Sound.play("drop")
 			leave_layer.hide())
 		box.add_child(keep)
-		leave_yes = _ghost_btn("Leave (-1 heart)", func():
+		leave_yes = _ghost_btn("Leave (−1 heart)", func():
 			leave_layer.hide()
 			_lose_life(_leave_what)
 			if _leave_what == "restart" and Save.lives_now() <= 0:
@@ -858,8 +880,8 @@ func _confirm_leave(what: String, go: Callable) -> void:
 	_leave_go = go
 	_leave_what = what
 	leave_title.text = "Restart this level?" if what == "restart" else "Leave this level?"
-	leave_text.text = "You'll lose a heart. Hard and Extreme levels cost a heart when you give up. You have %d left." % Save.lives_now()
-	leave_yes.text = "Restart (-1 heart)" if what == "restart" else "Leave (-1 heart)"
+	leave_text.text = I18n.t("You'll lose a heart. Hard and Extreme levels cost a heart when you give up. You have {0} left.", [Save.lives_now()])
+	leave_yes.text = "Restart (−1 heart)" if what == "restart" else "Leave (−1 heart)"
 	Sound.play("select")
 	move_child(leave_layer, -1)
 	leave_layer.show()
@@ -905,7 +927,7 @@ func _show_no_lives() -> void:
 		box.add_child(_ghost_btn("Wait", func():
 			Sound.play("drop")
 			nolives_layer.hide()))
-	_set_coin_btn(nolives_coin_btn, LIFE_PRICE, "+1 heart for")
+	_set_coin_btn(nolives_coin_btn, LIFE_PRICE, "+1 heart for {0}")
 	Sound.play("nope")
 	move_child(nolives_layer, -1)
 	nolives_layer.show()
@@ -933,7 +955,8 @@ func _side_btn(icon_name: String, text: String) -> Button:
 		b.draw_arc(c, r, 0, TAU, 48, Color(1.0, 0.85, 0.23, 0.75), 4.0, true)
 		Art.icon(b, icon_name, c, r * 1.15, Color.WHITE)
 		var fs := 26
-		var tw := UI_FONT_HEAVY.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+		var txt := tr(text)
+		var tw := UI_FONT_HEAVY.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 		var pill := Rect2(c.x - tw * 0.5 - 14, 98, tw + 28, 38)
 		var sb := StyleBoxFlat.new()
 		sb.bg_color = Color(0.04, 0.055, 0.14, 0.9)
@@ -941,7 +964,7 @@ func _side_btn(icon_name: String, text: String) -> Button:
 		sb.set_border_width_all(2)
 		sb.set_corner_radius_all(19)
 		b.draw_style_box(sb, pill)
-		b.draw_string(UI_FONT_HEAVY, Vector2(pill.position.x + 14, pill.position.y + 29), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color.WHITE)
+		b.draw_string(UI_FONT_HEAVY, Vector2(pill.position.x + 14, pill.position.y + 29), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color.WHITE)
 		if b.get_meta("badge"):
 			var bc := c + Vector2(r * 0.75, -r * 0.75)
 			var s := 1.0 + 0.12 * sin(Time.get_ticks_msec() / 220.0)
@@ -977,12 +1000,17 @@ func _refresh_side() -> void:
 	side_gift.set_meta("badge", Save.gift_state().ready)
 	side_gift.queue_redraw()
 
+## The biggest font size (up to fs) at which the text fits in max_w.
+func _fit_fs(text: String, fs: int, max_w: float) -> int:
+	var w := UI_FONT_HEAVY.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+	return fs if w <= max_w else maxi(12, int(fs * max_w / w))
+
 static func _gift_label(g: Dictionary) -> String:
 	if g.has("coins"):
-		return "%d coins" % g.coins
+		return I18n.t("{0} coins", [g.coins])
 	if g.has("hints"):
-		return "%d hint%s" % [g.hints, "s" if g.hints > 1 else ""]
-	return "Full hearts"
+		return I18n.t("{0} hints", [g.hints]) if g.hints > 1 else I18n.t("1 hint")
+	return I18n.t("Full hearts")
 
 func _show_gifts() -> void:
 	Sound.play("select")
@@ -1036,14 +1064,16 @@ func _show_gifts() -> void:
 				sb.shadow_size = 14
 			cell.draw_style_box(sb, Rect2(Vector2.ZERO, cell.size))
 			var a := 0.55 if got else 1.0
-			cell.draw_string(UI_FONT_HEAVY, Vector2(0, 32), "Day %d" % (i + 1), HORIZONTAL_ALIGNMENT_CENTER, cell.size.x, 22, Color(MUTED, a))
+			var day_txt := I18n.t("Day {0}", [i + 1])
+			cell.draw_string(UI_FONT_HEAVY, Vector2(0, 32), day_txt, HORIZONTAL_ALIGNMENT_CENTER, cell.size.x, _fit_fs(day_txt, 22, cell.size.x - 8), Color(MUTED, a))
 			var ic := "check" if got else ("coin" if g.has("coins") else ("bulb" if g.has("hints") else "heart"))
 			Art.icon(cell, ic, Vector2(cell.size.x * 0.5, 74), 50, Color(Color("#7dff6b") if got else Color("#ffd93b"), a))
-			cell.draw_string(UI_FONT_HEAVY, Vector2(0, 134), _gift_label(g), HORIZONTAL_ALIGNMENT_CENTER, cell.size.x, 24, Color(INK, a)))
+			var gift_txt := _gift_label(g)
+			cell.draw_string(UI_FONT_HEAVY, Vector2(0, 134), gift_txt, HORIZONTAL_ALIGNMENT_CENTER, cell.size.x, _fit_fs(gift_txt, 24, cell.size.x - 8), Color(INK, a)))
 		gifts_grid.get_child(0 if i < 4 else 1).add_child(cell)
 	gifts_claim.visible = st.ready
 	gifts_done.visible = not st.ready
-	gifts_sub.text = "Come back every day for a new gift. Day 7 is the biggest! Miss a day and it starts again." if st.ready else "Come back tomorrow for day %d. Miss a day and it starts again from day 1." % (done % 7 + 1)
+	gifts_sub.text = tr("Come back every day for a new gift. Day 7 is the biggest! Miss a day and it starts again.") if st.ready else I18n.t("Come back tomorrow for day {0}. Miss a day and it starts again from day 1.", [done % 7 + 1])
 	move_child(gifts_layer, -1)
 	gifts_layer.show()
 
@@ -1064,7 +1094,8 @@ func _claim_gift() -> void:
 	Save.save_game()
 	Sound.play("jar_done")
 	Analytics.log_event("daily_gift", {"day": st.day + 1})
-	_top_toast("Day %d gift" % (st.day + 1), "+" + _gift_label(g) if not g.has("lives") else "Hearts refilled", false)
+	var got_text := I18n.t("+{0} coins", [g.coins]) if g.has("coins") else (I18n.t("Hearts refilled") if g.has("lives") else (I18n.t("+{0} hints", [g.hints]) if g.hints > 1 else I18n.t("+1 hint")))
+	_top_toast(I18n.t("Day {0} gift", [st.day + 1]), got_text, false)
 	_refresh()
 	_refresh_lives()
 	_refresh_side()
@@ -1126,7 +1157,7 @@ func _build_map() -> void:
 func _show_map(from: String) -> void:
 	_map_from = from
 	var hard := Puzzle.is_hard(Save.level)
-	map_play_sub.text = "Level %d" % Save.level + (" · " + Puzzle.tier_name(Save.level) if hard else "")
+	map_play_sub.text = _level_text(Save.level)
 	map_play_sub.add_theme_color_override("font_color", Color("#b3121f") if Puzzle.is_extreme(Save.level) else (Color("#a3165f") if hard else Color("#6b4200")))
 	map_coin_chip.label = str(Save.coins)
 	_refresh_lives()
@@ -1228,8 +1259,9 @@ func _show_hard_banner() -> void:
 		hard_banner.add_child(v)
 		add_child(hard_banner)
 	var ext := Puzzle.is_extreme(Save.level)
-	_banner_title.text = Puzzle.tier_name(Save.level) + " level"
-	_banner_sub.text = ("%d moves. " % move_limit if move_limit > 0 else "Limited moves. ") + "Win for %d coins + 1 hint" % (COIN_EXTREME if ext else COIN_HARD)
+	_banner_title.text = Puzzle.tier_name(Save.level) + " level"   # an English key: the label translates it
+	var prize := COIN_EXTREME if ext else COIN_HARD
+	_banner_sub.text = I18n.t("{0} moves. Win for {1} coins + 1 hint", [move_limit, prize]) if move_limit > 0 else I18n.t("Limited moves. Win for {0} coins + 1 hint", [prize])
 	_banner_sb.bg_color = Color("#c4261a") if ext else Color("#b02a8e")
 	_banner_sb.border_color = Color(1.0, 0.8, 0.68, 0.9) if ext else Color(1.0, 0.75, 0.9, 0.85)
 	_banner_sb.shadow_color = Color(1.0, 0.24, 0.12, 0.55) if ext else Color(1.0, 0.24, 0.63, 0.5)
@@ -1299,12 +1331,12 @@ func _refresh() -> void:
 	var ch := Art.chapter_of(Save.level)
 	backdrop.theme_index = 4 if mode == "daily" else ch.theme
 	if mode == "daily":
-		chapter_label.text = "DAILY PUZZLE"
+		chapter_label.text = I18n.up(tr("Daily puzzle"))
 		var d := Time.get_date_dict_from_system()
-		level_label.text = "%s %d" % [["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][int(d.month) - 1], int(d.day)]
+		level_label.text = I18n.date_text(int(d.month), int(d.day))
 	else:
-		chapter_label.text = (Puzzle.tier_name(Save.level) + " level").to_upper() if _hard_now() else str(ch.name).to_upper()
-		level_label.text = "Tutorial" if mode == "practice" else "Level %d" % Save.level
+		chapter_label.text = I18n.up(tr(Puzzle.tier_name(Save.level) + " level")) if _hard_now() else I18n.up(str(ch.name))
+		level_label.text = tr("Tutorial") if mode == "practice" else I18n.t("Level {0}", [Save.level])
 	var hard := _hard_now()
 	var ext := hard and Puzzle.is_extreme(Save.level)
 	chapter_label.add_theme_color_override("font_color", Color("#ff6b5c") if ext else (Color("#ff8fc8") if hard else MUTED))
@@ -1315,7 +1347,7 @@ func _refresh() -> void:
 	moves_pill.visible = limited
 	if limited:
 		var left := moves_max - moves
-		moves_label.text = "..." if moves_max == 0 else ("1 move left" if left == 1 else "%d moves left" % left)
+		moves_label.text = "..." if moves_max == 0 else (tr("1 move left") if left == 1 else I18n.t("{0} moves left", [left]))
 		var sb := StyleBoxFlat.new()
 		sb.set_corner_radius_all(22)
 		sb.set_border_width_all(2)
@@ -1343,15 +1375,15 @@ func _refresh() -> void:
 	coin_chip.label = str(Save.coins)
 	level_coins.label = str(Save.coins)
 	sound_btn.icon_name = "sound_on" if (Save.music_on or Save.sfx_on) else "sound_off"
-	chapter_num.text = "CHAPTER %d" % ch.num
+	chapter_num.text = I18n.up(I18n.t("Chapter {0}", [ch.num]))
 	chapter_name.text = ch.name
 	chapter_count.text = "%d / 10" % ch.done
 	chapter_bar.value = ch.done
-	play_sub.text = "Level %d" % Save.level + (" · " + Puzzle.tier_name(Save.level) if Puzzle.is_hard(Save.level) else "")
+	play_sub.text = _level_text(Save.level)
 	play_sub.add_theme_color_override("font_color", Color("#b3121f") if Puzzle.is_extreme(Save.level) else (Color("#a3165f") if Puzzle.is_hard(Save.level) else Color("#6b4200")))
 	var done_today := Save.daily_done == Save.today()
 	var alive := Save.daily_done == Save.today() or Save.daily_done == Save.yesterday()
-	daily_sub.text = ("Solved! Next puzzle in " + _until_midnight()) if done_today else "A new puzzle every day"
+	daily_sub.text = I18n.t("Solved! Next puzzle in {0}", [_until_midnight()]) if done_today else tr("A new puzzle every day")
 	daily_streak.text = str(Save.streak) if alive and Save.streak > 0 else ""
 	daily_streak.get_parent().get_child(daily_streak.get_index() - 1).visible = daily_streak.text != ""
 	daily_icon.queue_redraw()
@@ -1359,7 +1391,13 @@ func _refresh() -> void:
 func _until_midnight() -> String:
 	var t := Time.get_time_dict_from_system()
 	var mins: int = max(1, 24 * 60 - (int(t.hour) * 60 + int(t.minute)))
-	return "%dh %dm" % [mins / 60, mins % 60] if mins >= 60 else "%dm" % mins
+	return I18n.t("{0}h {1}m", [mins / 60, mins % 60]) if mins >= 60 else I18n.t("{0}m", [mins])
+
+## "Level 5" or "Level 5 · Hard", in the player's language.
+func _level_text(lv: int) -> String:
+	if Puzzle.is_hard(lv):
+		return I18n.t("Level {0} · {1}", [lv, tr(Puzzle.tier_name(lv))])
+	return I18n.t("Level {0}", [lv])
 
 func _say(text: String, sticky := false) -> void:
 	toast.add_theme_stylebox_override("panel", _toast_gold if sticky else _toast_style)
@@ -1391,7 +1429,7 @@ func _on_jar_tapped_inner(i: int) -> void:
 	var jars := _jars()
 	if state.locks[i] > 0:
 		_nope(i)
-		_say("This jar opens after %d more %s" % [state.locks[i], "pour" if state.locks[i] == 1 else "pours"])
+		_say(tr("This jar opens after 1 more pour") if state.locks[i] == 1 else I18n.t("This jar opens after {0} more pours", [state.locks[i]]))
 		board.selected = -1
 		return
 	var sel: int = board.selected
@@ -1411,7 +1449,7 @@ func _on_jar_tapped_inner(i: int) -> void:
 		_pour(sel, i)
 	elif state.only[i] >= 0 and jars[i].size() < Puzzle.CAPACITY and (jars[i].is_empty() or jars[i][-1] == jars[sel][-1]):
 		_nope(i)
-		_say("That jar only takes %s fireflies" % COLOR_NAMES[state.only[i]])
+		_say(I18n.t("That jar only takes {0} fireflies", [tr(COLOR_NAMES[state.only[i]])]))
 		board.selected = -1
 	elif not jars[i].is_empty() and not Puzzle.is_jar_done(jars[i]):
 		board.selected = i
@@ -1572,7 +1610,7 @@ func _on_win() -> void:
 	won = true
 	var round_id := _round
 	var title := "All glowing!"
-	var text := "Solved in %d moves" % moves
+	var text := I18n.t("Solved in {0} moves", [moves])
 	var sfx := "win"
 	var gain := 0
 	Analytics.log_event("level_end", {"level": Save.level, "mode": mode, "moves": moves, "success": true, "hard": mode == "level" and Puzzle.is_hard(Save.level), "used_hint": _used_hint})
@@ -1581,12 +1619,12 @@ func _on_win() -> void:
 			gain = COIN_DAILY
 		Save.complete_daily(daily_date)
 		title = "Daily solved!"
-		text = "Solved in %d moves\n%d-day streak, +1 hint\nCome back tomorrow!" % [moves, Save.streak]
+		text = I18n.t("Solved in {0} moves", [moves]) + "\n" + I18n.t("{0}-day streak, +1 hint", [Save.streak]) + "\n" + tr("Come back tomorrow for a new puzzle.")
 		sfx = "daily"
 		next_btn.text = "Back to levels"
 	elif mode == "practice":
 		title = "Well done!"
-		text = "That's all there is to it."
+		text = tr("That's all there is to it.")
 		_tut_stop()
 		next_btn.text = "Back to menu"
 	else:
@@ -1597,7 +1635,7 @@ func _on_win() -> void:
 		if Puzzle.is_hard(Save.level):
 			var ext := Puzzle.is_extreme(Save.level)
 			title = "Extreme level beaten!" if ext else "Hard level beaten!"
-			text += "\n+1 hint"
+			text += "\n" + tr("+1 hint")
 			gain = COIN_EXTREME if ext else COIN_HARD
 			if not _used_hint:
 				Save.stats.pure = int(Save.stats.get("pure", 0)) + 1
@@ -1737,7 +1775,7 @@ func _show_out_of_moves() -> void:
 			_refresh())
 		box.add_child(moves_coin_btn)
 		var retry := Button.new()
-		retry.text = "Try again (-1 heart)"
+		retry.text = "Try again (−1 heart)"
 		retry.custom_minimum_size = Vector2(0, 90)
 		retry.add_theme_font_size_override("font_size", 34)
 		for st in ["normal", "hover", "pressed", "focus"]:
@@ -1752,7 +1790,7 @@ func _show_out_of_moves() -> void:
 				return
 			_load_state(Puzzle.copy(start_state), true))
 		box.add_child(retry)
-	_set_coin_btn(moves_coin_btn, PRICE.moves, "+5 moves for")
+	_set_coin_btn(moves_coin_btn, PRICE.moves, "+5 moves for {0}")
 	if not out_layer.visible:
 		Sound.play("nope")
 		out_layer.show()
@@ -1834,6 +1872,7 @@ func _show_settings() -> void:
 	if settings_layer == null:
 		settings_layer = _overlay()
 		var box := _card(settings_layer, 640)
+		box.add_theme_constant_override("separation", 18)
 		box.add_child(_label("Settings", 64, GOLD, LOGO_FONT))
 		_switches.music = _switch_row(box, "Music", "", Save.music_on, func(on: bool):
 			Save.music_on = on
@@ -1850,23 +1889,45 @@ func _show_settings() -> void:
 		_switches.cb = _switch_row(box, "Color-blind mode", "A shape on every firefly color", Save.color_blind, func(on: bool):
 			Save.color_blind = on
 			Save.save_game())
+		var lrow := HBoxContainer.new()
+		lrow.add_theme_constant_override("separation", 16)
+		var ltitle := _label("Language", 36, INK, UI_FONT_HEAVY, HORIZONTAL_ALIGNMENT_LEFT)
+		ltitle.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		lrow.add_child(ltitle)
+		lang_btn = _ghost_btn("", _show_languages)
+		lang_btn.custom_minimum_size = Vector2(200, 72)
+		lang_btn.add_theme_font_size_override("font_size", 30)
+		lrow.add_child(lang_btn)
+		box.add_child(lrow)
 		var shop := HBoxContainer.new()
 		shop.add_theme_constant_override("separation", 16)
-		remove_ads_btn = _ghost_btn("Remove ads " + Store.price_text, func():
+		remove_ads_btn = _ghost_btn(I18n.t("Remove ads · {0}", [Store.price_text]), func():
 			Sound.play("select")
 			Store.buy_remove_ads())
 		var restore := _ghost_btn("Restore purchases", func():
 			Sound.play("select")
 			Store.restore())
 		for b in [remove_ads_btn, restore]:
-			b.add_theme_font_size_override("font_size", 28)
+			b.add_theme_font_size_override("font_size", 26)
 			b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			b.custom_minimum_size = Vector2(0, 88)
+			var slim := _glass(30, 0.5)
+			slim.content_margin_left = 12
+			slim.content_margin_right = 12
+			slim.content_margin_top = 8
+			slim.content_margin_bottom = 8
+			for st in ["normal", "hover", "pressed", "focus"]:
+				b.add_theme_stylebox_override(st, slim)
 			shop.add_child(b)
 		box.add_child(shop)
-		box.add_child(_ghost_btn("Show tutorial again", func():
+		var tut_btn := _ghost_btn("Show tutorial again", func():
 			settings_layer.hide()
-			_start_practice()))
-		box.add_child(_ghost_btn("Privacy policy", _show_privacy))
+			_start_practice())
+		var priv_btn := _ghost_btn("Privacy policy", _show_privacy)
+		for b in [tut_btn, priv_btn]:
+			b.custom_minimum_size = Vector2(0, 84)
+			b.add_theme_font_size_override("font_size", 32)
+			box.add_child(b)
 		var done := Button.new()
 		done.text = "Done"
 		done.custom_minimum_size = Vector2(0, 110)
@@ -1881,8 +1942,76 @@ func _show_settings() -> void:
 		_switches[k].set_pressed_no_signal(v)
 		_switches[k].text = "ON" if v else "OFF"
 	_refresh_store()
+	_refresh_lang_btn()
 	move_child(settings_layer, -1)
 	settings_layer.show()
+
+# ---------- language ----------
+
+func _refresh_lang_btn() -> void:
+	if lang_btn:
+		lang_btn.text = I18n.native_name(I18n.lang)
+
+func _show_languages() -> void:
+	Sound.play("select")
+	if lang_layer == null:
+		lang_layer = _overlay()
+		var box := _card(lang_layer, 640)
+		box.add_child(_label("Language", 64, GOLD, LOGO_FONT))
+		_lang_grid = GridContainer.new()
+		_lang_grid.columns = 2
+		_lang_grid.add_theme_constant_override("h_separation", 16)
+		_lang_grid.add_theme_constant_override("v_separation", 14)
+		for code in [""] + I18n.languages():
+			var b := _ghost_btn("Automatic" if code == "" else I18n.native_name(code), _pick_language.bind(code))
+			b.custom_minimum_size = Vector2(0, 84)
+			b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			b.add_theme_font_size_override("font_size", 32)
+			b.set_meta("code", code)
+			_lang_grid.add_child(b)
+		box.add_child(_lang_grid)
+		var close := Button.new()
+		close.text = "Close"
+		close.custom_minimum_size = Vector2(0, 100)
+		close.add_theme_font_size_override("font_size", 40)
+		close.pressed.connect(func():
+			Sound.play("select")
+			lang_layer.hide())
+		box.add_child(close)
+	_mark_language()
+	move_child(lang_layer, -1)
+	lang_layer.show()
+
+## The chosen language's button is gold.
+func _mark_language() -> void:
+	for b in _lang_grid.get_children():
+		var on: bool = b.get_meta("code") == Save.language
+		for st in ["normal", "hover", "pressed", "focus"]:
+			b.add_theme_stylebox_override(st, _gold(true) if on else _glass(30, 0.5))
+		b.add_theme_color_override("font_color", Color("#3a2205") if on else Color.WHITE)
+
+func _pick_language(code: String) -> void:
+	Sound.play("select")
+	Save.language = code
+	Save.save_game()
+	I18n.apply(code)
+	_mark_language()
+	lang_layer.hide()
+
+## Labels with an English key change by themselves; text with numbers in it is filled in again here.
+func _on_language_changed() -> void:
+	_refresh()
+	_refresh_store()
+	_refresh_side()
+	_refresh_lives()
+	_refresh_lang_btn()
+	_redraw_all(self)
+
+func _redraw_all(n: Node) -> void:
+	if n is CanvasItem:
+		(n as CanvasItem).queue_redraw()
+	for c in n.get_children():
+		_redraw_all(c)
 
 func _show_privacy() -> void:
 	if privacy_layer == null:
@@ -1998,7 +2127,8 @@ func _coin_btn(text: String) -> Button:
 func _set_coin_btn(b: Button, price: int, verb: String) -> void:
 	var ok := Save.coins >= price
 	b.disabled = not ok
-	b.text = ("%s %d coins" % [verb, price]) if ok else ("%d coins needed · you have %d" % [price, Save.coins])
+	var cost := I18n.t("{0} coins", [price])
+	b.text = I18n.t(verb, [cost]) if ok else I18n.t("{0} needed · you have {1}", [cost, Save.coins])
 
 func _add_coins(n: int, source: String) -> void:
 	Save.coins += n
@@ -2024,7 +2154,7 @@ func _show_win_coins(gain: int) -> void:
 		return
 	win_gain_label.text = "+%d" % gain
 	double_btn.disabled = false
-	double_btn.text = "Watch a video: +%d more coins" % gain
+	double_btn.text = I18n.t("Watch a video: +{0} more coins", [gain])
 	var g: Control = win_coins_row.get_node("Gain")
 	g.pivot_offset = g.size * 0.5
 	g.scale = Vector2(0.3, 0.3)
@@ -2072,9 +2202,9 @@ func _reward_or_say(kind: String) -> void:
 # ---------- "free video or coins" card ----------
 
 const OFFERS := {
-	"hint": ["Need a hint?", "You're out of hints. Watch a short video for a free one, or use your coins.", "Use"],
-	"undo": ["One more undo?", "You've used this level's 3 undos. Watch a short video for one more, or use your coins.", "Use"],
-	"jar": ["Mend the jar?", "Two helper fireflies will repair the cracked jar, so you get one more empty jar for this level.", "Mend for"],
+	"hint": ["Need a hint?", "You're out of hints. Watch a short video for a free one, or use your coins.", "Use {0}"],
+	"undo": ["One more undo?", "You've used this level's 3 undos. Watch a short video for one more, or use your coins.", "Use {0}"],
+	"jar": ["Mend the jar?", "Two helper fireflies will repair the cracked jar, so you get one more empty jar for this level.", "Mend for {0}"],
 }
 
 func _build_offer() -> void:
@@ -2181,7 +2311,7 @@ func _finish_repair(tok: int) -> void:
 
 func _refresh_store() -> void:
 	if remove_ads_btn:
-		remove_ads_btn.text = "Ads removed ✓" if Save.ads_removed else "Remove ads " + Store.price_text
+		remove_ads_btn.text = tr("Ads removed ✓") if Save.ads_removed else I18n.t("Remove ads · {0}", [Store.price_text])
 		remove_ads_btn.disabled = Save.ads_removed
 
 func _show_test_store() -> void:
@@ -2191,12 +2321,12 @@ func _show_test_store() -> void:
 		box.add_child(_label("TEST STORE", 24, Color("#3a2400"), _spaced(UI_FONT_HEAVY, 4)))
 		box.get_child(0).add_theme_color_override("font_color", GOLD)
 		box.add_child(_label("Remove ads", 60, GOLD, LOGO_FONT))
-		var t := _label("No more ads between levels, forever. Videos you choose to watch for rewards stay available.\n\nIn the real game, Google Play or the App Store asks you to confirm. No money is charged in this test version.", 28, INK)
+		var t := _label(tr("No more ads between levels, forever. Videos you choose to watch for rewards stay available.") + "\n\n" + tr("In the real game, the App Store or Google Play asks you to confirm. No money is charged in this test version."), 28, INK)
 		t.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		t.custom_minimum_size = Vector2(520, 0)
 		box.add_child(t)
 		var buy := Button.new()
-		buy.text = "Buy for " + Store.PRICE_TEXT
+		buy.text = I18n.t("Buy for {0}", [Store.price_text])
 		buy.custom_minimum_size = Vector2(0, 110)
 		buy.add_theme_font_size_override("font_size", 42)
 		buy.pressed.connect(func():
@@ -2336,7 +2466,7 @@ func _show_trophies() -> void:
 		h.add_child(v)
 		row.add_child(h)
 		trophy_list.add_child(row)
-	trophy_count.text = "%d of %d unlocked" % [got, Services.TROPHIES.size()]
+	trophy_count.text = I18n.t("{0} of {1} unlocked", [got, Services.TROPHIES.size()])
 	boards_btn.visible = Services.can_show_boards()
 	move_child(trophies_layer, -1)
 	trophies_layer.show()

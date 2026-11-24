@@ -38,7 +38,7 @@ const CHAPTERS := ["Meadow Glow", "Willow Pond", "Moonlit Garden", "Lantern Wood
 
 static func chapter_of(level: int) -> Dictionary:
 	var i := (level - 1) / 10
-	var name: String = CHAPTERS[i % CHAPTERS.size()]
+	var name: String = TranslationServer.translate(CHAPTERS[i % CHAPTERS.size()])
 	if i >= CHAPTERS.size():
 		name += " %d" % (i / CHAPTERS.size() + 1)
 	return {"num": i + 1, "name": name, "done": (level - 1) % 10, "theme": i % THEMES.size()}
@@ -124,7 +124,8 @@ static func _quad(p0: Vector2, p1: Vector2, p2: Vector2, out: PackedVector2Array
 		out.append(p0.lerp(p1, t).lerp(p1.lerp(p2, t), t))
 
 ## Outline of a mason jar: screw-thread neck, rounded shoulders, rounded bottom.
-static func jar_points(r: Rect2) -> PackedVector2Array:
+## mouth > 0 closes the top with the back half of an oval, so the opening looks round instead of flat.
+static func jar_points(r: Rect2, mouth := 0.0) -> PackedVector2Array:
 	var x := r.position.x
 	var w := r.size.x
 	var top := r.position.y
@@ -143,6 +144,10 @@ static func jar_points(r: Rect2) -> PackedVector2Array:
 	pts.append(Vector2(x + w, sh))
 	_quad(Vector2(x + w, sh), Vector2(x + w, top + w * 0.14), Vector2(x + w - nx, top + w * 0.12), pts)
 	pts.append(Vector2(x + w - nx, top))
+	if mouth > 0.0:
+		for k in range(1, 24):
+			var a := -PI * k / 24.0
+			pts.append(Vector2(x + w / 2.0 + cos(a) * (w / 2.0 - nx), top + sin(a) * mouth))
 	return pts
 
 ## Glass behind the fireflies: light at the edges, clearer in the middle.
