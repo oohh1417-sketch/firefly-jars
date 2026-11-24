@@ -111,7 +111,7 @@ func _handle_play(purchases: Array, quiet: bool) -> bool:
 	return found
 
 func _on_play_error(_code, message) -> void:
-	purchase_done.emit(false, "The purchase didn't go through: %s" % message)
+	purchase_done.emit(false, I18n.t("The purchase didn't go through: {0}", [message]))
 
 # ---------------- Apple StoreKit ----------------
 

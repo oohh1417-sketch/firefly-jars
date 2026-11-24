@@ -51,7 +51,7 @@ func _centre(G: Dictionary, lv: int) -> float:
 	return _clamp(G, stop_pos(G, lv).y - size.y * 0.55)
 
 static func chapter_name(i: int) -> String:
-	var name: String = Art.CHAPTERS[i % Art.CHAPTERS.size()]
+	var name: String = TranslationServer.translate(Art.CHAPTERS[i % Art.CHAPTERS.size()])
 	if i >= Art.CHAPTERS.size():
 		name += " %d" % (i / Art.CHAPTERS.size() + 1)
 	return name
@@ -250,7 +250,7 @@ func _draw() -> void:
 		draw_style_box(sb, Rect2(c - Vector2(w, h) * 0.5, Vector2(w, h)))
 		var fs1 := int(h * 0.2)
 		var fs2 := int(h * 0.34)
-		draw_string(NUM_FONT, Vector2(c.x - w * 0.5, c.y - h * 0.2 + fs1 * 0.35), "CHAPTER %d" % (i + 1), HORIZONTAL_ALIGNMENT_CENTER, w, fs1, Color(0.67, 0.7, 0.82, 0.55) if locked else Color(0.78, 0.82, 0.94, 0.85))
+		draw_string(NUM_FONT, Vector2(c.x - w * 0.5, c.y - h * 0.2 + fs1 * 0.35), I18n.up(I18n.t("Chapter {0}", [i + 1])), HORIZONTAL_ALIGNMENT_CENTER, w, fs1, Color(0.67, 0.7, 0.82, 0.55) if locked else Color(0.78, 0.82, 0.94, 0.85))
 		draw_string(NAME_FONT, Vector2(c.x - w * 0.5, c.y + h * 0.17 + fs2 * 0.35), chapter_name(i), HORIZONTAL_ALIGNMENT_CENTER, w, fs2, Color(0.78, 0.8, 0.88, 0.5) if locked else Color("#fff6d0"))
 		if locked:
 			_lock(Vector2(c.x - w * 0.5 + h * 0.45, c.y), h * 0.38, Color(0.75, 0.78, 0.88, 0.6))
@@ -317,7 +317,7 @@ func _draw() -> void:
 		var a: float = clampf(min(e / 0.3, (3.2 - e) / 0.5), 0.0, 1.0)
 		var fs := int(34 * k_scale)
 		Art.glow(self, Vector2(W * 0.5, H * 0.3), fs * 3.0, Color("#ffc83c"), 0.25 * a)
-		draw_string(NAME_FONT, Vector2(0, H * 0.3 + fs * 0.35), "New chapter!", HORIZONTAL_ALIGNMENT_CENTER, W, fs, Color(1, 0.95, 0.77, a))
+		draw_string(NAME_FONT, Vector2(0, H * 0.3 + fs * 0.35), tr("New chapter!"), HORIZONTAL_ALIGNMENT_CENTER, W, fs, Color(1, 0.95, 0.77, a))
 	for f in _flies:
 		var p := Vector2((f.x + sin(t * 0.25 * f.s + f.a) * 0.1) * W, (f.y + cos(t * 0.2 * f.s + f.b) * 0.05) * H)
 		var tw := 0.3 + 0.7 * absf(sin(t * 1.2 * f.s + f.a))

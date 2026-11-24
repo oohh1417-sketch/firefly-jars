@@ -11,6 +11,7 @@ var music_on: bool = true
 var sfx_on: bool = true
 var vibrate_on: bool = true
 var color_blind: bool = false   # draw a shape on every firefly color
+var language: String = ""     # "" = the phone's language, else a code like "ar" (see i18n.gd)
 var seen: Dictionary = {}     # which new-twist explainer cards were shown
 var daily_done: String = ""  # date of the last solved daily puzzle
 var streak: int = 0
@@ -48,6 +49,7 @@ func load_game() -> void:
 	sfx_on = bool(cfg.get_value("settings", "sfx", true))
 	vibrate_on = bool(cfg.get_value("settings", "vibrate", true))
 	color_blind = bool(cfg.get_value("settings", "color_blind", false))
+	language = str(cfg.get_value("settings", "language", ""))
 	seen = _dict(cfg.get_value("progress", "seen", {}))
 	daily_done = str(cfg.get_value("daily", "done", ""))
 	streak = int(cfg.get_value("daily", "streak", 0))
@@ -84,6 +86,7 @@ func save_game() -> void:
 	cfg.set_value("settings", "sfx", sfx_on)
 	cfg.set_value("settings", "vibrate", vibrate_on)
 	cfg.set_value("settings", "color_blind", color_blind)
+	cfg.set_value("settings", "language", language)
 	cfg.set_value("progress", "seen", seen)
 	cfg.set_value("daily", "done", daily_done)
 	cfg.set_value("daily", "streak", streak)

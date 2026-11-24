@@ -78,8 +78,8 @@ func _draw() -> void:
 	# status and tip
 	if still:
 		return
-	_text_center("Catching fireflies..." if _ready_at < 0.0 else "Ready!", logo_font, 44, H * 0.85, Color("#fff3c4"))
-	_text_center(_tip, ui_font, 28, H * 0.85 + 56, Color("#9aa6d6"))
+	_text_center(tr("Catching fireflies…") if _ready_at < 0.0 else tr("Ready!"), logo_font, 44, H * 0.85, Color("#fff3c4"))
+	_text_center(tr(_tip), ui_font, 28, H * 0.85 + 56, Color("#9aa6d6"))
 
 func _text_center(t: String, f: Font, fs: int, y: float, col: Color, outline := Color(0, 0, 0, 0)) -> void:
 	var w := f.get_string_size(t, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x

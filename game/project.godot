@@ -19,6 +19,7 @@ boot_splash/use_filter=true
 [autoload]
 
 Save="*res://scripts/save.gd"
+I18n="*res://scripts/i18n.gd"
 Ads="*res://scripts/ads.gd"
 Sound="*res://scripts/sound.gd"
 Analytics="*res://scripts/analytics.gd"
