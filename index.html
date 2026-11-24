@@ -391,7 +391,7 @@ svg.i { width: 1em; height: 1em; display: block; }
         <span class="txt"><b>Daily puzzle</b><span id="dailySub">A new puzzle every day</span></span>
         <span class="streak" id="dailyStreak" hidden></span>
       </button>
-      <div class="note"><span id="soundStatus">Tap anywhere to start the music</span> · Test build v0.22</div>
+      <div class="note"><span id="soundStatus">Tap anywhere to start the music</span> · Test build v0.23</div>
     </div>
   </div>
 </div>
@@ -2353,6 +2353,7 @@ $("restoreBtn").onclick = () => { Snd.play("sfx_select"); toast("Restore purchas
 const LIVES_MAX = 5, LIFE_MS = 20 * 60 * 1000, LIFE_PRICE = 100;
 function livesNow() {
   if (save.lives === undefined) { save.lives = LIVES_MAX; save.livesAt = 0; }
+  if (save.livesAt > Date.now()) save.livesAt = Date.now();   // clock moved back: don't make the player wait hours
   if (save.lives >= LIVES_MAX) { save.lives = LIVES_MAX; return save.lives; }
   const n = Math.floor((Date.now() - save.livesAt) / LIFE_MS);
   if (n > 0) { save.lives = Math.min(LIVES_MAX, save.lives + n); save.livesAt += n * LIFE_MS; store(); }
