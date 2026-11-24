@@ -1,0 +1,176 @@
+# Builds Firefly Jars for iPhone on a GitHub Mac and sends it to TestFlight.
+#
+# Hatem: open Actions > "iPhone build" > Run workflow. About 30 minutes.
+# It needs 4 repository secrets (Settings > Secrets and variables > Actions):
+#   APPLE_TEAM_ID   your 10-character Team ID (developer.apple.com > Membership)
+#   ASC_KEY_ID      the App Store Connect API key's Key ID
+#   ASC_ISSUER_ID   the Issuer ID shown above the keys list
+#   ASC_KEY_P8      the whole text of the AuthKey_XXXX.p8 file
+# Without them it still builds, unsigned, just to check that everything compiles.
+name: iPhone build
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version shown in the App Store"
+        default: "1.0.0"
+      upload:
+        description: "Send to TestFlight"
+        type: boolean
+        default: true
+  push:
+    branches: ["claude/**"]
+    paths: ["game/**", ".github/workflows/ios.yml", "tools/ios_prepare.py"]
+
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GODOT_VERSION: "4.7.2"
+  IOS_PLUGINS: "inappstore gamecenter icloud"
+
+jobs:
+  ios:
+    runs-on: macos-15
+    timeout-minutes: 90
+    env:
+      HAS_SIGNING: ${{ secrets.ASC_KEY_P8 != '' && secrets.APPLE_TEAM_ID != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use the newest Xcode on this Mac
+        run: |
+          XC=$(ls -d /Applications/Xcode_*.app | grep -v beta | sort -V | tail -1)
+          sudo xcode-select -s "$XC/Contents/Developer"
+          xcodebuild -version
+
+      # ---------- Apple's in-app purchase, Game Center and iCloud plugins for Godot ----------
+      - name: Cache iOS plugins
+        id: plugcache
+        uses: actions/cache@v4
+        with:
+          path: ios-plugins
+          key: godot-ios-plugins-${{ env.GODOT_VERSION }}-v1
+
+      - name: Build iOS plugins (first run only, about 10 minutes)
+        if: steps.plugcache.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth 1 https://github.com/godotengine/godot-ios-plugins.git gip
+          cd gip
+          rm -rf godot
+          git clone --depth 1 --branch "${GODOT_VERSION}-stable" https://github.com/godotengine/godot.git godot
+          python3 -m pip install --break-system-packages scons
+          ./scripts/generate_headers.sh 4.0 || true     # stops after 90 s on purpose: we only need the headers
+          for p in $IOS_PLUGINS; do
+            ./scripts/generate_xcframework.sh $p release 4.0
+            ./scripts/generate_xcframework.sh $p release_debug 4.0
+            mkdir -p ../ios-plugins/$p
+            mv bin/$p.release.xcframework ../ios-plugins/$p/
+            mv bin/$p.release_debug.xcframework ../ios-plugins/$p/$p.debug.xcframework
+            cp plugins/$p/$p.gdip ../ios-plugins/$p/
+          done
+          ls -R ../ios-plugins | head -40
+
+      # ---------- Godot ----------
+      - name: Install Godot and its iPhone template
+        run: |
+          V=$GODOT_VERSION
+          curl -sSL "https://github.com/godotengine/godot/releases/download/${V}-stable/Godot_v${V}-stable_macos.universal.zip" -o godot.zip
+          unzip -q godot.zip && mv Godot.app /Applications/Godot.app && rm godot.zip
+          T=~/Library/Application\ Support/Godot/export_templates/${V}.stable
+          mkdir -p "$T"
+          curl -sSL "https://github.com/godotengine/godot/releases/download/${V}-stable/Godot_v${V}-stable_export_templates.tpz" -o t.tpz
+          unzip -q -j t.tpz "templates/ios.zip" "templates/version.txt" -d "$T" && rm t.tpz
+
+      # ---------- AdMob (Poing Studios plugin) ----------
+      - name: Add the AdMob plugin
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ZIP="ios-template-v${GODOT_VERSION}.zip"
+          TAG=$(gh api repos/poingstudios/godot-admob-plugin/releases --paginate \
+                 --jq ".[] | select(.prerelease==false) | select(any(.assets[]; .name==\"$ZIP\")) | .tag_name" | head -1)
+          echo "AdMob plugin release: $TAG"
+          test -n "$TAG"
+          git clone --depth 1 --branch "$TAG" https://github.com/poingstudios/godot-admob-plugin.git admob-src
+          mkdir -p game/addons
+          cp -R admob-src/platforms/godot_editor/addons/admob game/addons/admob
+          rm -rf game/addons/admob/csharp
+          mkdir -p game/addons/admob/ios/bin
+          gh release download "$TAG" -R poingstudios/godot-admob-plugin -p "$ZIP" -D .
+          unzip -q -o "$ZIP" -d game/addons/admob/ios/bin
+          printf '# This file is dynamically generated.\nconst VERSION := "%s"\n' "$TAG" > game/addons/admob/ios/bin/package.gd
+
+      - name: Set version, team and plugins
+        run: |
+          mkdir -p game/ios/plugins && cp -R ios-plugins/* game/ios/plugins/
+          VER="${{ github.event.inputs.version || '1.0.0' }}"
+          BUILD=$((GITHUB_RUN_NUMBER + 100))
+          python3 tools/ios_prepare.py game "${{ secrets.APPLE_TEAM_ID }}" "$VER" "$BUILD"
+
+      - name: Export the Xcode project from Godot
+        working-directory: game
+        run: |
+          G=/Applications/Godot.app/Contents/MacOS/Godot
+          timeout 600 $G --headless --import --quit || true
+          mkdir -p ../build/ios
+          $G --headless --export-release "iOS" ../build/ios/FireflyJars.xcodeproj
+          test -d ../build/ios/FireflyJars.xcodeproj
+
+      # ---------- compile, sign, upload ----------
+      - name: Unsigned test build (no Apple secrets yet)
+        if: env.HAS_SIGNING != 'true'
+        working-directory: build/ios
+        run: |
+          xcodebuild build -project FireflyJars.xcodeproj -scheme FireflyJars -configuration Release \
+            -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath dd \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" | tail -40
+          echo "Compiled fine. Add the 4 Apple secrets to sign and upload." >> $GITHUB_STEP_SUMMARY
+
+      - name: Archive, sign and upload to TestFlight
+        if: env.HAS_SIGNING == 'true'
+        working-directory: build/ios
+        env:
+          TEAM: ${{ secrets.APPLE_TEAM_ID }}
+          KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ISSUER: ${{ secrets.ASC_ISSUER_ID }}
+          KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+          UPLOAD: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.upload == 'true' }}
+        run: |
+          KEYFILE="$RUNNER_TEMP/AuthKey_${KEY_ID}.p8"
+          printf '%s\n' "$KEY_P8" > "$KEYFILE"
+          AUTH=(-allowProvisioningUpdates -authenticationKeyPath "$KEYFILE" -authenticationKeyID "$KEY_ID" -authenticationKeyIssuerID "$ISSUER")
+          xcodebuild archive -project FireflyJars.xcodeproj -scheme FireflyJars -configuration Release \
+            -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/FireflyJars.xcarchive" -derivedDataPath dd \
+            DEVELOPMENT_TEAM="$TEAM" CODE_SIGN_STYLE=Automatic CODE_SIGN_IDENTITY="Apple Development" \
+            PROVISIONING_PROFILE_SPECIFIER="" "${AUTH[@]}" | tail -40
+          DEST=export; [ "$UPLOAD" = "true" ] && DEST=upload
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>$DEST</string>
+            <key>teamID</key><string>$TEAM</string>
+            <key>signingStyle</key><string>automatic</string>
+            <key>manageAppVersionAndBuildNumber</key><false/>
+          </dict></plist>
+          PLIST
+          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/FireflyJars.xcarchive" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" -exportPath "$RUNNER_TEMP/out" "${AUTH[@]}"
+          rm -f "$KEYFILE"
+          if [ "$DEST" = upload ]; then
+            echo "Sent to App Store Connect. It shows up in TestFlight in about 10-30 minutes." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "Signed fine (not uploaded)." >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Keep the Xcode project if something failed
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: xcode-project
+          path: build/ios
+          retention-days: 3
