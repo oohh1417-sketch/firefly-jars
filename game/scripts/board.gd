@@ -29,6 +29,7 @@ var tut_jar := -1:             # the tutorial hand points at this jar (-1 = no h
 		tut_jar = v
 var tut_drag_from := -1       # second tutorial pour: the hand shows a drag from this jar...
 var tut_drag_to := -1         # ...into this jar
+var _extra_down := false       # the finger went down on the cracked jar; its popup opens when the finger lifts
 var drag := {}                 # {"i", "pos", "start", "moved", "trail": [[pos, time]], "defer"} while a finger holds lifted fireflies
 var tut_nudge := -100.0        # time the wrong jar was tapped, so the hand shakes
 var _tut_since := 0.0
@@ -321,11 +322,14 @@ func _gui_input(event: InputEvent) -> void:
 
 func _press(p: Vector2) -> void:
 	drag = {}
+	_extra_down = false
 	if is_busy() or win_time >= 0.0:
 		return
 	var xi := extra_index()
 	if xi >= 0 and _jar_at(p, 4.0) == xi:
-		extra_tapped.emit()
+		# wait for the finger to lift: opening the popup on the press put its "Not now" button
+		# right under the finger, and lifting it closed the popup at once
+		_extra_down = true
 		return
 	# pressing on the lifted fireflies (or their jar) picks them up for dragging; a plain tap there still puts them back
 	if selected != -1 and selected < _rects.size():
@@ -342,6 +346,12 @@ func _press(p: Vector2) -> void:
 		drag = {"i": i, "pos": p, "start": p, "moved": false, "trail": [], "defer": false}
 
 func _release(p: Vector2) -> void:
+	if _extra_down:
+		_extra_down = false
+		var xi := extra_index()
+		if xi >= 0 and _jar_at(p, 4.0) == xi and not is_busy() and win_time < 0.0:
+			extra_tapped.emit()
+		return
 	if drag.is_empty():
 		return
 	var d := drag
