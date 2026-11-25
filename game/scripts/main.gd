@@ -2697,7 +2697,7 @@ func _show_skins() -> void:
 		var tabs := HBoxContainer.new()
 		tabs.add_theme_constant_override("separation", 14)
 		for k in ["jar", "fly"]:
-			var b := _ghost_btn("Jars" if k == "jar" else "Fireflies", func():
+			var b := _ghost_btn("Jars" if k == "jar" else "Jar Pals", func():
 				Sound.play("select")
 				skins_tab = k
 				skins_pick = ""

@@ -354,7 +354,7 @@ S = [
 # ---------- skins shop, coin packs, privacy choices (v0.27) ----------
 ["Skins", "المظاهر", "Aspectos", "Visuais", "Apparences", "Designs", "Görünümler", "Облики", "スキン", "스킨", "皮肤"],
 ["Jars", "الجِرار", "Frascos", "Potes", "Bocaux", "Gläser", "Kavanozlar", "Банки", "ビン", "유리병", "罐子"],
-["Fireflies", "اليراعات", "Luciérnagas", "Vaga-lumes", "Lucioles", "Glühwürmchen", "Ateş böcekleri", "Светлячки", "ホタル", "반딧불이", "萤火虫"],
+["Jar Pals", "رفاق الجرة", "Amigos del frasco", "Amigos do pote", "Copains du bocal", "Glasfreunde", "Kavanoz dostları", "Друзья банки", "ビンのなかま", "병 친구들", "罐子伙伴"],
 ["Get more coins", "احصل على المزيد من العملات", "Consigue más monedas", "Ganhe mais moedas", "Obtenir plus de pièces", "Mehr Münzen holen", "Daha fazla altın al", "Получить больше монет", "コインを増やす", "코인 더 받기", "获取更多金币"],
 ["In use", "مستخدم", "En uso", "Em uso", "Utilisé", "Aktiv", "Kullanımda", "Выбрано", "使用中", "사용 중", "使用中"],
 ["Owned", "تملكه", "Tuyo", "Seu", "Acquis", "Gekauft", "Sende var", "Куплено", "所持", "보유", "已拥有"],
