@@ -33,7 +33,10 @@ env:
 
 jobs:
   ios:
-    runs-on: macos-latest   # macos-15 jobs sat unassigned and were cancelled after 15 min (Nov 24)
+    # Apple-silicon Macs (macos-15, macos-latest) had no free runners from Nov 24:
+    # jobs were "not acquired by Runner" and cancelled after 15 min. Intel Macs
+    # build the same iPhone app (Godot and Xcode cross-compile for arm64).
+    runs-on: macos-15-intel
     timeout-minutes: 90
     env:
       HAS_SIGNING: ${{ secrets.ASC_KEY_P8 != '' && secrets.APPLE_TEAM_ID != '' }}
