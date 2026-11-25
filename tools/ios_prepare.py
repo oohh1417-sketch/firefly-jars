@@ -3,12 +3,15 @@
 
 - turns on the AdMob editor plugin and sets the real iOS AdMob App ID
 - fills the iOS export preset: team, version, plugins, tracking text, entitlements
-Usage: ios_prepare.py <game dir> <team id or ''> <short version> <build number>
+Usage: ios_prepare.py <game dir> <team id or ''> <short version> <build number> [profile uuid]
+With a profile uuid (from tools/asc_signing.py) the release export signs manually
+with that App Store profile and the Apple Distribution certificate.
 """
 import re, sys
 from pathlib import Path
 
 game, team, short_ver, build_no = Path(sys.argv[1]), sys.argv[2], sys.argv[3], sys.argv[4]
+profile_uuid = sys.argv[5] if len(sys.argv) > 5 else ""
 IOS_ADMOB_APP_ID = "ca-app-pub-4638827077517403~5345092257"
 
 # ---------- project.godot ----------
@@ -63,6 +66,9 @@ want = {
     "plugins/GameCenter": "true",
     "plugins/iCloud": "true",
 }
+if profile_uuid:
+    want["application/code_sign_identity_release"] = '"Apple Distribution"'
+    want["application/provisioning_profile_uuid_release"] = f'"{profile_uuid}"'
 lines = [l for l in body.strip("\n").split("\n") if l and l.split("=", 1)[0] not in want]
 lines += [f"{k}={v}" for k, v in want.items()]
 new_body = "\n".join(lines) + "\n"
