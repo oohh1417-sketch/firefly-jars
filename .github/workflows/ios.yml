@@ -21,7 +21,7 @@ on:
         default: true
   push:
     branches: ["claude/**"]
-    paths: ["game/**", ".github/workflows/ios.yml", "tools/ios_prepare.py"]
+    paths: ["game/**", ".github/workflows/ios.yml", "tools/ios_prepare.py", "tools/asc_signing.py"]
 
 concurrency:
   group: ios-${{ github.ref }}
@@ -109,13 +109,47 @@ jobs:
           unzip -q -o "$ZIP" -d game/addons/admob/ios/bin
           printf '# This file is dynamically generated.\nconst VERSION := "%s"\n' "$TAG" > game/addons/admob/ios/bin/package.gd
 
+      # ---------- App Store certificate + profile (made with the API key, no Mac or iPhone needed) ----------
+      - name: Restore the signing certificate
+        if: env.HAS_SIGNING == 'true'
+        uses: actions/cache/restore@v4
+        with:
+          path: .asc-cert.enc
+          key: asc-cert-v1-${{ github.run_id }}
+          restore-keys: asc-cert-v1-
+
+      - name: Get the App Store certificate and profile
+        if: env.HAS_SIGNING == 'true'
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+        run: |
+          export ASC_KEY_FILE="$RUNNER_TEMP/AuthKey.p8" CERT_DIR="$RUNNER_TEMP/asc-cert"
+          printf '%s\n' "$KEY_P8" > "$ASC_KEY_FILE"
+          # the cached certificate key is encrypted with a password only this workflow can derive
+          PASS=$(printf '%s' "$KEY_P8" | shasum -a 256 | cut -c1-64)
+          if [ -f .asc-cert.enc ]; then
+            mkdir -p "$CERT_DIR"
+            openssl enc -d -aes-256-cbc -pbkdf2 -pass "pass:$PASS" -in .asc-cert.enc | tar -xz -C "$CERT_DIR" || rm -rf "$CERT_DIR"
+          fi
+          python3 tools/asc_signing.py setup com.hatem.fireflyjars >> "$GITHUB_ENV"
+          tar -cz -C "$CERT_DIR" . | openssl enc -aes-256-cbc -pbkdf2 -salt -pass "pass:$PASS" -out .asc-cert.enc
+
+      - name: Save the signing certificate
+        if: env.HAS_SIGNING == 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: .asc-cert.enc
+          key: asc-cert-v1-${{ github.run_id }}
+
       - name: Set version, team and plugins
         run: |
           mkdir -p game/ios/plugins && cp -R ios-plugins/* game/ios/plugins/
           VER="${{ github.event.inputs.version || '1.0.0' }}"
           BUILD=$((GITHUB_RUN_NUMBER + 100))
           TEAM="${{ secrets.APPLE_TEAM_ID }}"; TEAM="${TEAM:-AAAAAAAAAA}"   # placeholder for the unsigned check
-          python3 tools/ios_prepare.py game "$TEAM" "$VER" "$BUILD"
+          python3 tools/ios_prepare.py game "$TEAM" "$VER" "$BUILD" "${PROFILE_UUID:-}"
 
       - name: Export the Xcode project from Godot
         working-directory: game
@@ -149,10 +183,11 @@ jobs:
           KEYFILE="$RUNNER_TEMP/AuthKey_${KEY_ID}.p8"
           printf '%s\n' "$KEY_P8" > "$KEYFILE"
           AUTH=(-allowProvisioningUpdates -authenticationKeyPath "$KEYFILE" -authenticationKeyID "$KEY_ID" -authenticationKeyIssuerID "$ISSUER")
+          # Godot already set manual signing (Apple Distribution + the App Store profile) on the app target
+          set -o pipefail
           xcodebuild archive -project FireflyJars.xcodeproj -scheme FireflyJars -configuration Release \
             -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/FireflyJars.xcarchive" -derivedDataPath dd \
-            DEVELOPMENT_TEAM="$TEAM" CODE_SIGN_STYLE=Automatic CODE_SIGN_IDENTITY="Apple Development" \
-            PROVISIONING_PROFILE_SPECIFIER="" "${AUTH[@]}" | tail -40
+            | tail -60
           DEST=export; [ "$UPLOAD" = "true" ] && DEST=upload
           cat > "$RUNNER_TEMP/ExportOptions.plist" <<PLIST
           <?xml version="1.0" encoding="UTF-8"?>
@@ -161,18 +196,30 @@ jobs:
             <key>method</key><string>app-store-connect</string>
             <key>destination</key><string>$DEST</string>
             <key>teamID</key><string>$TEAM</string>
-            <key>signingStyle</key><string>automatic</string>
+            <key>signingStyle</key><string>manual</string>
+            <key>signingCertificate</key><string>Apple Distribution</string>
+            <key>provisioningProfiles</key><dict><key>com.hatem.fireflyjars</key><string>$PROFILE_UUID</string></dict>
             <key>manageAppVersionAndBuildNumber</key><false/>
           </dict></plist>
           PLIST
           xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/FireflyJars.xcarchive" \
             -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" -exportPath "$RUNNER_TEMP/out" "${AUTH[@]}"
-          rm -f "$KEYFILE"
+          rm -f "$KEYFILE" "$RUNNER_TEMP/AuthKey.p8"
           if [ "$DEST" = upload ]; then
             echo "Sent to App Store Connect. It shows up in TestFlight in about 10-30 minutes." >> $GITHUB_STEP_SUMMARY
           else
             echo "Signed fine (not uploaded)." >> $GITHUB_STEP_SUMMARY
           fi
+
+      - name: Remove the signing keychain
+        if: always() && env.HAS_SIGNING == 'true'
+        env:
+          ASC_KEY_ID: unused
+          ASC_ISSUER_ID: unused
+          ASC_KEY_FILE: unused
+        run: |
+          python3 tools/asc_signing.py cleanup || true
+          rm -rf "$RUNNER_TEMP/asc-cert" "$RUNNER_TEMP/AuthKey.p8"
 
       - name: Keep the Xcode project if something failed
         if: failure()
