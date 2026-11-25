@@ -28,6 +28,14 @@ func _draw() -> void:
 	var W := size.x
 	var H := size.y
 	var T := _now
+	var RT := Regions.cur()
+	if RT.has("custom"):   # Jar World: the menu shows the region the player is in
+		Scenes.sky(self, RT, W, H)
+		Scenes.live(self, RT, W, H, T, "sky")
+		Scenes.land(self, RT, W, H)
+		Scenes.live(self, RT, W, H, T, "ground")
+		_draw_jar(W, T)
+		return
 	Art.vgradient(self, Rect2(0, 0, W, H * 0.8), Color("#050716"), Color("#101a44"), Color("#1c2b5e"), 0.69)
 	draw_rect(Rect2(0, H * 0.8, W, H * 0.2), Color("#0a1030"))
 	for s in _stars:
@@ -53,7 +61,12 @@ func _draw() -> void:
 		var y := ground + sin(x / W * 4.0 + 0.4) * H * 0.012 + 2.0
 		var sway := sin(T * 1.3 + i) * 3.0
 		draw_polyline(PackedVector2Array([Vector2(x, y), Vector2(x + sway * 0.5, y - 10), Vector2(x + sway, y - 18 - (i % 4) * 4)]), Color("#0b1230"), 3.0)
-	# the jar: a mason jar with its gold lid propped open on the rim
+	_draw_jar(W, T)
+
+func _draw_jar(W: float, T: float) -> void:
+	var J := hero
+	var ground := J.end.y - J.size.y * 0.03
+	# the jar with its lid propped open on the rim
 	var R := J.size.x * 0.11
 	_hero_back(J, T, ground)
 	for f in _in_jar:

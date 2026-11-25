@@ -40,7 +40,7 @@ nxt = e.find("\n[preset.", start)
 body = e[start:] if nxt == -1 else e[start:nxt]
 
 plist = ("<key>NSUserTrackingUsageDescription</key>"
-         "<string>Your choice lets us show ads that fit you better. Firefly Jars works the same either way.</string>"
+         "<string>Your choice lets us show ads that fit you better. Jar World works the same either way.</string>"
          "<key>ITSAppUsesNonExemptEncryption</key><false/>"
          "<key>UIRequiresFullScreen</key><true/>")
 ent = ("<key>com.apple.developer.ubiquity-kvstore-identifier</key>"

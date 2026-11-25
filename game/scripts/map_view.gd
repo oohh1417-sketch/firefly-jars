@@ -187,7 +187,7 @@ func _draw() -> void:
 			_stars.clear()
 		draw_set_transform(Vector2(0, y0))
 		Scenes.sky(self, T, W, G.band, false)
-		for s in _star_list(i, W, G.band):
+		for s in ([] if T.has("custom") else _star_list(i, W, G.band)):
 			draw_rect(Rect2(s[0], s[1], s[2] * k_scale, s[2] * k_scale), Color(1, 0.98, 0.9, s[3]))
 		Scenes.live(self, T, W, G.band, t, "sky")
 		Scenes.land(self, T, W, G.band)
@@ -198,7 +198,7 @@ func _draw() -> void:
 	for i in vis:   # soften the seam between two scenes
 		var y0: float = band_top(G, i) - scroll
 		var a := Color(0.012, 0.016, 0.047, 0.0)
-		var b := Color(0.012, 0.016, 0.047, 0.9)
+		var b := Color(0.012, 0.016, 0.047, 0.45)
 		var h1 := 70.0 * k_scale
 		var h2 := 90.0 * k_scale
 		draw_polygon(PackedVector2Array([Vector2(0, y0 - h1), Vector2(W, y0 - h1), Vector2(W, y0), Vector2(0, y0)]), PackedColorArray([a, a, b, b]))

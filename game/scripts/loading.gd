@@ -45,7 +45,7 @@ func _draw() -> void:
 	for s in _stars:
 		draw_rect(Rect2(s[0] * W, s[1] * H, s[3], s[3]), Color(1, 0.98, 0.9, 0.2 + 0.5 * absf(sin(_now * 0.6 * s[3] * 0.5 + s[2]))))
 	# logo
-	_text_center("Firefly", logo_font, 150, H * 0.17, Color("#ffd93b"), Color("#ff9f43"))
+	_text_center("Jar", logo_font, 150, H * 0.17, Color("#ffd93b"), Color("#ff9f43"))
 	var pill := Rect2(W * 0.5 - 130, H * 0.17 + 92, 260, 64)
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = Color(0.05, 0.07, 0.17, 0.45)
@@ -54,7 +54,7 @@ func _draw() -> void:
 	sb.set_corner_radius_all(32)
 	sb.anti_aliasing = true
 	draw_style_box(sb, pill)
-	_text_center("J A R S", ui_font, 40, pill.get_center().y - 2, Color("#dfe7ff"))
+	_text_center("W O R L D", ui_font, 40, pill.get_center().y - 2, Color("#dfe7ff"))
 	# the jar filling up
 	var jw: float = min(W * 0.26, 200.0)
 	var jh := jw * 2.5

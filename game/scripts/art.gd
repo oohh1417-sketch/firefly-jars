@@ -19,6 +19,9 @@ static var fly_skin := "classic"
 
 ## The outline color of a plain jar in this skin.
 static func jar_line(skin := "") -> Color:
+	var RT: Dictionary = THEMES[region % THEMES.size()]
+	if RT.has("line") and (skin if skin != "" else jar_skin) == "classic":
+		return Color(RT.line)
 	match skin if skin != "" else jar_skin:
 		"frost": return Color(0.93, 0.97, 1.0, 0.75)
 		"honey": return Color(1.0, 0.8, 0.45, 0.7)
@@ -26,33 +29,29 @@ static func jar_line(skin := "") -> Color:
 		"rose": return Color(1.0, 0.7, 0.82, 0.7)
 	return Color(0.84, 0.92, 1.0, 0.6)
 
-## One night scene per chapter (every 10 levels): 20 scenes, so 200 levels before any repeat. Same themes as the web version.
-## The scenes themselves are drawn in scenes.gd.
+## Jar World: one region per chapter (every 10 levels), each with its own scene, things to sort and jar.
+## The night region ("meadow") is drawn in scenes.gd; the others in regions.gd. Same as the web test page.
 const THEMES := [
-	{"name": "meadow", "sky": ["#040a18", "#0d2140", "#1b3d55"], "hills": ["#0f2a3a", "#0a1f2c", "#06131d"], "glow": "#ffd93b"},
-	{"name": "pond", "sky": ["#030c16", "#0a2638", "#134658"], "hills": ["#0c2a36", "#082029", "#05141b"], "glow": "#5cf2ff"},
-	{"name": "garden", "sky": ["#0a0618", "#22103c", "#3a1d58"], "hills": ["#241338", "#1a0d2b", "#10081c"], "glow": "#ff5c8a"},
-	{"name": "woods", "sky": ["#030d0a", "#0a261b", "#123a29"], "hills": ["#0b2419", "#071a12", "#04110b"], "glow": "#ff9f43"},
-	{"name": "starfall", "sky": ["#04051a", "#131848", "#262d6c"], "hills": ["#151a45", "#0e1235", "#080b24"], "glow": "#b98cff"},
-	{"name": "marsh", "sky": ["#070d12", "#17262e", "#2c3f48"], "hills": ["#18262c", "#111c21", "#0a1215"], "glow": "#7dff6b"},
-	{"name": "creek", "sky": ["#03101a", "#082c3c", "#0e4c60"], "hills": ["#09303c", "#06222c", "#04161d"], "glow": "#2fe0a0"},
-	{"name": "aurora", "sky": ["#030714", "#0a1a36", "#122848"], "hills": ["#0e1d36", "#0a1528", "#060d1a"], "glow": "#4d8bff"},
-	{"name": "blossom", "sky": ["#0b0716", "#2a1030", "#4a1d45"], "hills": ["#2a1432", "#1f0e26", "#140819"], "glow": "#ff8fc8"},
-	{"name": "oasis", "sky": ["#07061a", "#1c1a40", "#3d3358"], "hills": ["#3a2a30", "#2c1f26", "#1d141a"], "glow": "#ffb347"},
-	{"name": "falls", "sky": ["#030b14", "#0a2433", "#123e4e"], "hills": ["#0d2a2e", "#092022", "#051416"], "glow": "#7dffd9"},
-	{"name": "mushroom", "sky": ["#080614", "#1a1233", "#2c1d4d"], "hills": ["#1c1530", "#140f24", "#0c0918"], "glow": "#c77dff"},
-	{"name": "orchard", "sky": ["#0d0710", "#2a1420", "#4a2228"], "hills": ["#2c1716", "#211110", "#150a09"], "glow": "#ff9f43"},
-	{"name": "frozen", "sky": ["#050b18", "#13284a", "#2a4a70"], "hills": ["#3a5578", "#2a4060", "#1a2a44"], "glow": "#bfe8ff"},
-	{"name": "lighthouse", "sky": ["#040a16", "#0c2040", "#183a60"], "hills": ["#14263a", "#0e1c2c", "#08121e"], "glow": "#ffe28a"},
-	{"name": "bamboo", "sky": ["#04100c", "#0c2a20", "#16402e"], "hills": ["#0e2a1c", "#0a2014", "#06140c"], "glow": "#ffcf4a"},
-	{"name": "sunflower", "sky": ["#0a0a18", "#1e2040", "#3a3550"], "hills": ["#1e2418", "#161b11", "#0e120a"], "glow": "#ffd93b"},
-	{"name": "lagoon", "sky": ["#020a14", "#052436", "#08404e"], "hills": ["#082a30", "#061e24", "#041318"], "glow": "#3dfcff"},
-	{"name": "islands", "sky": ["#06061a", "#161a48", "#2a2f6a"], "hills": ["#161a40", "#10132f", "#0a0c20"], "glow": "#9fb4ff"},
-	{"name": "rainbow", "sky": ["#0a0820", "#1e1a48", "#3a2c66"], "hills": ["#1e1a40", "#16122f", "#0e0b20"], "glow": "#ffffff"},
+	{"name": "reef", "custom": true, "day": true, "item": "fish", "jar": "tube", "deco": "bubbles",
+		"sky": ["#8af3ea", "#2ec7d7", "#0e86ae"], "hills": ["#f2d9a0", "#e0bf80", "#2e9e6a"], "glow": "#bff9ff",
+		"cap": ["#a8574c", "#f29b8a", "#ffe6df"], "shelf": ["#e9cf94", "#b98f55", "#fff1cc"]},
+	{"name": "sunpetal", "custom": true, "day": true, "item": "flower", "jar": "vase", "deco": "clay",
+		"sky": ["#ff8f8f", "#ffb877", "#ffe3a3"], "hills": ["#a6d872", "#86c45c", "#62a843"], "glow": "#ffb347",
+		"cap": ["#8c3f22", "#d9744a", "#ffc7a6"], "shelf": ["#a86b3c", "#6e4223", "#c98a55"]},
+	{"name": "grove", "custom": true, "item": "gem", "jar": "mason", "deco": "lantern",
+		"sky": ["#2f7a4f", "#1e5b3c", "#123826"], "hills": ["#1b5233", "#2c5e2a", "#16391f"], "glow": "#7dffd0",
+		"cap": ["#5a3c1c", "#c9a45a", "#f5e0a0"], "shelf": ["#5a3d22", "#3a2614", "#6fae4b"]},
+	{"name": "meadow", "item": "fly", "jar": "mason", "sky": ["#040a18", "#0d2140", "#1b3d55"], "hills": ["#0f2a3a", "#0a1f2c", "#06131d"], "glow": "#ffd93b"},
+	{"name": "candy", "custom": true, "day": true, "item": "candy", "jar": "tube", "deco": "stripes", "line": "#ffffffe6",
+		"sky": ["#ff8fc8", "#ffaed6", "#ffd0e8"], "hills": ["#ff7fbd", "#ffa3cf", "#fff2f8"], "glow": "#ff8fc8",
+		"cap": ["#c2407a", "#ff7fb5", "#ffe0ee"], "shelf": ["#f7c9a0", "#d99a6a", "#fff0e0"]},
+	{"name": "space", "custom": true, "item": "planet", "jar": "tube", "deco": "metal",
+		"sky": ["#0c0626", "#2a1258", "#5a2a8a"], "hills": ["#3b2370", "#2a1756", "#1a0d3a"], "glow": "#c58bff",
+		"cap": ["#4a5570", "#aab6d0", "#f2f6ff"], "shelf": ["#59607a", "#363b52", "#9aa4c4"]},
 ]
-const CHAPTERS := ["Meadow Glow", "Willow Pond", "Moonlit Garden", "Lantern Woods", "Starfall Hills", "Misty Marsh", "Crystal Creek", "Aurora Ridge",
-	"Cherry Blossom Grove", "Desert Oasis", "Firefly Falls", "Mushroom Hollow", "Autumn Orchard", "Frozen Lake", "Lighthouse Shore", "Bamboo Valley",
-	"Sunflower Fields", "Glowing Lagoon", "Floating Isles", "Rainbow Sky"]
+const CHAPTERS := ["Bubble Reef", "Sunpetal Meadow", "Lantern Grove", "Firefly Night", "Candy Clouds", "Starlight Space"]
+## The region being drawn right now (index into THEMES), set by main.gd.
+static var region := 0
 
 static func chapter_of(level: int) -> Dictionary:
 	var i := (level - 1) / 10
@@ -144,6 +143,9 @@ static func _quad(p0: Vector2, p1: Vector2, p2: Vector2, out: PackedVector2Array
 ## Outline of a mason jar: screw-thread neck, rounded shoulders, rounded bottom.
 ## mouth > 0 closes the top with the back half of an oval, so the opening looks round instead of flat.
 static func jar_points(r: Rect2, mouth := 0.0) -> PackedVector2Array:
+	var rp := Regions.jar_points(r, mouth)
+	if not rp.is_empty():
+		return rp
 	var x := r.position.x
 	var w := r.size.x
 	var top := r.position.y
@@ -187,6 +189,7 @@ static func jar_back(ci: CanvasItem, r: Rect2, tint = null, skin := "") -> void:
 
 ## Glass in front of the fireflies: outline, shine and screw threads.
 static func jar_front(ci: CanvasItem, r: Rect2, line: Color, width: float, skin := "") -> void:
+	Regions.deco(ci, r)
 	var pts := jar_points(r)
 	pts.append(pts[0])
 	ci.draw_polyline(pts, line, width, true)
@@ -194,7 +197,7 @@ static func jar_front(ci: CanvasItem, r: Rect2, line: Color, width: float, skin 
 	_jar_deco(ci, r, skin if skin != "" else jar_skin)
 	ci.draw_rect(Rect2(r.position.x + w * 0.12, r.position.y + w * 0.42, w * 0.12, r.size.y * 0.55), Color(1, 1, 1, 0.16))
 	ci.draw_rect(Rect2(r.position.x + w * 0.8, r.position.y + w * 0.5, w * 0.05, r.size.y * 0.3), Color(1, 1, 1, 0.1))
-	for k in [0.03, 0.08]:
+	for k in ([0.03, 0.08] if THEMES[region % THEMES.size()].get("jar", "mason") == "mason" else []):
 		ci.draw_line(Vector2(r.position.x + w * 0.1, r.position.y + w * k), Vector2(r.position.x + w * 0.9, r.position.y + w * (k + 0.015)), Color(0.84, 0.92, 1.0, 0.5), max(1.5, width * 0.6))
 
 ## The small painted extras of each jar skin, on the glass in front of the fireflies.
@@ -243,6 +246,8 @@ static func _jar_deco(ci: CanvasItem, r: Rect2, skin: String) -> void:
 				ci.draw_colored_polygon(heart_points(Vector2(x + w * h.x, bot - w * h.y), w * 0.14), Color(1.0, 0.55, 0.75, 0.5))
 
 static func shelf(ci: CanvasItem, sh: Rect2) -> void:
+	if Regions.shelf(ci, sh):
+		return
 	ci.draw_set_transform(Vector2(sh.get_center().x, sh.end.y + sh.size.y * 0.7), 0.0, Vector2(1.0, 0.12))
 	ci.draw_circle(Vector2.ZERO, sh.size.x * 0.5, Color(0, 0, 0, 0.35))
 	ci.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
@@ -255,6 +260,10 @@ static func shelf(ci: CanvasItem, sh: Rect2) -> void:
 
 ## The firefly: round glowing body with little wings. Asleep: dim, wings folded, eyes closed.
 static func fly(ci: CanvasItem, pos: Vector2, r: float, col: Color, flap: float, awake: bool, moving: bool, phase: float, now: float, skin := "") -> void:
+	if Regions.item(ci, pos, r, col, flap, awake, phase, now):
+		if awake and (skin if skin != "" else fly_skin) != "fairy":
+			fly_extra(ci, pos, r, col, now, phase, skin if skin != "" else fly_skin)
+		return
 	if not awake:
 		for side in [-1.0, 1.0]:
 			ci.draw_set_transform(pos + Vector2(side * r * 0.5, -r * 0.5), side * 0.5, Vector2(1.0, 0.55))
@@ -477,6 +486,7 @@ static func cap_timeline(age: float) -> Dictionary:
 
 static func cap(ci: CanvasItem, r: Rect2, age: float) -> void:
 	var w := r.size.x
+	var CC := Regions.cap_cols()
 	var T := cap_timeline(age)
 	var a: float = T.alpha
 	var cx := r.get_center().x
@@ -491,12 +501,12 @@ static func cap(ci: CanvasItem, r: Rect2, age: float) -> void:
 		var t := clampf((x - cx) / half, -1.0, 1.0)
 		return bend * sqrt(1.0 - t * t)
 	# the flat top of the lid
-	ci.draw_colored_polygon(_oval(Vector2(cx, top), half, bend, 0.0, TAU, 40).slice(0, -1), Color(Color("#b9843a"), a))
-	ci.draw_colored_polygon(_oval(Vector2(cx, top + bend * 0.12), half * 0.86, bend * 0.78, 0.0, TAU, 40).slice(0, -1), Color(Color("#ecc675"), a))
+	ci.draw_colored_polygon(_oval(Vector2(cx, top), half, bend, 0.0, TAU, 40).slice(0, -1), Color(CC[0], a))
+	ci.draw_colored_polygon(_oval(Vector2(cx, top + bend * 0.12), half * 0.86, bend * 0.78, 0.0, TAU, 40).slice(0, -1), Color(CC[1], a))
 	# metal cylinder shading: dark at the sides, bright just left of center
 	var grad := Gradient.new()
 	grad.offsets = PackedFloat32Array([0.0, 0.18, 0.4, 0.62, 1.0])
-	grad.colors = PackedColorArray([Color("#8a5d22"), Color("#d9a74e"), Color("#fbe7a6"), Color("#d6a24c"), Color("#7a5220")])
+	grad.colors = PackedColorArray([CC[2], CC[3], CC[4], CC[5], CC[6]])
 	var cols := 32
 	for k in cols:
 		var xa := x0 + cw * k / cols
@@ -538,7 +548,7 @@ static func cap(ci: CanvasItem, r: Rect2, age: float) -> void:
 		if rr > gx:
 			ci.draw_polygon(PackedVector2Array([Vector2(gx, top + dy.call(gx)), Vector2(rr, top + dy.call(rr)), Vector2(rr, top + dy.call(rr) + bh), Vector2(gx, top + dy.call(gx) + bh)]), PackedColorArray([c1, c0, c0, c1]))
 	# rolled top edge and outline, both following the round shape
-	ci.draw_polyline(_oval(Vector2(cx, top + bh * 0.08), half * 0.97, bend, 0.08, PI - 0.08, 24), Color(Color("#fff1c2"), a), max(2.0, bh * 0.18), true)
+	ci.draw_polyline(_oval(Vector2(cx, top + bh * 0.08), half * 0.97, bend, 0.08, PI - 0.08, 24), Color(CC[7], a), max(2.0, bh * 0.18), true)
 	var ol := _oval(Vector2(cx, top), half, bend, PI, TAU, 20)
 	ol.append_array(_oval(Vector2(cx, top + bh), half, bend, 0.0, PI, 24))
 	ol.append(ol[0])

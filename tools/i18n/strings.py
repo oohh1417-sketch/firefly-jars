@@ -42,6 +42,12 @@ S = [
 ["Tap anywhere to start the music", "اضغط في أي مكان لتشغيل الموسيقى", "Toca en cualquier parte para iniciar la música", "Toque em qualquer lugar para tocar a música", "Touche l'écran pour lancer la musique", "Tippe irgendwo, um die Musik zu starten", "Müziği başlatmak için herhangi bir yere dokun", "Нажми в любом месте, чтобы включить музыку", "どこかをタップして音楽をスタート", "아무 곳이나 탭하면 음악이 시작돼요", "轻点任意位置开始播放音乐"],
 
 # ---------- chapter names ----------
+["Bubble Reef", "شعاب الفقاعات", "Arrecife burbuja", "Recife das Bolhas", "Récif des bulles", "Blasenriff", "Kabarcık Resifi", "Пузырьковый риф", "あわの サンゴ礁", "거품 산호초", "泡泡珊瑚礁"],
+["Sunpetal Meadow", "مرج زهرة الشمس", "Prado de pétalos", "Prado das Pétalas", "Prairie des pétales", "Blütenwiese", "Çiçekli Çayır", "Цветочный луг", "おひさまの花畑", "햇살 꽃밭", "阳光花海"],
+["Lantern Grove", "بستان الفوانيس", "Arboleda de faroles", "Bosque das Lanternas", "Bosquet des lanternes", "Laternenhain", "Fener Korusu", "Роща фонариков", "ランタンの林", "등불 숲속", "灯笼树林"],
+["Firefly Night", "ليلة اليراعات", "Noche de luciérnagas", "Noite dos Vaga-lumes", "Nuit des lucioles", "Glühwürmchennacht", "Ateş Böceği Gecesi", "Ночь светлячков", "ホタルの夜", "반딧불이 밤", "萤火虫之夜"],
+["Candy Clouds", "غيوم الحلوى", "Nubes de caramelo", "Nuvens de Doce", "Nuages de bonbons", "Zuckerwolken", "Şeker Bulutlar", "Конфетные облака", "キャンディ雲", "사탕 구름", "糖果云朵"],
+["Starlight Space", "فضاء النجوم", "Espacio estelar", "Espaço Estrelado", "Espace étoilé", "Sternenraum", "Yıldızlı Uzay", "Звёздный космос", "星空の宇宙", "별빛 우주", "星光太空"],
 ["Meadow Glow", "توهج المرج", "Prado brillante", "Brilho do Prado", "Prairie lumineuse", "Leuchtwiese", "Parlayan Çayır", "Сияющий луг", "かがやく草原", "빛나는 초원", "微光草地"],
 ["Willow Pond", "بركة الصفصاف", "Estanque de sauces", "Lago dos Salgueiros", "Étang des saules", "Weidenteich", "Söğütlü Gölet", "Ивовый пруд", "ヤナギの池", "버드나무 연못", "柳树池塘"],
 ["Moonlit Garden", "حديقة القمر", "Jardín de luna", "Jardim ao Luar", "Jardin de lune", "Mondgarten", "Ay Işığı Bahçesi", "Лунный сад", "月夜の庭", "달빛 정원", "月光花园"],

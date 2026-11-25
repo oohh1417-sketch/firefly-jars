@@ -35,6 +35,16 @@ func _draw() -> void:
 	var H := size.y
 	var hills: Array = T.hills
 	var t := _now
+	if T.has("custom"):   # Jar World regions: their own scene, no night sky extras
+		Scenes.sky(self, T, W, H)
+		Scenes.live(self, T, W, H, t, "sky")
+		Scenes.land(self, T, W, H)
+		Scenes.live(self, T, W, H, t, "ground")
+		var c0 := Color(0, 0, 0, 0)
+		var c1 := Color(0, 0, 0, 0.16 if T.get("day", false) else 0.35)
+		draw_polygon(PackedVector2Array([Vector2(0, 0), Vector2(W, 0), Vector2(W, H * 0.12), Vector2(0, H * 0.12)]), PackedColorArray([c1, c1, c0, c0]))
+		draw_polygon(PackedVector2Array([Vector2(0, H * 0.85), Vector2(W, H * 0.85), Vector2(W, H), Vector2(0, H)]), PackedColorArray([c0, c0, c1, c1]))
+		return
 	Scenes.sky(self, T, W, H, true)
 	for s in _stars:
 		var a := 0.2 + 0.5 * absf(sin(t * 0.5 * s[3] + s[2]))
