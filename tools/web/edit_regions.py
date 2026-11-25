@@ -6,7 +6,7 @@
 import sys, os, re
 src, dst = sys.argv[1], sys.argv[2]
 FAMILY = "--family" in sys.argv
-VERSION = "v0.31"
+VERSION = "v0.32"
 s = open(src, encoding="utf-8").read()
 
 def rep(old, new, cnt=1):
@@ -30,6 +30,18 @@ rep('''g.strokeStyle = "rgba(215,235,255,.5)"; g.lineWidth = Math.max(1.2, R * .
   if ((themeNow().jar || "mason") === "mason" && !themeNow().deco) for (const k of [.03, .08])''')
 # softer seam between two map scenes
 rep('sg.addColorStop(.45, "rgba(3,4,12,.9)")', 'sg.addColorStop(.45, "rgba(3,4,12,.45)")')
+# the cracked-jar repair: bigger world helpers, and their sparkles and glow take the world's color (no golden firefly trail)
+a = s.index("// ===================== the cracked jar"); b = s.index("function paintHelper(g, x, y, r, flap, left) {")
+body = s[a:b]
+n = body.count('"#fff0a0"')
+if n < 5: print("helper colors", n); sys.exit(1)
+body = body.replace('"#fff0a0"', "helperCol()")
+for old, new in [("paintHelper(ctx, x, y, R * .8,", "paintHelper(ctx, x, y, R * helperSize(),"),
+                 ("if (particles.length < 260) particles.push(", "if (particles.length < 260 && Math.random() < helperTrail()) particles.push("),
+                 ("twinkle(.55);", "if (helperTrail() > .9) twinkle(.55);")]:
+    if body.count(old) != 1: print("helper patch", old); sys.exit(1)
+    body = body.replace(old, new)
+s = s[:a] + body + s[b:]
 # the lid takes the region's colors
 a = s.index("function paintCap(g, r, age) {"); b = s.index("// after the click the whole jar")
 body = s[a:b]

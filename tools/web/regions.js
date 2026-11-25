@@ -773,3 +773,9 @@ paintHelper = function (g, x, y, r, flap, left) {
   }
   g.restore();
 };
+
+// the repair sparkles, trail and glow follow the helper of each world (only the night world keeps golden firefly light)
+const HELPER_COL = { reef: "#bff9ff", sunpetal: "#ffc6e0", grove: "#a8ffb8", candy: "#ff9fd0", space: "#c4b6ff" };
+function helperCol() { try { return HELPER_COL[themeNow().name] || "#fff0a0"; } catch (e) { return "#fff0a0"; } }
+function helperSize() { try { return HELPER_COL[themeNow().name] ? 1.3 : .8; } catch (e) { return .8; } }
+function helperTrail() { try { return HELPER_COL[themeNow().name] ? .3 : 1; } catch (e) { return 1; } }

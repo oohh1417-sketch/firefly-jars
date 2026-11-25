@@ -56,7 +56,7 @@ const FLY_OUT := 0.8
 const CRACKS := [[Vector2(.62, .2), Vector2(.53, .33), Vector2(.6, .42), Vector2(.47, .55), Vector2(.55, .64), Vector2(.44, .79)],
 	[Vector2(.53, .33), Vector2(.38, .39), Vector2(.29, .36)], [Vector2(.47, .55), Vector2(.66, .6), Vector2(.74, .71)],
 	[Vector2(.24, .68), Vector2(.33, .75), Vector2(.27, .86)]]
-const HELPER := Color("#fff0a0")
+const HELPER_GOLD := Color("#fff0a0")
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
@@ -195,7 +195,7 @@ func repair_done() -> void:
 	_layout()
 	_flash_t = _now
 	var r := _rects[jars.size() - 1]
-	sparkle(r.get_center(), HELPER, 30, 1.5, 1.3)
+	sparkle(r.get_center(), Regions.helper_col(), 30, 1.5, 1.3)
 
 func mend_amount() -> float:
 	if extra_state != "repairing":
@@ -489,7 +489,7 @@ func _draw_cracked(r: Rect2, mend: float, rad: float, badge: bool) -> void:
 		draw_polyline(pts, Color(0.9, 0.95, 1.0, 0.85 * (1.0 - mend)), max(1.2, rad * 0.08), true)
 		if mend > 0.0 and mend < 1.0:
 			for q in c:   # golden light seals the cracks
-				Art.glow(self, r.position + q * r.size, rad * 1.1, HELPER, 0.5 * sin(mend * PI))
+				Art.glow(self, r.position + q * r.size, rad * 1.1, Regions.helper_col(), 0.5 * sin(mend * PI))
 	if mend < 1.0:
 		var sp := Vector2(r.end.x + r.size.x * 0.02, r.end.y)
 		var shard := PackedVector2Array([sp, sp + Vector2(r.size.x * 0.16, -r.size.x * 0.12), sp + Vector2(r.size.x * 0.26, 0)])
@@ -520,23 +520,24 @@ func _helper_pos(k: int, t: float, r: Rect2) -> Vector2:
 func _draw_helpers(rad: float) -> void:
 	if _now - _flash_t < 0.7 and jars.size() > 0 and jars.size() <= _rects.size():
 		var fr := _rects[jars.size() - 1]
-		Art.glow(self, fr.get_center(), fr.size.y * 0.9, HELPER, 0.6 * (1.0 - (_now - _flash_t) / 0.7))
+		Art.glow(self, fr.get_center(), fr.size.y * 0.9, Regions.helper_col(), 0.6 * (1.0 - (_now - _flash_t) / 0.7))
 	var t := _now - _repair_t0
 	if t < 0.0 or t > FLY_IN + MEND + FLY_OUT or _repair_rect.size == Vector2.ZERO:
 		return
 	var r := _repair_rect
 	if int(t / 0.26) != _helper_tw:
 		_helper_tw = int(t / 0.26)
-		twinkle(-4.0)
+		if Regions.helper_trail() > 0.9:
+			twinkle(-4.0)
 	for k in 2:
 		var p := _helper_pos(k, t, r)
 		var prev := _helper_pos(k, t - 0.03, r)
-		if _particles.size() < 260:
-			_particles.append({"p": p, "v": Vector2(randf() - 0.5, randf() - 0.5 + 0.5) * 30.0, "life": 0.0, "max": 0.6, "c": HELPER, "s": 2.0})
+		if _particles.size() < 260 and randf() < Regions.helper_trail():
+			_particles.append({"p": p, "v": Vector2(randf() - 0.5, randf() - 0.5 + 0.5) * 30.0, "life": 0.0, "max": 0.6, "c": Regions.helper_col(), "s": 2.0})
 		if t > FLY_IN and t < FLY_IN + MEND and randf() < 0.12:
 			var c: Array = CRACKS[randi() % CRACKS.size()]
-			sparkle(r.position + c[randi() % c.size()] * r.size, HELPER, 3, 0.5)
-		_draw_helper(p, rad * 0.8, t / 0.03 + k * 2.0, p.x < prev.x)
+			sparkle(r.position + c[randi() % c.size()] * r.size, Regions.helper_col(), 3, 0.5)
+		_draw_helper(p, rad * Regions.helper_size(), t / 0.03 + k * 2.0, p.x < prev.x)
 
 func _draw_helper(p: Vector2, r: float, flap: float, left: bool) -> void:
 	if Regions.helper(self, p, r, flap, left):
