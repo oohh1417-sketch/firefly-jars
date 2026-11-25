@@ -37,10 +37,21 @@ func _ready() -> void:
 		_apple = Engine.get_singleton("InAppStore")
 		backend = "apple"
 		_apple.set_auto_finish_transaction(true)
-		var ids := [PRODUCT_ID]
-		for pk in COIN_PACKS:
-			ids.append(pk[0])
-		_apple.request_product_info({"product_ids": ids})
+		_apple_request_info()
+
+func _apple_request_info() -> void:
+	var ids := [PRODUCT_ID]
+	for pk in COIN_PACKS:
+		ids.append(pk[0])
+	_apple.request_product_info({"product_ids": ids})
+
+## Buying an item App Store Connect doesn't know yet (not created, or the Paid Apps agreement
+## isn't active) makes the plugin return an error with no event, so the button looked dead.
+## Say so instead, and ask Apple again for the products.
+func _apple_buy(id: String) -> void:
+	if _apple.purchase({"product_id": id}) != OK:
+		_apple_request_info()
+		purchase_done.emit(false, "The purchase didn't go through")
 
 func buy_remove_ads() -> void:
 	if Save.ads_removed:
@@ -50,7 +61,7 @@ func buy_remove_ads() -> void:
 		"play":
 			_play.purchase(PRODUCT_ID)
 		"apple":
-			_apple.purchase({"product_id": PRODUCT_ID})
+			_apple_buy(PRODUCT_ID)
 		_:
 			_test_product = PRODUCT_ID
 			test_store_requested.emit(PRODUCT_ID)
@@ -66,7 +77,7 @@ func buy_coins(id: String) -> void:
 		"play":
 			_play.purchase(id)
 		"apple":
-			_apple.purchase({"product_id": id})
+			_apple_buy(id)
 		_:
 			_test_product = id
 			test_store_requested.emit(id)

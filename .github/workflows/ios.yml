@@ -1,6 +1,7 @@
 # Builds Firefly Jars for iPhone on a GitHub Mac and sends it to TestFlight.
 #
-# Hatem: open Actions > "iPhone build" > Run workflow. About 30 minutes.
+# Runs by itself when a game change is merged into main and sends that build to TestFlight.
+# Hatem can also open Actions > "iPhone build" > Run workflow. About 15-30 minutes.
 # It needs 4 repository secrets (Settings > Secrets and variables > Actions):
 #   APPLE_TEAM_ID   your 10-character Team ID (developer.apple.com > Membership)
 #   ASC_KEY_ID      the App Store Connect API key's Key ID
@@ -20,12 +21,12 @@ on:
         type: boolean
         default: true
   push:
-    branches: ["claude/**"]
+    branches: ["main", "claude/**"]   # main: every merged game change goes to TestFlight
     paths: ["game/**", ".github/workflows/ios.yml", "tools/ios_prepare.py", "tools/asc_signing.py"]
 
 concurrency:
   group: ios-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}   # never cut off an upload from main
 
 env:
   GODOT_VERSION: "4.7.2"
@@ -178,7 +179,7 @@ jobs:
           KEY_ID: ${{ secrets.ASC_KEY_ID }}
           ISSUER: ${{ secrets.ASC_ISSUER_ID }}
           KEY_P8: ${{ secrets.ASC_KEY_P8 }}
-          UPLOAD: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.upload == 'true' }}
+          UPLOAD: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.upload == 'true') || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
         run: |
           KEYFILE="$RUNNER_TEMP/AuthKey_${KEY_ID}.p8"
           printf '%s\n' "$KEY_P8" > "$KEYFILE"
