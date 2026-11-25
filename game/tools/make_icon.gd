@@ -1,5 +1,6 @@
 extends Control
 ## Draws the app icon with the game's own art and saves it as PNG files.
+## NOTE: this draws the OLD Firefly Jars icon. The current Jar World icon is made by tools/icon/jar_world_icons.js (repo root).
 ## Run:  godot --resolution 1024x1024 res://tools/make_icon.tscn
 ## Writes: icon.png (1024, full square for iOS and the stores),
 ##         icon_fg.png and icon_bg.png (Android adaptive icon layers, 432x432 scaled from 1024).
