@@ -225,6 +225,20 @@ static func _in_jar(ci: CanvasItem, poly: PackedVector2Array, jar: PackedVector2
 	for p in Geometry2D.intersect_polygons(poly, jar):
 		_grad_poly(ci, p, stops, y0, y1)
 
+## Speed: cutting shapes against each other is slow, so a cut that only moves around (never
+## changes shape) is worked out once around (0, 0) and kept. `make` returns the pieces as
+## [[polygon, extra], ...]; they come back moved to `at`.
+static var _cuts := {}
+static func _cut_once(key: String, at: Vector2, make: Callable) -> Array:
+	if not _cuts.has(key):
+		if _cuts.size() > 300:
+			_cuts.clear()
+		_cuts[key] = make.call()
+	var out := []
+	for e in _cuts[key]:
+		out.append([_poly_pts(e[0], at), e[1]])
+	return out
+
 static func _star(c: Vector2, ro: float, ri: float) -> PackedVector2Array:
 	var p := PackedVector2Array()
 	for k in 10:
@@ -277,12 +291,20 @@ static func back(ci: CanvasItem, r: Rect2) -> void:
 			water.append(Vector2(x, bot))
 			_in_jar(ci, water, jar, [[0.0, Color(0.47, 0.92, 1.0, 0.16)], [1.0, Color(0.08, 0.55, 0.82, 0.34)]], wy, bot)
 			ci.draw_polyline(surf, Color(0.9, 1, 1, 0.55), max(1.0, w * 0.03), true)
-			var sand := PackedVector2Array([Vector2(x, bot - w * 0.1)])
-			_quad(Vector2(x, bot - w * 0.1), Vector2(x + w * 0.3, bot - w * 0.17), Vector2(x + w * 0.55, bot - w * 0.11), sand, 6)
-			_quad(Vector2(x + w * 0.55, bot - w * 0.11), Vector2(x + w * 0.8, bot - w * 0.06), Vector2(x + w, bot - w * 0.13), sand, 6)
-			sand.append(Vector2(x + w, bot + 2))
-			sand.append(Vector2(x, bot + 2))
-			_in_jar(ci, sand, jar, [[0.0, Color("#f8e2ab")], [1.0, Color("#d6ad62")]], bot - w * 0.16, bot)
+			var sand_cut := func() -> Array:
+				var lw := r.size.x
+				var lb := r.size.y
+				var sand := PackedVector2Array([Vector2(0, lb - lw * 0.1)])
+				_quad(Vector2(0, lb - lw * 0.1), Vector2(lw * 0.3, lb - lw * 0.17), Vector2(lw * 0.55, lb - lw * 0.11), sand, 6)
+				_quad(Vector2(lw * 0.55, lb - lw * 0.11), Vector2(lw * 0.8, lb - lw * 0.06), Vector2(lw, lb - lw * 0.13), sand, 6)
+				sand.append(Vector2(lw, lb + 2))
+				sand.append(Vector2(0, lb + 2))
+				var res := []
+				for q in Geometry2D.intersect_polygons(sand, Art.jar_points(Rect2(Vector2.ZERO, r.size))):
+					res.append([q, null])
+				return res
+			for e in _cut_once("sand|%s|%s|%s" % [cur().name, Art.jar_skin, r.size], r.position, sand_cut):
+				_grad_poly(ci, e[0], [[0.0, Color("#f8e2ab")], [1.0, Color("#d6ad62")]], bot - w * 0.16, bot)
 			for k in 4:
 				var p := fmod(t * 0.35 + k * 0.27 + ph * 0.13, 1.0)
 				var yy := bot - w * 0.15 - p * (bot - w * 0.15 - wy)
@@ -295,10 +317,21 @@ static func back(ci: CanvasItem, r: Rect2) -> void:
 		"stripes":
 			ci.draw_colored_polygon(jar, Color(1, 0.69, 0.84, 0.12))
 			var sy := bot - w * 0.16
-			_in_jar(ci, PackedVector2Array([Vector2(x - 2, sy), Vector2(x + w + 2, sy), Vector2(x + w + 2, bot + 2), Vector2(x - 2, bot + 2)]), jar, [[0.0, Color(1, 1, 1, 0.7)], [1.0, Color(1, 1, 1, 0.7)]], sy, bot)
-			for k in range(-1, 6):
-				var bx := x + k * w * 0.22
-				_in_jar(ci, PackedVector2Array([Vector2(bx, bot), Vector2(bx + w * 0.1, bot), Vector2(bx + w * 0.26, sy), Vector2(bx + w * 0.16, sy)]), jar, [[0.0, Color(1, 0.36, 0.54, 0.6)], [1.0, Color(1, 0.36, 0.54, 0.6)]], sy, bot)
+			var stripe_cut := func() -> Array:
+				var lw := r.size.x
+				var lb := r.size.y
+				var lsy := lb - lw * 0.16
+				var lj := Art.jar_points(Rect2(Vector2.ZERO, r.size))
+				var res := []
+				for q in Geometry2D.intersect_polygons(PackedVector2Array([Vector2(-2, lsy), Vector2(lw + 2, lsy), Vector2(lw + 2, lb + 2), Vector2(-2, lb + 2)]), lj):
+					res.append([q, [[0.0, Color(1, 1, 1, 0.7)], [1.0, Color(1, 1, 1, 0.7)]]])
+				for k in range(-1, 6):
+					var bx := k * lw * 0.22
+					for q in Geometry2D.intersect_polygons(PackedVector2Array([Vector2(bx, lb), Vector2(bx + lw * 0.1, lb), Vector2(bx + lw * 0.26, lsy), Vector2(bx + lw * 0.16, lsy)]), lj):
+						res.append([q, [[0.0, Color(1, 0.36, 0.54, 0.6)], [1.0, Color(1, 0.36, 0.54, 0.6)]]])
+				return res
+			for e in _cut_once("stripes|%s|%s|%s" % [cur().name, Art.jar_skin, r.size], r.position, stripe_cut):
+				_grad_poly(ci, e[0], e[1], sy, bot)
 		"metal":
 			_grad_poly(ci, jar, [[0.0, Color(0.35, 0.16, 0.63, 0.0)], [1.0, Color(0.35, 0.16, 0.63, 0.3)]], top, bot)
 			for k in 6:
@@ -528,11 +561,12 @@ static func shelf(ci: CanvasItem, sh: Rect2) -> bool:
 			ci.draw_colored_polygon(_arc(Vector2(mu, y - 4), 4, 4, PI, TAU, 8), Color("#7dffd0"))
 		"candy":   # a wafer with pink frosting and sprinkles
 			var wr := Rect2(x, y + 2, w, h - 1)
-			ci.draw_colored_polygon(_rr(wr, 3), Color("#e8b77a"))
+			var wafer := _rr(wr, 3)
+			ci.draw_colored_polygon(wafer, Color("#e8b77a"))
 			var xx := x - h
 			while xx < x + w + h:
 				for seg in [[Vector2(xx, y), Vector2(xx + h, y + h + 2)], [Vector2(xx + h, y), Vector2(xx, y + h + 2)]]:
-					var c := Geometry2D.clip_polyline_with_polygon(PackedVector2Array(seg), _rr(wr, 3))
+					var c := Geometry2D.clip_polyline_with_polygon(PackedVector2Array(seg), wafer)
 					for part in c:
 						ci.draw_polyline(part, Color(0.67, 0.41, 0.18, 0.55), 1.0, true)
 				xx += 7.0
@@ -869,11 +903,18 @@ static func world_orb(ci: CanvasItem, c: Vector2, R: float, i: int, t: float) ->
 	Art.glow(ci, c, R * 1.9, Color(Wd.glow), 0.22)
 	var circle := _ell(c, R, R, 0.0, 40)
 	_grad_poly(ci, circle, [[0.0, Color(Wd.sky[0])], [0.6, Color(Wd.sky[1])], [1.0, Color(Wd.sky[2])]], c.y - R, c.y + R)
-	for p in Geometry2D.intersect_polygons(_ell(c + Vector2(0, R * 1.15), R * 1.3, R * 0.55, 0.0, 30), circle):
-		ci.draw_colored_polygon(p, Color(Wd.hills[0]))
+	for p in _orb_hill(R):
+		ci.draw_colored_polygon(_poly_pts(p, c), Color(Wd.hills[0]))
 	mix_fly(ci, Wd.item, c - Vector2(0, R * 0.04), R * 0.5, Art.COLORS[[0, 6, 4, 0, 2, 5][i]], t * 8.0 + i, true, i * 3.0, t)
 	ci.draw_arc(c, R, 0, TAU, 40, Color(1, 1, 1, 0.8), max(1.5, R * 0.08), true)
 	ci.draw_arc(c, R * 0.74, PI * 1.1, PI * 1.4, 10, Color(1, 1, 1, 0.7), max(1.5, R * 0.1), true)
+
+## The hill inside a world bubble (worked out once per size, around (0, 0), then moved into place).
+static var _orb_hills := {}
+static func _orb_hill(R: float) -> Array:
+	if not _orb_hills.has(R):
+		_orb_hills[R] = Geometry2D.intersect_polygons(_ell(Vector2(0, R * 1.15), R * 1.3, R * 0.55, 0.0, 30), _ell(Vector2.ZERO, R, R, 0.0, 40))
+	return _orb_hills[R]
 
 static func hub_orbs(ci: CanvasItem, W: float, H: float, t: float, spots: Array, R: float) -> void:
 	for i in spots.size():
@@ -997,10 +1038,20 @@ static func cap_shape(ci: CanvasItem, kind: String, cx: float, yb: float, w: flo
 			_quad(Vector2(cx - w * 0.46, yb), Vector2(cx - w * 0.46, top), Vector2(cx, top), dome, 10)
 			_quad(Vector2(cx, top), Vector2(cx + w * 0.46, top), Vector2(cx + w * 0.46, yb), dome, 10)
 			ci.draw_colored_polygon(dome, _a(Color("#ff7fb5"), A))
-			for k in range(-4, 5):
-				var x0 := cx + k * w * 0.16 + fmod(turn * w * 0.05, w * 0.16)
-				for p in Geometry2D.intersect_polygons(PackedVector2Array([Vector2(x0, yb), Vector2(x0 + w * 0.06, yb), Vector2(x0 + w * 0.2, top), Vector2(x0 + w * 0.14, top)]), dome):
-					ci.draw_colored_polygon(p, Color(1, 1, 1, 0.85 * A))
+			var slide := fmod(turn * w * 0.05, w * 0.16)
+			var bonbon_cut := func() -> Array:
+				var ltop := -w * 0.3
+				var ldome := PackedVector2Array([Vector2(-w * 0.46, 0)])
+				_quad(Vector2(-w * 0.46, 0), Vector2(-w * 0.46, ltop), Vector2(0, ltop), ldome, 10)
+				_quad(Vector2(0, ltop), Vector2(w * 0.46, ltop), Vector2(w * 0.46, 0), ldome, 10)
+				var res := []
+				for k in range(-4, 5):
+					var x0 := k * w * 0.16 + slide
+					for q in Geometry2D.intersect_polygons(PackedVector2Array([Vector2(x0, 0), Vector2(x0 + w * 0.06, 0), Vector2(x0 + w * 0.2, ltop), Vector2(x0 + w * 0.14, ltop)]), ldome):
+						res.append([q, null])
+				return res
+			for e in _cut_once("bonbon|%s|%s" % [w, slide], Vector2(cx, yb), bonbon_cut):
+				ci.draw_colored_polygon(e[0], Color(1, 1, 1, 0.85 * A))
 			ci.draw_polyline(_closed(dome), Color(0.67, 0.16, 0.4, 0.7 * A), ol, true)
 			ci.draw_colored_polygon(_rr(Rect2(cx - w * 0.48, yb - w * 0.05, w * 0.96, w * 0.07), w * 0.03), _a(Color("#fff0f6"), A))
 			var stem := PackedVector2Array([Vector2(cx, top - w * 0.02)])
@@ -1111,9 +1162,15 @@ static func helper(ci: CanvasItem, p: Vector2, r: float, flap: float, left: bool
 				ci.draw_colored_polygon(_ell(p + Vector2(sx * r * 0.3, -r * 0.6), r * 0.32, r * 0.5 * wy, sx * 0.4), Color(1, 1, 1, 0.75))
 			var body := _ell(p, r * 0.82, r * 0.58, 0.0, 30)
 			ci.draw_colored_polygon(body, Color("#ffcf3b"))
-			for k in [-0.15, 0.25]:
-				for q in Geometry2D.intersect_polygons(PackedVector2Array([Vector2(x + f * r * k - r * 0.09, y - r), Vector2(x + f * r * k + r * 0.09, y - r), Vector2(x + f * r * k + r * 0.09, y + r), Vector2(x + f * r * k - r * 0.09, y + r)]), body):
-					ci.draw_colored_polygon(q, Color("#2a1c10"))
+			var bee_cut := func() -> Array:
+				var lbody := _ell(Vector2.ZERO, r * 0.82, r * 0.58, 0.0, 30)
+				var res := []
+				for k in [-0.15, 0.25]:
+					for q in Geometry2D.intersect_polygons(PackedVector2Array([Vector2(f * r * k - r * 0.09, -r), Vector2(f * r * k + r * 0.09, -r), Vector2(f * r * k + r * 0.09, r), Vector2(f * r * k - r * 0.09, r)]), lbody):
+						res.append([q, null])
+				return res
+			for e in _cut_once("bee|%s|%s" % [r, f], p, bee_cut):
+				ci.draw_colored_polygon(e[0], Color("#2a1c10"))
 			ci.draw_colored_polygon(PackedVector2Array([Vector2(x - f * r * 0.8, y - r * 0.08), Vector2(x - f * r * 1.05, y), Vector2(x - f * r * 0.8, y + r * 0.08)]), Color("#2a1c10"))
 			ci.draw_circle(Vector2(x + f * r * 0.45, y - r * 0.08), r * 0.14, Color.WHITE)
 			ci.draw_circle(Vector2(x + f * r * 0.5, y - r * 0.06), r * 0.07, Color("#1a1430"))
