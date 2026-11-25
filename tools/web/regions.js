@@ -494,7 +494,12 @@ bandImage = function (G, i) {
 // ---------- Jar World hub: the loading screen and the main menu show every world, not just one ----------
 const MIX = ["fish", "flower", "gem", "fly", "candy", "planet"];
 const _themeNow = themeNow;
-themeNow = function () { return HUB ? THEMES[3] : _themeNow(); };   // the hub jar is the classic glass jar with the gold lid
+themeNow = function () {
+  if (HUB) return THEMES[3];
+  // after a win the level number has already moved on: keep the world of the level just solved until the next one starts
+  if (mode === "level" && won && save.level > 1) return THEMES[Math.floor((save.level - 2) / 10) % THEMES.length];
+  return _themeNow();
+};   // the hub jar is the classic glass jar with the gold lid
 function mixFly(kind, ...a) { FORCE_KIND = kind; try { paintFly(...a); } finally { FORCE_KIND = null; } }
 const hubStars = Array.from({ length: 90 }, (_, i) => { const r = rng(i * 29 + 5); return [r(), r(), r() * 6.28, .6 + r() * 1.3]; });
 // a twilight sky: deep blue at the top, purple, then a warm glow at the horizon
@@ -567,23 +572,51 @@ mapCv.addEventListener("pointerup", e => {
 
 // ---- each region has its own music and sounds (keys like "reef_sfx_select", "reef_music") ----
 (function regionSound() {
+  // A world's own sound is used only when it is ready to play; otherwise the shared sound plays, so a tap is never silent.
+  const ready = k => !!SOUND_DATA[k] && ((Snd.ctx && Snd.ctx.state === "running" && Snd.buffers[k]) || (Snd.pools[k] && Snd.pools[k].ok));
   const _play = Snd.play;
   Snd.play = function (name, rate, vol, again) {
     let k = name;
-    try { const r = themeNow().name + "_" + name; if (SOUND_DATA[r]) k = r; } catch (e) {}
+    try { const r = themeNow().name + "_" + name; if (ready(r)) k = r; } catch (e) {}
     return _play.call(this, k, rate, vol, again);
   };
+  // Backup players (used when the phone pauses Web Audio) are made only for the shared sounds and the current
+  // world, a few at a time inside a tap: making all 45 at once is too much for iPhones and they stay silent.
+  const unlockOne = n => {
+    if (Snd.pools[n] || !SOUND_DATA[n]) return;
+    Snd.pools[n] = [0, 1].map(() => { const el = new window.Audio(SOUND_DATA[n]); el.preload = "auto"; el.setAttribute("playsinline", ""); return el; });
+    let left = 2;
+    for (const el of Snd.pools[n]) {
+      el.muted = true; const pr = el.play();
+      const done = () => { el.pause(); el.currentTime = 0; el.muted = false; if (--left === 0) Snd.pools[n].ok = true; };
+      if (pr && pr.then) pr.then(done).catch(done); else done();
+    }
+  };
+  Snd.unlockPools = function () {
+    this.poolsMade = true;
+    for (const n of SFX_NAMES) if (!/^[a-z]+_sfx_/.test(n)) unlockOne(n);
+    try { const w = themeNow().name; for (const n of SFX_NAMES) if (n.startsWith(w + "_")) unlockOne(n); } catch (e) {}
+  };
+  for (const n of SFX_NAMES) if (Snd.pools[n]) Snd.pools[n].ok = true;
+  // the music for the world being played; switched inside a tap, and Web Audio woken right after,
+  // because on iPhones changing the music can pause the sound effects
   let cur = "music";
-  setInterval(() => {
+  const want = () => { try { const r = themeNow().name + "_music"; if (SOUND_DATA[r]) return r; } catch (e) {} return "music"; };
+  const swap = inTap => {
     if (!Snd.musicEl) return;
-    let k = "music";
-    try { const r = themeNow().name + "_music"; if (SOUND_DATA[r]) k = r; } catch (e) {}
-    if (k === cur) return;
-    cur = k;
+    const k = want(); if (k === cur) return;
     const was = !Snd.musicEl.paused;
-    Snd.musicEl.src = SOUND_DATA[k];
+    if (was && !inTap) return;   // wait for the next tap
+    cur = k; Snd.musicEl.src = SOUND_DATA[k];
     if (was) { const pr = Snd.musicEl.play(); if (pr && pr.catch) pr.catch(() => {}); }
-  }, 400);
+  };
+  document.addEventListener("pointerdown", () => {
+    swap(true);
+    if (Snd.started && Snd.ctx && Snd.ctx.state !== "running" && Snd.ctx.state !== "closed") Snd.ctx.resume().catch(() => {});
+    if (Snd.poolsMade) Snd.unlockPools();   // the current world's backup players, if not made yet
+  }, true);
+  document.addEventListener("pointerup", () => { if (Snd.started && Snd.ctx && Snd.ctx.state !== "running" && Snd.ctx.state !== "closed") Snd.ctx.resume().catch(() => {}); }, true);
+  setInterval(() => swap(false), 400);
 })();
 
 // ---------- each world's own lid (the one that closes a full jar, and the locked lid with a number) ----------

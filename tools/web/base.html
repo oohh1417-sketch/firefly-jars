@@ -2311,6 +2311,7 @@ function doPour(a, b) {
   refresh();
 }
 function celebrate() {
+  if (won) return;   // two pours landing together must not win (and skip) twice
   buzz([40, 120, 70]);   // a happy double tap on the phone
   let title = "All glowing!", text = L("Solved in {0} moves", moves), sfx = "sfx_win", gain = 0;
   Analytics.log("level_end", { level: save.level, mode, moves, success: true, hard: hardNow(), extreme: hardNow() && isExtreme(save.level), used_hint: usedHint });

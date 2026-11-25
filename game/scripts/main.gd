@@ -1432,8 +1432,10 @@ func _load_state(new_state: Dictionary, fly_in: bool) -> void:
 
 func _refresh() -> void:
 	var ch := Art.chapter_of(Save.level)
-	backdrop.theme_index = 4 if mode == "daily" else ch.theme
-	Art.region = backdrop.theme_index if (mode == "daily" and not menu_layer.visible and not map_layer.visible) else ch.theme
+	# after a win the level number has already moved on: keep the world of the level just solved until the next one starts
+	var world: int = Art.chapter_of(Save.level - 1).theme if (won and mode == "level" and Save.level > 1) else ch.theme
+	backdrop.theme_index = 4 if mode == "daily" else world
+	Art.region = backdrop.theme_index if (mode == "daily" and not menu_layer.visible and not map_layer.visible) else world
 	if mode == "daily":
 		chapter_label.text = I18n.up(tr("Daily puzzle"))
 		var d := Time.get_date_dict_from_system()
