@@ -233,14 +233,15 @@ function regionDeco(g, r, deco, i) {
     for (const [fy, rot] of [[.78, 3.6], [.62, -.4], [.47, 3.3]]) leaf(g, x - w * .02, top + r.h * fy, w * .17, rot, "#5cb23f");
     glow(g, x + w / 2, bot - w * .05, w * .6, "#ffd36a", .16);
   } else if (deco === "twine") {
-    // the classic mason jar: twine around the neck and a little paper tag with a star
+    // the classic jar: twine wrapped twice around the neck, and a little paper tag hanging from it
     g.strokeStyle = "#c9a36a"; g.lineWidth = Math.max(1.2, w * .035);
-    for (let k = 0; k < 2; k++) { const yy = top + w * (.15 + k * .05); g.beginPath(); g.moveTo(x + w * .08, yy); g.lineTo(x + w * .92, yy + w * .02); g.stroke(); }
-    const tx = x + w * .9, ty = top + w * .2, sw = Math.sin(t * 1.4 + i) * .08;
-    g.beginPath(); g.moveTo(tx, ty); g.lineTo(tx + w * .08, ty + w * .22); g.stroke();
-    g.save(); g.translate(tx + w * .08, ty + w * .22); g.rotate(.25 + sw);
+    for (let k = 0; k < 2; k++) { g.beginPath(); g.ellipse(x + w / 2, top + w * (.05 + k * .045), w * .41, w * .06, 0, .05, Math.PI - .05); g.stroke(); }
+    const tx = x + w * .88, ty = top + w * .1, sw = Math.sin(t * 1.4 + i) * .08;
+    g.lineWidth = Math.max(1, w * .03); g.beginPath(); g.moveTo(tx, ty); g.lineTo(tx + w * .1, ty + w * .2); g.stroke();
+    g.save(); g.translate(tx + w * .1, ty + w * .2); g.rotate(.15 + sw);
     g.fillStyle = "#f6ecd0"; roundRect(g, -w * .11, 0, w * .22, w * .27, w * .03, w * .03); g.fill(); g.strokeStyle = "rgba(120,90,40,.6)"; g.lineWidth = Math.max(1, w * .02); g.stroke();
-    starPath(g, 0, w * .14, w * .07, w * .03); g.fillStyle = "#ffc93b"; g.fill(); g.restore();
+    ellipse(g, 0, w * .035, w * .02, w * .02, "rgba(120,90,40,.7)");
+    starPath(g, 0, w * .15, w * .07, w * .03); g.fillStyle = "#ffc93b"; g.fill(); g.restore();
   } else if (deco === "stripes") {
     // pink icing around the rim, dripping down the glass, with sprinkles
     g.fillStyle = "#ff8fc0"; g.beginPath(); g.moveTo(x - w * .02, top - w * .04); g.lineTo(x + w * 1.02, top - w * .04); g.lineTo(x + w * 1.02, top + w * .1);
@@ -548,7 +549,7 @@ function drawHubMenu() {
     g.globalAlpha = Math.min(1, e * 6, (1 - e) * 4); f.flap += .3; mixFly(MIX[k % 6], g, x, y, R * (.55 + .45 * (1 - e)), f.c, f.flap, true, true, f.seed * 7); g.globalAlpha = 1;
   });
 }
-// TEST BUILD ONLY: tap a chapter's name on the map to jump to its first level
+// <test-only> TEST BUILD ONLY: tap a chapter's name on the map to jump to its first level
 let pvDown = null;
 mapCv.addEventListener("pointerdown", e => { pvDown = { x: e.clientX, y: e.clientY }; });
 mapCv.addEventListener("pointerup", e => {
@@ -562,6 +563,7 @@ mapCv.addEventListener("pointerup", e => {
     }
   }
 });
+// </test-only>
 
 // ---- each region has its own music and sounds (keys like "reef_sfx_select", "reef_music") ----
 (function regionSound() {
@@ -656,7 +658,8 @@ function capShape(g, kind, cx, yb, w, turn) {
 }
 const _paintCap = paintCap;
 paintCap = function (g, r, age) {
-  const kind = CAP_KIND[themeNow().name]; if (!kind) return _paintCap(g, r, age);
+  const kind = CAP_KIND[themeNow().name];
+  if (!kind) { g.save(); g.translate(0, r.w * .03); _paintCap(g, r, age); g.restore(); return; }
   const T = capTimeline(age), w = r.w, cx = r.x + w / 2, yb = r.y + w * .1 - T.lift * w;
   g.save(); g.globalAlpha *= T.alpha;
   if (T.squash !== 1) { g.translate(cx, yb); g.scale(1 + (1 - T.squash) * .5, T.squash); g.translate(-cx, -yb); }
@@ -688,3 +691,52 @@ setInterval(() => {
   try { if ($("menu").hidden && $("map").hidden) w = themeNow().name; } catch (e) {}
   if (document.documentElement.dataset.world !== w) document.documentElement.dataset.world = w;
 }, 250);
+
+// ---------- the little helpers that mend a cracked jar: one per world (the night world keeps its fireflies) ----------
+const _paintHelper = paintHelper;
+paintHelper = function (g, x, y, r, flap, left) {
+  const n = themeNow().name, f = left ? -1 : 1, wy = .35 + .65 * Math.abs(Math.sin(flap));
+  if (!["reef", "sunpetal", "grove", "candy", "space"].includes(n)) return _paintHelper(g, x, y, r, flap, left);
+  const eyes = (ex, ey, s) => { for (const sx of [-1, 1]) { ellipse(g, ex + sx * s * 1.1, ey, s, s, "#ffffff"); ellipse(g, ex + sx * s * 1.1 + f * s * .25, ey + s * .1, s * .55, s * .55, "#1a1430"); } };
+  g.save(); g.lineCap = "round"; g.lineJoin = "round";
+  if (n === "reef") {   // a little crab
+    glow(g, x, y, r * 3, "#bff9ff", .45);
+    g.strokeStyle = "#c8402c"; g.lineWidth = Math.max(1.2, r * .12);
+    for (const sx of [-1, 1]) for (let k = 0; k < 3; k++) { const lx = x + sx * r * (.35 + k * .18), kick = Math.sin(flap * 2 + k) * r * .12; g.beginPath(); g.moveTo(lx, y + r * .2); g.lineTo(lx + sx * r * .35, y + r * .45 + kick); g.lineTo(lx + sx * r * .4, y + r * .75 + kick); g.stroke(); }
+    for (const sx of [-1, 1]) { const cx = x + sx * r * 1.0, cy = y - r * .45 + Math.sin(flap + sx) * r * .1; g.beginPath(); g.moveTo(x + sx * r * .55, y - r * .05); g.lineTo(cx, cy + r * .2); g.stroke();
+      ellipse(g, cx, cy, r * .32, r * .26, "#ff6a4d"); g.fillStyle = "#bff9ff"; g.beginPath(); g.moveTo(cx + sx * r * .05, cy - r * .04); g.lineTo(cx + sx * r * .36, cy - r * .2); g.lineTo(cx + sx * r * .34, cy + r * .02); g.closePath(); g.fill(); }
+    ellipse(g, x, y, r * .78, r * .52, "#ff6a4d"); ellipse(g, x - r * .2, y - r * .2, r * .3, r * .12, "rgba(255,255,255,.35)");
+    g.strokeStyle = "#c8402c"; g.lineWidth = Math.max(1, r * .1); for (const sx of [-1, 1]) { g.beginPath(); g.moveTo(x + sx * r * .22, y - r * .4); g.lineTo(x + sx * r * .26, y - r * .7); g.stroke(); }
+    for (const sx of [-1, 1]) { ellipse(g, x + sx * r * .26, y - r * .74, r * .14, r * .14, "#ffffff"); ellipse(g, x + sx * r * .26 + f * r * .04, y - r * .73, r * .07, r * .07, "#1a1430"); }
+    ellipse(g, x, y + r * .15, r * .18, r * .08, "#c8402c");
+  } else if (n === "sunpetal") {   // a bee
+    glow(g, x, y, r * 3, "#ffe9a0", .45);
+    g.fillStyle = "rgba(255,255,255,.75)"; for (const sx of [-1, 1]) { g.beginPath(); g.ellipse(x + sx * r * .3, y - r * .6, r * .32, r * .5 * wy, sx * .4, 0, 6.283); g.fill(); }
+    g.save(); g.beginPath(); g.ellipse(x, y, r * .82, r * .58, 0, 0, 6.283); g.clip(); g.fillStyle = "#ffcf3b"; g.fillRect(x - r, y - r, r * 2, r * 2);
+    g.fillStyle = "#2a1c10"; for (const k of [-.15, .25]) g.fillRect(x + f * r * k - r * .09, y - r, r * .18, r * 2); g.restore();
+    g.fillStyle = "#2a1c10"; g.beginPath(); g.moveTo(x - f * r * .8, y - r * .08); g.lineTo(x - f * r * 1.05, y); g.lineTo(x - f * r * .8, y + r * .08); g.closePath(); g.fill();
+    ellipse(g, x + f * r * .45, y - r * .08, r * .14, r * .14, "#ffffff"); ellipse(g, x + f * r * .5, y - r * .06, r * .07, r * .07, "#1a1430");
+    g.strokeStyle = "#2a1c10"; g.lineWidth = Math.max(1, r * .07); g.beginPath(); g.moveTo(x + f * r * .55, y - r * .45); g.quadraticCurveTo(x + f * r * .7, y - r * .8, x + f * r * .9, y - r * .8); g.stroke();
+  } else if (n === "grove") {   // a glowing forest sprite with leaf wings
+    glow(g, x, y, r * 3.6, "#7dffd0", .6);
+    for (const sx of [-1, 1]) leaf(g, x + sx * r * .3, y - r * .2, r * 1.0 * (.6 + .4 * wy), sx < 0 ? Math.PI + .5 : -.5, "rgba(140,230,120,.85)");
+    ellipse(g, x, y, r * .7, r * .7, "#d9fff0"); ellipse(g, x, y + r * .15, r * .45, r * .45, "#7dffd0");
+    eyes(x, y - r * .05, r * .1);
+    leaf(g, x, y - r * .62, r * .5, -1.9, "#5cb23f");
+  } else if (n === "candy") {   // a gumdrop with little wings
+    glow(g, x, y, r * 3, "#ffc0de", .45);
+    g.fillStyle = "rgba(255,255,255,.75)"; for (const sx of [-1, 1]) { g.beginPath(); g.ellipse(x + sx * r * .75, y - r * .35, r * .35, r * .45 * wy, sx * .6, 0, 6.283); g.fill(); }
+    g.fillStyle = "#ff5c9a"; g.beginPath(); g.moveTo(x - r * .75, y + r * .5); g.quadraticCurveTo(x - r * .8, y - r * .75, x, y - r * .75); g.quadraticCurveTo(x + r * .8, y - r * .75, x + r * .75, y + r * .5); g.closePath(); g.fill();
+    for (const [sx, sy] of [[-.4, -.3], [.3, -.45], [.45, .1], [-.2, .25], [0, -.1]]) ellipse(g, x + sx * r, y + sy * r, r * .05, r * .05, "rgba(255,255,255,.85)");
+    eyes(x, y + r * .05, r * .11);
+  } else if (n === "space") {   // a tiny flying saucer
+    glow(g, x, y, r * 3.2, "#5cf2ff", .45);
+    g.beginPath(); g.ellipse(x, y - r * .15, r * .45, r * .45, 0, Math.PI, 2 * Math.PI); g.closePath(); g.fillStyle = "rgba(150,240,255,.85)"; g.fill();
+    eyes(x, y - r * .3, r * .09);
+    const sg = g.createLinearGradient(x - r, 0, x + r, 0); sg.addColorStop(0, "#6a7090"); sg.addColorStop(.45, "#eef2ff"); sg.addColorStop(1, "#5a6080");
+    g.fillStyle = sg; g.beginPath(); g.ellipse(x, y, r * 1.0, r * .3, 0, 0, 6.283); g.fill();
+    for (let k = 0; k < 5; k++) { const on = Math.sin(flap * .8 + k) > 0; ellipse(g, x + (k - 2) * r * .38, y + r * .05, r * .07, r * .07, on ? "#ffd93b" : "#ff5c8a"); }
+    g.fillStyle = "rgba(120,240,255,.18)"; g.beginPath(); g.moveTo(x - r * .3, y + r * .25); g.lineTo(x + r * .3, y + r * .25); g.lineTo(x + r * .6, y + r * 1.3); g.lineTo(x - r * .6, y + r * 1.3); g.closePath(); g.fill();
+  }
+  g.restore();
+};

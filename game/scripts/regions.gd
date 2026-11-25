@@ -385,19 +385,20 @@ static func deco(ci: CanvasItem, r: Rect2) -> void:
 				_leaf(ci, Vector2(x - w * 0.02, top + r.size.y * f.x), w * 0.17, f.y, Color("#5cb23f"))
 			Art.glow(ci, Vector2(x + w * 0.5, bot - w * 0.05), w * 0.6, Color("#ffd36a"), 0.16)
 		"twine":
+			# twine wrapped twice around the neck, and a little paper tag hanging from it
 			for k in 2:
-				var yy := top + w * (0.15 + k * 0.05)
-				ci.draw_line(Vector2(x + w * 0.08, yy), Vector2(x + w * 0.92, yy + w * 0.02), Color("#c9a36a"), max(1.2, w * 0.035), true)
-			var tp := Vector2(x + w * 0.9, top + w * 0.2)
-			var hang := tp + Vector2(w * 0.08, w * 0.22)
+				ci.draw_polyline(_arc(Vector2(x + w * 0.5, top + w * (0.05 + k * 0.045)), w * 0.41, w * 0.06, 0.05, PI - 0.05, 16), Color("#c9a36a"), max(1.2, w * 0.035), true)
+			var tp := Vector2(x + w * 0.88, top + w * 0.1)
+			var rot := 0.15 + sin(t * 1.4 + ph) * 0.08
+			var hang := tp + Vector2(w * 0.1, w * 0.2)
 			ci.draw_line(tp, hang, Color("#c9a36a"), max(1.0, w * 0.03), true)
-			var rot := 0.25 + sin(t * 1.4 + ph) * 0.08
 			var tag := _rr(Rect2(-w * 0.11, 0, w * 0.22, w * 0.27), w * 0.03)
 			var tg := PackedVector2Array()
 			for q in tag:
 				tg.append(hang + q.rotated(rot))
 			_shape(ci, tg, Color("#f6ecd0"), Color(0.47, 0.35, 0.16, 0.6), max(1.0, w * 0.02))
-			ci.draw_colored_polygon(_star(hang + Vector2(0, w * 0.14).rotated(rot), w * 0.07, w * 0.03), Color("#ffc93b"))
+			ci.draw_circle(hang + Vector2(0, w * 0.035).rotated(rot), w * 0.02, Color(0.47, 0.35, 0.16, 0.7))
+			ci.draw_colored_polygon(_star(hang + Vector2(0, w * 0.15).rotated(rot), w * 0.07, w * 0.03), Color("#ffc93b"))
 		"stripes":
 			var ic := PackedVector2Array([Vector2(x - w * 0.02, top - w * 0.04), Vector2(x + w * 1.02, top - w * 0.04), Vector2(x + w * 1.02, top + w * 0.1)])
 			var drips := [0.1, 0.22, 0.12, 0.28, 0.14, 0.1]
@@ -1046,3 +1047,84 @@ static func _rot(pts: PackedVector2Array, a: float) -> PackedVector2Array:
 	for q in pts:
 		o.append(q.rotated(a))
 	return o
+
+# ---------- the little helpers that mend a cracked jar: one per world (the night world keeps its fireflies) ----------
+static func _eyes(ci: CanvasItem, c: Vector2, s: float, f: float) -> void:
+	for sx in [-1.0, 1.0]:
+		ci.draw_circle(c + Vector2(sx * s * 1.1, 0), s, Color.WHITE)
+		ci.draw_circle(c + Vector2(sx * s * 1.1 + f * s * 0.25, s * 0.1), s * 0.55, Color("#1a1430"))
+
+## Returns false in the night world, so the board draws its firefly helper.
+static func helper(ci: CanvasItem, p: Vector2, r: float, flap: float, left: bool) -> bool:
+	var n: String = cur().name
+	if not n in ["reef", "sunpetal", "grove", "candy", "space"]:
+		return false
+	var f := -1.0 if left else 1.0
+	var wy := 0.35 + 0.65 * absf(sin(flap))
+	var x := p.x
+	var y := p.y
+	match n:
+		"reef":   # a little crab
+			Art.glow(ci, p, r * 3.0, Color("#bff9ff"), 0.45)
+			var lc := Color("#c8402c")
+			var lw: float = max(1.2, r * 0.12)
+			for sx in [-1.0, 1.0]:
+				for k in 3:
+					var lx: float = x + sx * r * (0.35 + k * 0.18)
+					var kick := sin(flap * 2.0 + k) * r * 0.12
+					ci.draw_polyline(PackedVector2Array([Vector2(lx, y + r * 0.2), Vector2(lx + sx * r * 0.35, y + r * 0.45 + kick), Vector2(lx + sx * r * 0.4, y + r * 0.75 + kick)]), lc, lw, true)
+			for sx in [-1.0, 1.0]:
+				var cc := Vector2(x + sx * r, y - r * 0.45 + sin(flap + sx) * r * 0.1)
+				ci.draw_line(Vector2(x + sx * r * 0.55, y - r * 0.05), cc + Vector2(0, r * 0.2), lc, lw, true)
+				ci.draw_colored_polygon(_ell(cc, r * 0.32, r * 0.26), Color("#ff6a4d"))
+				ci.draw_colored_polygon(PackedVector2Array([cc + Vector2(sx * r * 0.05, -r * 0.04), cc + Vector2(sx * r * 0.36, -r * 0.2), cc + Vector2(sx * r * 0.34, r * 0.02)]), Color("#bff9ff"))
+			ci.draw_colored_polygon(_ell(p, r * 0.78, r * 0.52), Color("#ff6a4d"))
+			ci.draw_colored_polygon(_ell(p + Vector2(-r * 0.2, -r * 0.2), r * 0.3, r * 0.12), Color(1, 1, 1, 0.35))
+			for sx in [-1.0, 1.0]:
+				ci.draw_line(Vector2(x + sx * r * 0.22, y - r * 0.4), Vector2(x + sx * r * 0.26, y - r * 0.7), lc, max(1.0, r * 0.1), true)
+				ci.draw_circle(Vector2(x + sx * r * 0.26, y - r * 0.74), r * 0.14, Color.WHITE)
+				ci.draw_circle(Vector2(x + sx * r * 0.26 + f * r * 0.04, y - r * 0.73), r * 0.07, Color("#1a1430"))
+		"sunpetal":   # a bee
+			Art.glow(ci, p, r * 3.0, Color("#ffe9a0"), 0.45)
+			for sx in [-1.0, 1.0]:
+				ci.draw_colored_polygon(_ell(p + Vector2(sx * r * 0.3, -r * 0.6), r * 0.32, r * 0.5 * wy, sx * 0.4), Color(1, 1, 1, 0.75))
+			var body := _ell(p, r * 0.82, r * 0.58, 0.0, 30)
+			ci.draw_colored_polygon(body, Color("#ffcf3b"))
+			for k in [-0.15, 0.25]:
+				for q in Geometry2D.intersect_polygons(PackedVector2Array([Vector2(x + f * r * k - r * 0.09, y - r), Vector2(x + f * r * k + r * 0.09, y - r), Vector2(x + f * r * k + r * 0.09, y + r), Vector2(x + f * r * k - r * 0.09, y + r)]), body):
+					ci.draw_colored_polygon(q, Color("#2a1c10"))
+			ci.draw_colored_polygon(PackedVector2Array([Vector2(x - f * r * 0.8, y - r * 0.08), Vector2(x - f * r * 1.05, y), Vector2(x - f * r * 0.8, y + r * 0.08)]), Color("#2a1c10"))
+			ci.draw_circle(Vector2(x + f * r * 0.45, y - r * 0.08), r * 0.14, Color.WHITE)
+			ci.draw_circle(Vector2(x + f * r * 0.5, y - r * 0.06), r * 0.07, Color("#1a1430"))
+			var ant := PackedVector2Array([Vector2(x + f * r * 0.55, y - r * 0.45)])
+			_quad(ant[0], Vector2(x + f * r * 0.7, y - r * 0.8), Vector2(x + f * r * 0.9, y - r * 0.8), ant, 6)
+			ci.draw_polyline(ant, Color("#2a1c10"), max(1.0, r * 0.07), true)
+		"grove":   # a glowing forest sprite with leaf wings
+			Art.glow(ci, p, r * 3.6, Color("#7dffd0"), 0.6)
+			for sx in [-1.0, 1.0]:
+				_leaf(ci, p + Vector2(sx * r * 0.3, -r * 0.2), r * (0.6 + 0.4 * wy), PI + 0.5 if sx < 0 else -0.5, Color(0.55, 0.9, 0.47, 0.85))
+			ci.draw_circle(p, r * 0.7, Color("#d9fff0"))
+			ci.draw_circle(p + Vector2(0, r * 0.15), r * 0.45, Color("#7dffd0"))
+			_eyes(ci, p + Vector2(0, -r * 0.05), r * 0.1, f)
+			_leaf(ci, p + Vector2(0, -r * 0.62), r * 0.5, -1.9, Color("#5cb23f"))
+		"candy":   # a gumdrop with little wings
+			Art.glow(ci, p, r * 3.0, Color("#ffc0de"), 0.45)
+			for sx in [-1.0, 1.0]:
+				ci.draw_colored_polygon(_ell(p + Vector2(sx * r * 0.75, -r * 0.35), r * 0.35, r * 0.45 * wy, sx * 0.6), Color(1, 1, 1, 0.75))
+			var gd := PackedVector2Array([Vector2(x - r * 0.75, y + r * 0.5)])
+			_quad(gd[0], Vector2(x - r * 0.8, y - r * 0.75), Vector2(x, y - r * 0.75), gd, 8)
+			_quad(Vector2(x, y - r * 0.75), Vector2(x + r * 0.8, y - r * 0.75), Vector2(x + r * 0.75, y + r * 0.5), gd, 8)
+			ci.draw_colored_polygon(gd, Color("#ff5c9a"))
+			for d in [Vector2(-0.4, -0.3), Vector2(0.3, -0.45), Vector2(0.45, 0.1), Vector2(-0.2, 0.25), Vector2(0, -0.1)]:
+				ci.draw_circle(p + d * r, r * 0.05, Color(1, 1, 1, 0.85))
+			_eyes(ci, p + Vector2(0, r * 0.05), r * 0.11, f)
+		"space":   # a tiny flying saucer
+			Art.glow(ci, p, r * 3.2, Color("#5cf2ff"), 0.45)
+			ci.draw_colored_polygon(PackedVector2Array([Vector2(x - r * 0.3, y + r * 0.25), Vector2(x + r * 0.3, y + r * 0.25), Vector2(x + r * 0.6, y + r * 1.3), Vector2(x - r * 0.6, y + r * 1.3)]), Color(0.47, 0.94, 1, 0.18))
+			ci.draw_colored_polygon(_arc(p + Vector2(0, -r * 0.15), r * 0.45, r * 0.45, PI, TAU, 16), Color(0.59, 0.94, 1, 0.85))
+			_eyes(ci, p + Vector2(0, -r * 0.3), r * 0.09, f)
+			_grad_poly(ci, _ell(p, r, r * 0.3, 0.0, 30), STEEL, x - r, x + r, false)
+			for k in 5:
+				var on := sin(flap * 0.8 + k) > 0.0
+				ci.draw_circle(Vector2(x + (k - 2) * r * 0.38, y + r * 0.05), r * 0.07, Color("#ffd93b") if on else Color("#ff5c8a"))
+	return true

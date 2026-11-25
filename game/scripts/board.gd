@@ -539,6 +539,8 @@ func _draw_helpers(rad: float) -> void:
 		_draw_helper(p, rad * 0.8, t / 0.03 + k * 2.0, p.x < prev.x)
 
 func _draw_helper(p: Vector2, r: float, flap: float, left: bool) -> void:
+	if Regions.helper(self, p, r, flap, left):
+		return
 	Art.glow(self, p, r * 3.6, Color("#ffe9a0"), 0.55)
 	var wy := 0.35 + 0.65 * absf(sin(flap))
 	for side in [-1.0, 1.0]:

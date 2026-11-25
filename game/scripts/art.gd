@@ -151,7 +151,7 @@ static func jar_points(r: Rect2, mouth := 0.0) -> PackedVector2Array:
 	var top := r.position.y
 	var sh := top + w * 0.3
 	var bot := r.end.y
-	var br := w * 0.24
+	var br := w * 0.36
 	var nx := w * 0.1
 	var pts := PackedVector2Array()
 	pts.append(Vector2(x + nx, top))
@@ -198,7 +198,7 @@ static func jar_front(ci: CanvasItem, r: Rect2, line: Color, width: float, skin 
 	_jar_deco(ci, r, skin if skin != "" else jar_skin)
 	ci.draw_rect(Rect2(r.position.x + w * 0.12, r.position.y + w * 0.42, w * 0.12, r.size.y * 0.55), Color(1, 1, 1, 0.16))
 	ci.draw_rect(Rect2(r.position.x + w * 0.8, r.position.y + w * 0.5, w * 0.05, r.size.y * 0.3), Color(1, 1, 1, 0.1))
-	for k in ([0.03, 0.08] if THEMES[region % THEMES.size()].get("jar", "mason") == "mason" else []):
+	for k in ([0.03, 0.08] if Regions.cur().get("jar", "mason") == "mason" and not Regions.cur().has("deco") else []):
 		ci.draw_line(Vector2(r.position.x + w * 0.1, r.position.y + w * k), Vector2(r.position.x + w * 0.9, r.position.y + w * (k + 0.015)), Color(0.84, 0.92, 1.0, 0.5), max(1.5, width * 0.6))
 
 ## The small painted extras of each jar skin, on the glass in front of the fireflies.
@@ -496,7 +496,7 @@ static func cap(ci: CanvasItem, r: Rect2, age: float) -> void:
 	var cw := w * 0.9
 	var x0 := cx - cw * 0.5
 	var bh: float = w * 0.2 * T.squash
-	var top: float = r.position.y - w * 0.07 - T.lift * w + (w * 0.2 - bh)
+	var top: float = r.position.y - w * 0.04 - T.lift * w + (w * 0.2 - bh)
 	# a round lid seen a little from above: its top is an oval and the band curves along it
 	var bend := w * 0.055
 	var half := cw * 0.5

@@ -1,7 +1,12 @@
-# Makes the TEST page with six themed regions: python3 tools/web/edit_regions.py index.html preview/index.html
-# The normal page (family link) stays as it is. The test page keeps its own save, so testing never touches real progress.
+# Builds the Jar World web page from the original single-file game (tools/web/base.html):
+#   family link:  python3 tools/web/edit_regions.py tools/web/base.html index.html --family && python3 tools/i18n/build.py index.html
+#   test page:    python3 tools/web/edit_regions.py tools/web/base.html pv/index.html && python3 tools/i18n/build.py pv/index.html
+# The test page keeps its own save ("fj-preview") and lets you tap a chapter name on the map to jump there.
+# The family page keeps everyone's real save ("fj-save"). Edit base.html / regions.js / regions.css, never index.html.
 import sys, os, re
 src, dst = sys.argv[1], sys.argv[2]
+FAMILY = "--family" in sys.argv
+VERSION = "v0.30"
 s = open(src, encoding="utf-8").read()
 
 def rep(old, new, cnt=1):
@@ -11,8 +16,10 @@ def rep(old, new, cnt=1):
         print("COUNT", c, "expected", cnt, "for:", old[:90]); sys.exit(1)
     s = s.replace(old, new)
 
-# own save slot
-s = s.replace('"fj-save"', '"fj-preview"')
+# own save slot for the test page
+if not FAMILY:
+    s = s.replace('"fj-save"', '"fj-preview"')
+rep("Test build v0.29", ("Jar World " if FAMILY else "Test build ") + VERSION)
 rep('<title>Firefly Jars</title>', '<title>Jar World</title>')
 rep('<div class="logo-main">Firefly</div>', '<div class="logo-main">Jar</div>', 2)
 rep('<div class="logo-sub">JARS</div>', '<div class="logo-sub">WORLD</div>', 2)
@@ -20,7 +27,7 @@ rep('content="Firefly Jars"', 'content="Jar World"')
 # screw threads only on mason jars
 rep('''g.strokeStyle = "rgba(215,235,255,.5)"; g.lineWidth = Math.max(1.2, R * .07);
   for (const k of [.03, .08])''', '''g.strokeStyle = "rgba(215,235,255,.5)"; g.lineWidth = Math.max(1.2, R * .07);
-  if ((themeNow().jar || "mason") === "mason") for (const k of [.03, .08])''')
+  if ((themeNow().jar || "mason") === "mason" && !themeNow().deco) for (const k of [.03, .08])''')
 # softer seam between two map scenes
 rep('sg.addColorStop(.45, "rgba(3,4,12,.9)")', 'sg.addColorStop(.45, "rgba(3,4,12,.45)")')
 # the lid takes the region's colors
@@ -58,8 +65,12 @@ css = open(os.path.join(os.path.dirname(__file__), "regions.css"), encoding="utf
 rep("</style>", "\n" + css + "</style>")
 # locked level stones on the map take their world's color
 rep('g.fillStyle = "rgba(16,22,52,.88)"; g.beginPath(); g.arc(p.x, p.y, r, 0, 6.283); g.fill();', 'g.fillStyle = T.stone || "rgba(16,22,52,.88)"; g.beginPath(); g.arc(p.x, p.y, r, 0, 6.283); g.fill();')
+# rounder bottom corners on the classic jar, so they match its shoulders
+rep("sh = r.y + w * .3, bot = r.y + r.h, br = w * .24, nx = w * .1;", "sh = r.y + w * .3, bot = r.y + r.h, br = w * .36, nx = w * .1;")
 # the regions themselves, added just before the loading screen starts
 js = open(os.path.join(os.path.dirname(__file__), "regions.js"), encoding="utf-8").read()
+if FAMILY:
+    js = re.sub(r"// <test-only>.*?// </test-only>\n", "", js, flags=re.S)
 rep("(function boot() {", js + "\n(function boot() {")
 # each region's own music and sounds (made by game/tools/make_region_audio.py), as small MP3s inside the page
 import subprocess, tempfile, base64, glob
