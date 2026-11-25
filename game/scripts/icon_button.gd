@@ -25,6 +25,7 @@ var icon_color := Color("#e8eeff")
 var font: Font
 
 func _ready() -> void:
+	add_to_group("icon_buttons")
 	flat = true
 	focus_mode = Control.FOCUS_NONE
 	for st in ["normal", "hover", "pressed", "disabled", "focus", "hover_pressed"]:
@@ -37,6 +38,10 @@ func _draw() -> void:
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = Color(0.16, 0.2, 0.39, 0.75) if is_pressed() else Color(0.05, 0.07, 0.17, 0.88)
 	sb.border_color = Color(0.72, 0.8, 1.0, 0.28)
+	if Regions.ui_glass.size() == 2:   # Jar World: the button takes the colors of the world being played
+		var c: Color = Regions.ui_glass[0]
+		sb.bg_color = c.lightened(0.15) if is_pressed() else Color(c.r, c.g, c.b, 0.9)
+		sb.border_color = Regions.ui_glass[1]
 	sb.set_border_width_all(3)
 	sb.set_corner_radius_all(int(size.y * 0.5) if round_shape else 34)
 	sb.anti_aliasing = true

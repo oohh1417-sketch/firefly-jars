@@ -56,6 +56,9 @@ static func _curve(p0: Vector2, p1: Vector2, p2: Vector2, steps := 8) -> PackedV
 
 ## Sky gradient, the rainbow (Rainbow Sky) and the crescent moon.
 static func sky(ci: CanvasItem, T: Dictionary, W: float, H: float, moon := true) -> void:
+	if T.has("custom"):
+		Regions.sky(ci, T, W, H)
+		return
 	Art.vgradient(ci, Rect2(0, 0, W, H), Color(T.sky[0]), Color(T.sky[1]), Color(T.sky[2]), 0.6)
 	if T.name == "rainbow":
 		for k in 7:
@@ -103,6 +106,9 @@ static func _tri(ci: CanvasItem, a: Vector2, b: Vector2, c: Vector2, col: Color)
 
 ## The hills and everything standing on them that doesn't move.
 static func land(ci: CanvasItem, T: Dictionary, W: float, H: float) -> void:
+	if T.has("custom"):
+		Regions.land(ci, T, W, H)
+		return
 	var n: String = T.name
 	var hz := H * 0.78
 	var c0 := Color(T.hills[0])
@@ -200,6 +206,9 @@ static func land(ci: CanvasItem, T: Dictionary, W: float, H: float) -> void:
 
 ## Moving parts. part "sky" sits behind the clouds and grass, part "ground" in front.
 static func live(ci: CanvasItem, T: Dictionary, W: float, H: float, t: float, part: String) -> void:
+	if T.has("custom"):
+		Regions.live(ci, T, W, H, t, part)
+		return
 	_seed_lists()
 	var n: String = T.name
 	var hz := H * 0.78

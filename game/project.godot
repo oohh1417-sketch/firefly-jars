@@ -5,7 +5,7 @@ config_version=5
 
 [application]
 
-config/name="Firefly Jars"
+config/name="Jar World"
 config/description="Pour glowing fireflies between jars until every jar holds one color."
 run/main_scene="res://scenes/main.tscn"
 config/icon="res://icon.png"

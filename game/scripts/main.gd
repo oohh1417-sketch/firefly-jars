@@ -155,6 +155,7 @@ var _extra_token := 0
 func _ready() -> void:
 	Art.jar_skin = Save.jar_skin
 	Art.fly_skin = Save.fly_skin
+	Art.region = Art.chapter_of(Save.level).theme
 	theme = _make_theme()
 	_build_game_ui()
 	_build_menu()
@@ -190,6 +191,8 @@ func _ready() -> void:
 	add_child(loading)
 
 func _process(delta: float) -> void:
+	if menu_layer and map_layer:
+		_tint_glass()
 	if _limit_task != -1 and WorkerThreadPool.is_task_completed(_limit_task):
 		WorkerThreadPool.wait_for_task_completion(_limit_task)
 		_limit_task = -1
@@ -230,8 +233,34 @@ func _process(delta: float) -> void:
 
 # ---------- building the screens ----------
 
+## Jar World: buttons and panels take the colors of the world being played (the menu and map keep the night look).
+const WORLD_GLASS := {"reef": ["#06405899", "#aaf5ff73"], "sunpetal": ["#78341e99", "#ffd7aa8c"], "grove": ["#12382299", "#e9cd7d80"],
+	"candy": ["#96266099", "#ffd2eba6"], "space": ["#22104e99", "#c8afff80"]}
+var _glass_boxes: Array = []
+var _glass_world := "hub"
+
+func _tint_glass() -> void:
+	var w := "hub"
+	if not menu_layer.visible and not map_layer.visible:
+		w = Art.THEMES[Art.region % Art.THEMES.size()].name
+	if w == _glass_world:
+		return
+	_glass_world = w
+	Regions.ui_glass = [Color(WORLD_GLASS[w][0]), Color(WORLD_GLASS[w][1])] if WORLD_GLASS.has(w) else []
+	get_tree().call_group("icon_buttons", "queue_redraw")
+	for e in _glass_boxes:
+		var sb: StyleBoxFlat = e[0]
+		if WORLD_GLASS.has(w):
+			var c := Color(WORLD_GLASS[w][0])
+			sb.bg_color = Color(c.r, c.g, c.b, max(e[1], 0.82))
+			sb.border_color = Color(WORLD_GLASS[w][1])
+		else:
+			sb.bg_color = Color(0.05, 0.07, 0.17, e[1])
+			sb.border_color = Color(0.72, 0.8, 1.0, 0.28)
+
 func _glass(radius := 34, alpha := 0.6) -> StyleBoxFlat:
 	var sb := StyleBoxFlat.new()
+	_glass_boxes.append([sb, alpha])
 	sb.bg_color = Color(0.05, 0.07, 0.17, alpha)
 	sb.border_color = Color(0.72, 0.8, 1.0, 0.28)
 	sb.set_border_width_all(3)
@@ -374,6 +403,8 @@ func _build_game_ui() -> void:
 		bx += int(w) + 16
 
 	chapter_label = _label("MEADOW GLOW", 24, MUTED, _spaced(UI_FONT_HEAVY, 6))
+	chapter_label.add_theme_color_override("font_outline_color", Color(0.04, 0.06, 0.16, 0.55))   # readable on the bright regions too
+	chapter_label.add_theme_constant_override("outline_size", 8)
 	chapter_label.set_anchors_preset(Control.PRESET_TOP_WIDE)
 	chapter_label.offset_left = 132
 	chapter_label.offset_right = -312
@@ -381,6 +412,8 @@ func _build_game_ui() -> void:
 	chapter_label.offset_bottom = 72
 	add_child(chapter_label)
 	level_label = _label("Level 1", 60, Color("#fff3c4"), LOGO_FONT)
+	level_label.add_theme_color_override("font_outline_color", Color(0.04, 0.06, 0.16, 0.5))
+	level_label.add_theme_constant_override("outline_size", 10)
 	level_label.set_anchors_preset(Control.PRESET_TOP_WIDE)
 	level_label.offset_left = 132
 	level_label.offset_right = -312
@@ -531,8 +564,8 @@ func _build_menu() -> void:
 	menu_layer.add_child(gear)
 	gear.pressed.connect(_show_settings)
 
-	# logo: "Firefly" in glowing gold, "JARS" spaced out in a glass pill
-	var logo := _label("Firefly", 124, GOLD, LOGO_FONT)   # small enough to stay clear of the side buttons on the right
+	# logo: "Jar" in glowing gold, "WORLD" spaced out in a glass pill
+	var logo := _label("Jar", 124, GOLD, LOGO_FONT)   # small enough to stay clear of the side buttons on the right
 	logo.set_anchors_preset(Control.PRESET_TOP_WIDE)
 	logo.offset_top = 150
 	logo.offset_bottom = 340
@@ -554,7 +587,7 @@ func _build_menu() -> void:
 	pill.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	pill.offset_top = 330
 	pill.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	pill.add_child(_label("JARS", 46, Color("#dfe7ff"), _spaced(UI_FONT_HEAVY, 26)))
+	pill.add_child(_label("WORLD", 46, Color("#dfe7ff"), _spaced(UI_FONT_HEAVY, 26)))
 	menu_layer.add_child(pill)
 
 	# bottom panel: chapter progress, Play and the daily puzzle
@@ -1219,6 +1252,7 @@ func _show_map(from: String) -> void:
 	map_play_sub.add_theme_color_override("font_color", Color("#b3121f") if Puzzle.is_extreme(Save.level) else (Color("#a3165f") if hard else Color("#6b4200")))
 	map_coin_chip.label = str(Save.coins)
 	_refresh_lives()
+	Art.region = Art.chapter_of(Save.level).theme
 	map_layer.show()
 	if not Save.seen.has("map"):
 		get_tree().create_timer(3.4 if from == "win" else 0.5).timeout.connect(func():
@@ -1399,6 +1433,7 @@ func _load_state(new_state: Dictionary, fly_in: bool) -> void:
 func _refresh() -> void:
 	var ch := Art.chapter_of(Save.level)
 	backdrop.theme_index = 4 if mode == "daily" else ch.theme
+	Art.region = backdrop.theme_index if (mode == "daily" and not menu_layer.visible and not map_layer.visible) else ch.theme
 	if mode == "daily":
 		chapter_label.text = I18n.up(tr("Daily puzzle"))
 		var d := Time.get_date_dict_from_system()
@@ -1926,7 +1961,7 @@ func _show_out_of_moves() -> void:
 
 # ---------- settings ----------
 
-const PRIVACY_TEXT := """Firefly Jars is a puzzle game. This policy explains what data the game uses. Last updated: November 2026.
+const PRIVACY_TEXT := """Jar World is a puzzle game. This policy explains what data the game uses. Last updated: November 2026.
 
 DATA KEPT ON YOUR DEVICE
 Your progress (level, hints, coins, trophies, daily streak) and settings are saved only on your phone. We don't have accounts and we don't collect your name, email, contacts, photos or location.

@@ -24,50 +24,43 @@ func _process(delta: float) -> void:
 	_now += delta
 	queue_redraw()
 
+## Jar World: the menu shows every world (a bubble for each, mixed things in the jar), not just one.
+const ORBS := [Vector2(0.13, 0.2), Vector2(0.88, 0.47), Vector2(0.23, 0.31), Vector2(0.75, 0.56), Vector2(0.2, 0.45), Vector2(0.27, 0.56)]
+
 func _draw() -> void:
 	var W := size.x
 	var H := size.y
 	var T := _now
-	Art.vgradient(self, Rect2(0, 0, W, H * 0.8), Color("#050716"), Color("#101a44"), Color("#1c2b5e"), 0.69)
-	draw_rect(Rect2(0, H * 0.8, W, H * 0.2), Color("#0a1030"))
-	for s in _stars:
-		var a := 0.25 + 0.55 * absf(sin(T * 0.6 * s[3] * 0.5 + s[2]))
-		draw_rect(Rect2(s[0] * W, s[1] * H, s[3], s[3]), Color(1, 0.98, 0.9, a))
-	Art.meteors(self, _meteor_state, T, size.x, size.y * 0.7, false)
-	# full moon
-	var m := Vector2(W * 0.15, H * 0.36)
-	var mr: float = min(W, H) * 0.05
-	Art.glow(self, m, mr * 5.0, Color("#c9d8ff"), 0.22)
-	draw_circle(m, mr, Color("#f4f1dc"))
-	draw_circle(m + Vector2(-mr * 0.3, -mr * 0.2), mr * 0.22, Color(0.7, 0.69, 0.59, 0.35))
-	draw_circle(m + Vector2(mr * 0.35, mr * 0.3), mr * 0.15, Color(0.7, 0.69, 0.59, 0.35))
 	var J := hero
 	var ground := J.end.y - J.size.y * 0.03
-	Art.hill(self, size, ground - H * 0.14, H * 0.03, 5.0, 1.2, Color("#121c46"))
-	Art.hill(self, size, ground - H * 0.06, H * 0.025, 7.0, 3.1, Color("#0c1434"))
-	Art.glow(self, Vector2(J.get_center().x, J.position.y + J.size.y * 0.55), J.size.x * 1.9, Color("#ffcf4a"), 0.22 + 0.04 * sin(T * 2.0))
-	Art.hill(self, size, ground, H * 0.012, 4.0, 0.4, Color("#070b22"))
-	draw_rect(Rect2(0, ground + H * 0.012, W, H), Color("#070b22"))
-	for i in 70:
-		var x := (i / 70.0) * W + (i % 3) * 4
-		var y := ground + sin(x / W * 4.0 + 0.4) * H * 0.012 + 2.0
-		var sway := sin(T * 1.3 + i) * 3.0
-		draw_polyline(PackedVector2Array([Vector2(x, y), Vector2(x + sway * 0.5, y - 10), Vector2(x + sway, y - 18 - (i % 4) * 4)]), Color("#0b1230"), 3.0)
-	# the jar: a mason jar with its gold lid propped open on the rim
+	Regions.hub = true
+	Regions.hub_sky(self, W, H, T, ground - H * 0.05)
+	Regions.hub_land(self, W, H, ground)
+	Art.glow(self, Vector2(J.get_center().x, J.position.y + J.size.y * 0.55), J.size.x * 1.9, Color("#ffcf4a"), 0.2 + 0.04 * sin(T * 2.0))
+	Regions.hub_orbs(self, W, H, T, ORBS, min(W * 0.055, 34.0))
+	_draw_jar(W, T)
+	Regions.hub = false
+
+func _draw_jar(W: float, T: float) -> void:
+	var J := hero
+	var ground := J.end.y - J.size.y * 0.03
+	# the jar with its lid propped open on the rim
 	var R := J.size.x * 0.11
 	_hero_back(J, T, ground)
-	for f in _in_jar:
+	for k in _in_jar.size():
+		var f: Dictionary = _in_jar[k]
 		var p := Vector2(J.get_center().x + sin(T * f.sp + f.a) * J.size.x * 0.3, J.position.y + J.size.y * 0.6 + sin(T * f.sp * 1.4 + f.b) * J.size.y * 0.26)
 		f.flap += 0.25
-		Art.fly(self, p, R, Art.COLORS[f.c], f.flap, true, true, f.a * 10.0, T)
+		Regions.mix_fly(self, Regions.MIX[k % 6], p, R, Art.COLORS[f.c], f.flap, true, f.a * 10.0, T)
 	_hero_front(J, T)
-	for f in _out:
+	for k in _out.size():
+		var f: Dictionary = _out[k]
 		var e := fmod(f.t + T * 0.045, 1.0)
 		var x: float = J.get_center().x + sin(e * 6.0 + f.seed) * W * 0.45 * min(1.0, e * 2.2) + sin(T * 1.7 + f.seed) * 6.0
 		var y: float = J.position.y + J.size.y * 0.08 - e * (J.position.y + J.size.y * 0.1 + 40.0) + cos(T * 1.3 + f.seed) * 5.0
 		var alpha: float = min(1.0, min(e * 6.0, (1.0 - e) * 4.0))
 		f.flap += 0.3
-		modulate_fly(Vector2(x, y), R * (0.55 + 0.45 * (1.0 - e)), Art.COLORS[f.c], f.flap, f.seed * 7.0, alpha)
+		Regions.mix_fly(self, Regions.MIX[k % 6], Vector2(x, y), R * (0.55 + 0.45 * (1.0 - e)), Color(Art.COLORS[f.c], alpha), f.flap, true, f.seed * 7.0, _now)
 
 func modulate_fly(p: Vector2, r: float, c: Color, flap: float, phase: float, alpha: float) -> void:
 	# fade a firefly in and out by fading its color

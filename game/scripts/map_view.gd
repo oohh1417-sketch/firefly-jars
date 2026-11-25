@@ -187,7 +187,7 @@ func _draw() -> void:
 			_stars.clear()
 		draw_set_transform(Vector2(0, y0))
 		Scenes.sky(self, T, W, G.band, false)
-		for s in _star_list(i, W, G.band):
+		for s in ([] if T.has("custom") else _star_list(i, W, G.band)):
 			draw_rect(Rect2(s[0], s[1], s[2] * k_scale, s[2] * k_scale), Color(1, 0.98, 0.9, s[3]))
 		Scenes.live(self, T, W, G.band, t, "sky")
 		Scenes.land(self, T, W, G.band)
@@ -198,7 +198,7 @@ func _draw() -> void:
 	for i in vis:   # soften the seam between two scenes
 		var y0: float = band_top(G, i) - scroll
 		var a := Color(0.012, 0.016, 0.047, 0.0)
-		var b := Color(0.012, 0.016, 0.047, 0.9)
+		var b := Color(0.012, 0.016, 0.047, 0.45)
 		var h1 := 70.0 * k_scale
 		var h2 := 90.0 * k_scale
 		draw_polygon(PackedVector2Array([Vector2(0, y0 - h1), Vector2(W, y0 - h1), Vector2(W, y0), Vector2(0, y0)]), PackedColorArray([a, a, b, b]))
@@ -286,7 +286,7 @@ func _draw() -> void:
 		else:
 			if ext:
 				Art.glow(self, p, r * 1.8, Color("#ff3b2e"), 0.22 + 0.08 * sin(t * 2.0 + lv))
-			draw_circle(p, r, Color(0.063, 0.086, 0.2, 0.88))
+			draw_circle(p, r, Color(T.get("stone", "#101633e0")))
 			draw_arc(p, r, 0, TAU, 40, Color(1, 0.35, 0.24, 0.7) if ext else (Color(1, 0.47, 0.75, 0.55) if hard else Color(0.78, 0.84, 1, 0.25)), (2.5 if ext else 2.0) * k_scale, true)
 			num_col = Color(0.78, 0.82, 0.94, 0.6)
 		var fs := int(r * (0.72 if lv >= 100 else 0.85))

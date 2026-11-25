@@ -1,5 +1,5 @@
 extends Control
-## The loading screen: a jar fills with fireflies, its golden lid screws on, then the menu fades in.
+## The loading screen: a jar fills with things from every world, its golden lid screws on, then the menu fades in.
 ## Same scene as the iPhone version. Emits `finished` when it has faded out.
 
 signal finished
@@ -7,6 +7,8 @@ signal finished
 const TIPS := ["Tip: tap a jar, then tap another jar to pour", "Tip: a jar with a ribbon only takes that color",
 	"Tip: lidded jars open after a few pours", "Tip: a new daily puzzle arrives every day"]
 const FILL_TIME := 2.0
+const ORBS := [Vector2(0.15, 0.33), Vector2(0.85, 0.33), Vector2(0.1, 0.52), Vector2(0.9, 0.52), Vector2(0.16, 0.71), Vector2(0.84, 0.71)]
+const KINDS := ["fish", "flower", "candy", "planet"]
 
 var logo_font: Font
 var ui_font: Font
@@ -41,11 +43,13 @@ func _process(delta: float) -> void:
 func _draw() -> void:
 	var W := size.x
 	var H := size.y
-	Art.vgradient(self, Rect2(Vector2.ZERO, size), Color("#050716"), Color("#101a44"), Color("#1c2b5e"), 0.6)
-	for s in _stars:
-		draw_rect(Rect2(s[0] * W, s[1] * H, s[3], s[3]), Color(1, 0.98, 0.9, 0.2 + 0.5 * absf(sin(_now * 0.6 * s[3] * 0.5 + s[2]))))
+	# Jar World: a twilight sky with a little bubble for each world, and mixed things filling the jar
+	Regions.hub = true
+	Regions.hub_sky(self, W, H, _now, H * 0.8)
+	Regions.hub_land(self, W, H, H * 0.8)
+	Regions.hub_orbs(self, W, H, _now, ORBS, min(W * 0.07, 60.0))
 	# logo
-	_text_center("Firefly", logo_font, 150, H * 0.17, Color("#ffd93b"), Color("#ff9f43"))
+	_text_center("Jar", logo_font, 150, H * 0.17, Color("#ffd93b"), Color("#ff9f43"))
 	var pill := Rect2(W * 0.5 - 130, H * 0.17 + 92, 260, 64)
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = Color(0.05, 0.07, 0.17, 0.45)
@@ -54,7 +58,7 @@ func _draw() -> void:
 	sb.set_corner_radius_all(32)
 	sb.anti_aliasing = true
 	draw_style_box(sb, pill)
-	_text_center("J A R S", ui_font, 40, pill.get_center().y - 2, Color("#dfe7ff"))
+	_text_center("W O R L D", ui_font, 40, pill.get_center().y - 2, Color("#dfe7ff"))
 	# the jar filling up
 	var jw: float = min(W * 0.26, 200.0)
 	var jh := jw * 2.5
@@ -66,19 +70,20 @@ func _draw() -> void:
 	var R := jw * 0.29
 	for k in n:
 		var p := Vector2(r.get_center().x + sin(_now * 2.0 + k) * 2.0, r.end.y - jw * 0.16 - step * (k + 0.5) + cos(_now * 2.4 + k) * 2.0)
-		Art.fly(self, p, R, Art.COLORS[k], _now * 8.0 + k, true, false, k * 3.0, _now)
+		Regions.mix_fly(self, KINDS[k], p, R, Art.COLORS[k], _now * 8.0 + k, false, k * 3.0, _now)
 	if n < 4 and not still:
 		var t := fmod(_now / 0.4, 1.0)
 		var target_y := r.end.y - jw * 0.16 - step * (n + 0.5)
 		var from_y := r.position.y - jh * 0.6
-		Art.fly(self, Vector2(W * 0.5 + sin(t * 5.0 + n) * W * 0.25 * (1.0 - t), lerpf(from_y, target_y, t)), R, Art.COLORS[n], _now * 12.0, true, true, n * 3.0, _now)
+		Regions.mix_fly(self, KINDS[n], Vector2(W * 0.5 + sin(t * 5.0 + n) * W * 0.25 * (1.0 - t), lerpf(from_y, target_y, t)), R, Art.COLORS[n], _now * 12.0, true, n * 3.0, _now)
 	Art.jar_front(self, r, Art.jar_line(), max(2.0, R * 0.11))
 	if _ready_at >= 0.0:
 		Art.cap(self, r, _now - _ready_at)
+	Regions.hub = false
 	# status and tip
 	if still:
 		return
-	_text_center(tr("Catching fireflies…") if _ready_at < 0.0 else tr("Ready!"), logo_font, 44, H * 0.85, Color("#fff3c4"))
+	_text_center(tr("Filling the jars…") if _ready_at < 0.0 else tr("Ready!"), logo_font, 44, H * 0.85, Color("#fff3c4"))
 	_text_center(tr(_tip), ui_font, 28, H * 0.85 + 56, Color("#9aa6d6"))
 
 func _text_center(t: String, f: Font, fs: int, y: float, col: Color, outline := Color(0, 0, 0, 0)) -> void:

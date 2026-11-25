@@ -1,0 +1,11 @@
+/* Jar World: buttons, chips, panels and popups take the colors of the world being played */
+html[data-world="reef"] { --glass-line: rgba(170, 245, 255, .45); --wbg: rgba(6, 64, 88, .86); --wbg2: rgba(4, 40, 62, .95); --wpress: rgba(18, 100, 130, .9); --wshade: rgba(4, 30, 50, .94); }
+html[data-world="sunpetal"] { --glass-line: rgba(255, 215, 170, .55); --wbg: rgba(120, 52, 30, .84); --wbg2: rgba(82, 34, 18, .95); --wpress: rgba(150, 74, 44, .9); --wshade: rgba(60, 24, 12, .94); }
+html[data-world="grove"] { --glass-line: rgba(233, 205, 125, .5); --wbg: rgba(18, 56, 34, .86); --wbg2: rgba(10, 36, 22, .95); --wpress: rgba(34, 86, 54, .9); --wshade: rgba(8, 28, 16, .94); }
+html[data-world="candy"] { --glass-line: rgba(255, 210, 235, .65); --wbg: rgba(150, 38, 96, .84); --wbg2: rgba(104, 22, 66, .95); --wpress: rgba(186, 60, 124, .9); --wshade: rgba(80, 14, 50, .94); }
+html[data-world="space"] { --glass-line: rgba(200, 175, 255, .5); --wbg: rgba(34, 16, 78, .88); --wbg2: rgba(18, 8, 48, .96); --wpress: rgba(60, 34, 120, .9); --wshade: rgba(12, 6, 34, .94); }
+html[data-world]:not([data-world="hub"]):not([data-world="meadow"]) :is(.glass, .chip, .round, .logo-sub) { background: var(--wbg); border-color: var(--glass-line); }
+html[data-world]:not([data-world="hub"]):not([data-world="meadow"]) .glass:active { background: var(--wpress); }
+html[data-world]:not([data-world="hub"]):not([data-world="meadow"]) :is(.card, .panel) { background: linear-gradient(180deg, var(--wbg), var(--wbg2)); border-color: var(--glass-line); }
+html[data-world]:not([data-world="hub"]):not([data-world="meadow"]) .overlay:not(.menu):not(.mapview) { background: var(--wshade); }
+html[data-world]:not([data-world="hub"]):not([data-world="meadow"]) .info { background: var(--wbg); }
