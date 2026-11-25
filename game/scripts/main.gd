@@ -2432,6 +2432,27 @@ func _offer(kind: String) -> void:
 	_set_coin_btn(offer_coin_btn, PRICE[kind], OFFERS[kind][2])
 	move_child(offer_layer, -1)
 	offer_layer.show()
+	_shield_popup(offer_layer)
+
+## A popup ignores taps for a moment after it opens, so the touch that opened it (or a stray
+## second touch event from the phone) can never press "Not now" or another button by accident.
+const POPUP_GUARD := 0.35
+
+func _shield_popup(layer: Control) -> void:
+	var shield: Control = layer.get_node_or_null("TapShield")
+	if shield == null:
+		shield = Control.new()
+		shield.name = "TapShield"
+		shield.set_anchors_preset(Control.PRESET_FULL_RECT)
+		shield.mouse_filter = Control.MOUSE_FILTER_STOP
+		layer.add_child(shield)
+	layer.move_child(shield, -1)
+	shield.show()
+	var tok := Time.get_ticks_msec()
+	shield.set_meta("tok", tok)
+	get_tree().create_timer(POPUP_GUARD).timeout.connect(func():
+		if is_instance_valid(shield) and int(shield.get_meta("tok", 0)) == tok:
+			shield.hide())
 
 # ---------- the cracked jar ----------
 # From level 3 (and in the daily puzzle) a cracked jar stands on the shelf. A video, or coins, sends two
