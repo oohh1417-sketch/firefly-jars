@@ -3,20 +3,20 @@
 // Same levels and rules. Added on top of the normal game by tools/web/edit_regions.py.
 let HUB = 0, FORCE_KIND = null;   // set while drawing the hub (loading screen and menu)
 const REGIONS = [
-  { name: "reef", custom: 1, day: 1, title: "Bubble Reef", item: "fish", jar: "tube", deco: "bubbles",
+  { name: "reef", stone: "#0b5470e6", custom: 1, day: 1, title: "Bubble Reef", item: "fish", jar: "tube", deco: "bubbles",
     sky: ["#8af3ea", "#2ec7d7", "#0e86ae"], hills: ["#f2d9a0", "#e0bf80", "#2e9e6a"], glow: "#bff9ff",
     cap: ["#a8574c", "#f29b8a", "#ffe6df"], shelf: ["#e9cf94", "#b98f55", "#fff1cc"] },
-  { name: "sunpetal", custom: 1, day: 1, title: "Sunpetal Meadow", item: "flower", jar: "vase", deco: "clay",
+  { name: "sunpetal", stone: "#7a3a22e6", custom: 1, day: 1, title: "Sunpetal Meadow", item: "flower", jar: "vase", deco: "clay",
     sky: ["#ff8f8f", "#ffb877", "#ffe3a3"], hills: ["#a6d872", "#86c45c", "#62a843"], glow: "#ffb347",
     cap: ["#8c3f22", "#d9744a", "#ffc7a6"], shelf: ["#a86b3c", "#6e4223", "#c98a55"] },
-  { name: "grove", custom: 1, title: "Lantern Grove", item: "gem", jar: "mason", deco: "lantern",
+  { name: "grove", stone: "#1e4a2ce6", custom: 1, title: "Lantern Grove", item: "gem", jar: "mason", deco: "lantern",
     sky: ["#2f7a4f", "#1e5b3c", "#123826"], hills: ["#1b5233", "#2c5e2a", "#16391f"], glow: "#7dffd0",
     cap: ["#5a3c1c", "#c9a45a", "#f5e0a0"], shelf: ["#5a3d22", "#3a2614", "#6fae4b"] },
   Object.assign({}, THEMES[0], { title: "Firefly Night", item: "fly", jar: "mason", deco: "twine" }),
-  { name: "candy", custom: 1, day: 1, title: "Candy Clouds", item: "candy", jar: "tube", deco: "stripes", line: "rgba(255,255,255,.9)",
+  { name: "candy", stone: "#a33a78e6", custom: 1, day: 1, title: "Candy Clouds", item: "candy", jar: "tube", deco: "stripes", line: "rgba(255,255,255,.9)",
     sky: ["#ff8fc8", "#ffaed6", "#ffd0e8"], hills: ["#ff7fbd", "#ffa3cf", "#fff2f8"], glow: "#ff8fc8",
     cap: ["#c2407a", "#ff7fb5", "#ffe0ee"], shelf: ["#f7c9a0", "#d99a6a", "#fff0e0"] },
-  { name: "space", custom: 1, title: "Starlight Space", item: "planet", jar: "tube", deco: "metal",
+  { name: "space", stone: "#2e1a66e6", custom: 1, title: "Starlight Space", item: "planet", jar: "tube", deco: "metal",
     sky: ["#0c0626", "#2a1258", "#5a2a8a"], hills: ["#3b2370", "#2a1756", "#1a0d3a"], glow: "#c58bff",
     cap: ["#4a5570", "#aab6d0", "#f2f6ff"], shelf: ["#59607a", "#363b52", "#9aa4c4"] },
 ];
@@ -279,17 +279,48 @@ paintJarFront = function (g, r, St, i, R) { const T = themeNow(); if (T.deco) re
 const _shelf = paintShelf;
 paintShelf = function (g, sh) {
   const T = themeNow(); if (!T.shelf) return _shelf(g, sh);
-  const [a, b, topc] = T.shelf;
-  g.fillStyle = "rgba(0,0,0,.2)"; g.beginPath(); g.ellipse(sh.x + sh.w / 2, sh.y + sh.h * 1.7, sh.w * .5, sh.h * .6, 0, 0, 6.283); g.fill();
-  const wg = g.createLinearGradient(0, sh.y, 0, sh.y + sh.h); wg.addColorStop(0, a); wg.addColorStop(1, b);
-  g.fillStyle = wg; roundRect(g, sh.x, sh.y, sh.w, sh.h, sh.h * .45, sh.h * .45); g.fill();
-  g.fillStyle = topc; roundRect(g, sh.x + 3, sh.y, sh.w - 6, Math.max(2, sh.h * .25), 2, 2); g.fill();
-  const r = rng(Math.round(sh.y));
-  if (T.name === "candy") for (let k = 0; k < 14; k++) { g.fillStyle = COLORS[k % 7]; g.fillRect(sh.x + r() * sh.w, sh.y + sh.h * (.35 + r() * .45), 4, 2); }
-  if (T.name === "reef") for (let k = 0; k < 3; k++) { const sx = sh.x + sh.w * (.2 + k * .3), sy = sh.y + sh.h * .7; g.fillStyle = "#ffd2c2"; g.beginPath(); g.arc(sx, sy, sh.h * .3, Math.PI, 0); g.fill(); }
-  if (T.name === "grove") for (let k = 0; k < 6; k++) ellipse(g, sh.x + sh.w * (.08 + k * .17), sh.y + 1, sh.h * .5, sh.h * .25, "#4f9a3a");
-  if (T.name === "space") { g.fillStyle = "#2c3147"; for (let k = 0; k < 6; k++) { g.beginPath(); g.arc(sh.x + sh.w * (.08 + k * .168), sh.y + sh.h * .6, 2, 0, 6.283); g.fill(); } }
-  if (T.glow && !T.day) glow(g, sh.x + sh.w / 2, sh.y, sh.w * .55, T.glow, .1);
+  const x = sh.x, y = sh.y, w = sh.w, h = Math.max(sh.h * 1.7, 12), t = now / 1000, r = rng(Math.round(y) + 3), n = T.name;
+  g.fillStyle = "rgba(0,0,0,.22)"; g.beginPath(); g.ellipse(x + w / 2, y + h * 1.35, w * .5, h * .45, 0, 0, 6.283); g.fill();
+  g.save(); g.lineJoin = "round"; g.lineCap = "round";
+  const bumpy = (yy, amp, step, ph) => { for (let xx = x; xx <= x + w + .1; xx += step) g.lineTo(xx, yy + Math.sin(xx * .13 + ph) * amp + Math.sin(xx * .37 + ph * 2) * amp * .5); };
+  if (n === "reef") {   // a coral rock ledge with sand on top
+    g.beginPath(); g.moveTo(x, y + h * .2); bumpy(y, 1.2, 6, 1); g.lineTo(x + w, y + h * .5);
+    for (let xx = x + w; xx >= x; xx -= 9) g.lineTo(xx, y + h + Math.abs(Math.sin(xx * .09)) * h * .45); g.closePath();
+    const rg = g.createLinearGradient(0, y, 0, y + h * 1.4); rg.addColorStop(0, "#f6b9a3"); rg.addColorStop(1, "#b9645a"); g.fillStyle = rg; g.fill();
+    g.strokeStyle = "rgba(120,45,40,.5)"; g.lineWidth = 1.2; g.stroke();
+    for (let k = 0; k < Math.floor(w / 16); k++) ellipse(g, x + r() * w, y + h * (.45 + r() * .5), 1.5 + r() * 2, 1 + r() * 1.5, "rgba(120,40,40,.35)");
+    g.fillStyle = "#f8e2ab"; g.beginPath(); g.moveTo(x + 2, y + 2); bumpy(y - 1, 1, 6, 1); g.lineTo(x + w - 2, y + 4); g.lineTo(x + 2, y + 4); g.closePath(); g.fill();
+    for (let k = 0; k < Math.floor(w / 40); k++) { const bx = x + 8 + r() * (w - 16), by = y + h * (.5 + r() * .4); g.fillStyle = "#fff4ec"; g.beginPath(); g.arc(bx, by, 2.2, Math.PI, 0); g.fill(); }
+  } else if (n === "sunpetal") {   // a wooden garden plank with moss and little flowers
+    const wg = g.createLinearGradient(0, y, 0, y + h); wg.addColorStop(0, "#c48850"); wg.addColorStop(1, "#7a4a26");
+    g.fillStyle = wg; roundRect(g, x, y + 2, w, h - 2, 3, 3); g.fill(); g.strokeStyle = "rgba(70,35,12,.6)"; g.lineWidth = 1.2; g.stroke();
+    g.strokeStyle = "rgba(70,35,12,.35)"; g.lineWidth = 1; for (let k = 0; k < 3; k++) { const yy = y + h * (.45 + k * .17); g.beginPath(); g.moveTo(x + 6 + r() * 20, yy); g.quadraticCurveTo(x + w / 2, yy + (r() - .5) * 3, x + w - 6 - r() * 20, yy); g.stroke(); }
+    for (const nx of [x + 6, x + w - 6]) ellipse(g, nx, y + h * .6, 1.6, 1.6, "#4a2c12");
+    g.fillStyle = "#79bf55"; g.beginPath(); g.moveTo(x + 2, y + 4); for (let xx = x + 2; xx <= x + w - 2; xx += 5) g.lineTo(xx, y + 1 - Math.abs(Math.sin(xx * .21)) * 2.5 - (r() < .3 ? 1.5 : 0)); g.lineTo(x + w - 2, y + 5); g.lineTo(x + 2, y + 5); g.closePath(); g.fill();
+    for (let k = 0; k < Math.floor(w / 22); k++) ellipse(g, x + 6 + r() * (w - 12), y + 1 + r() * 2, 1.6, 1.6, ["#ffffff", "#ff8fc8", "#ffd93b"][k % 3]);
+  } else if (n === "grove") {   // a mossy log with a glowing mushroom
+    const lg = g.createLinearGradient(0, y, 0, y + h); lg.addColorStop(0, "#7a5532"); lg.addColorStop(.5, "#5a3c20"); lg.addColorStop(1, "#38240f");
+    g.fillStyle = lg; roundRect(g, x, y + 1, w, h, h / 2, h / 2); g.fill();
+    g.strokeStyle = "rgba(30,18,6,.55)"; g.lineWidth = 1; for (let k = 0; k < Math.floor(w / 12); k++) { const bx = x + h / 2 + r() * (w - h); g.beginPath(); g.moveTo(bx, y + h * .3); g.lineTo(bx + 4, y + h * .8); g.stroke(); }
+    for (const ex of [x + h * .45, x + w - h * .45]) { ellipse(g, ex, y + 1 + h / 2, h * .32, h * .45, "#c99a62"); g.strokeStyle = "rgba(110,70,30,.7)"; g.beginPath(); g.ellipse(ex, y + 1 + h / 2, h * .18, h * .26, 0, 0, 6.283); g.stroke(); }
+    g.fillStyle = "#4f9a3a"; g.beginPath(); g.moveTo(x + h / 2, y + 4); for (let xx = x + h / 2; xx <= x + w - h / 2; xx += 5) g.lineTo(xx, y + 1 - Math.abs(Math.sin(xx * .17 + 1)) * 2.5); g.lineTo(x + w - h / 2, y + 5); g.closePath(); g.fill();
+    const mx = x + w * .85; glow(g, mx, y - 3, 14, "#7dffd0", .35 + .1 * Math.sin(t * 2)); g.fillStyle = "#e9f7ff"; g.fillRect(mx - 1, y - 4, 2, 5); g.fillStyle = "#7dffd0"; g.beginPath(); g.arc(mx, y - 4, 4, Math.PI, 0); g.fill();
+  } else if (n === "candy") {   // a wafer with pink frosting and sprinkles
+    g.fillStyle = "#e8b77a"; roundRect(g, x, y + 2, w, h - 1, 3, 3); g.fill();
+    g.save(); roundRect(g, x, y + 2, w, h - 1, 3, 3); g.clip(); g.strokeStyle = "rgba(170,105,45,.55)"; g.lineWidth = 1;
+    for (let xx = x - h; xx < x + w + h; xx += 7) { g.beginPath(); g.moveTo(xx, y); g.lineTo(xx + h, y + h + 2); g.moveTo(xx + h, y); g.lineTo(xx, y + h + 2); g.stroke(); } g.restore();
+    g.fillStyle = "#e8458a"; g.beginPath(); g.moveTo(x, y + 4); g.lineTo(x, y); g.lineTo(x + w, y); g.lineTo(x + w, y + 4);
+    for (let xx = x + w; xx > x; xx -= 10) { const d = 2 + (Math.round(xx) % 3) * 2; g.quadraticCurveTo(xx - 2, y + 4, xx - 3, y + 4 + d); g.arc(xx - 5, y + 4 + d, 2, 0, Math.PI); g.lineTo(xx - 10, y + 4); } g.closePath(); g.fill();
+    for (let k = 0; k < Math.floor(w / 10); k++) { g.fillStyle = COLORS[k % 7]; g.fillRect(x + r() * w, y + .5 + r() * 2, 3, 1.5); }
+  } else if (n === "space") {   // a floating metal platform with lights and thrusters
+    for (const fx of [.2, .5, .8]) { const fl = 6 + Math.sin(t * 20 + fx * 9) * 2; const fg = g.createLinearGradient(0, y + h, 0, y + h + fl * 2); fg.addColorStop(0, "rgba(120,240,255,.9)"); fg.addColorStop(1, "rgba(120,140,255,0)");
+      g.fillStyle = fg; g.beginPath(); g.moveTo(x + w * fx - 4, y + h); g.lineTo(x + w * fx + 4, y + h); g.lineTo(x + w * fx, y + h + fl * 2); g.closePath(); g.fill(); }
+    glow(g, x + w / 2, y + h + 6, w * .4, "#5cf2ff", .2);
+    g.fillStyle = STEEL(g, x, x + w); g.beginPath(); g.moveTo(x, y + 1); g.lineTo(x + w, y + 1); g.lineTo(x + w - h * .6, y + h); g.lineTo(x + h * .6, y + h); g.closePath(); g.fill();
+    g.fillStyle = "rgba(255,255,255,.75)"; g.fillRect(x + 2, y + 1, w - 4, 1.5);
+    for (let k = 0; k < Math.floor(w / 26); k++) { const lx = x + 14 + k * 26, on = Math.sin(t * 3 + k) > 0; ellipse(g, lx, y + h * .55, 1.8, 1.8, on ? "#5cf2ff" : "#ff5c8a"); if (on) glow(g, lx, y + h * .55, 6, "#5cf2ff", .5); }
+  }
+  g.restore();
 };
 
 // ---------- scenes ----------
@@ -552,3 +583,108 @@ mapCv.addEventListener("pointerup", e => {
     if (was) { const pr = Snd.musicEl.play(); if (pr && pr.catch) pr.catch(() => {}); }
   }, 400);
 })();
+
+// ---------- each world's own lid (the one that closes a full jar, and the locked lid with a number) ----------
+const CAP_KIND = { reef: "shell", sunpetal: "cork", grove: "dome", candy: "bonbon", space: "hatch" };
+// draws the lid with its bottom edge at (cx, yb); w is the jar width; turn is the screw-on angle
+function capShape(g, kind, cx, yb, w, turn) {
+  g.save(); g.lineJoin = "round"; g.lineCap = "round";
+  const ol = Math.max(1, w * .022);
+  if (kind === "shell") {
+    const R = w * .5, hy = yb + w * .02;
+    g.beginPath(); g.moveTo(cx - R * .25, hy);
+    for (let k = 0; k <= 8; k++) { const a = Math.PI * (1.02 + k * .96 / 8), am = Math.PI * (1.02 + (k - .5) * .96 / 8);
+      const px = cx + Math.cos(a) * R, py = hy + Math.sin(a) * R * .9;
+      if (k === 0) g.lineTo(px, py); else g.quadraticCurveTo(cx + Math.cos(am) * R * 1.1, hy + Math.sin(am) * R * 1.0, px, py); }
+    g.lineTo(cx + R * .25, hy); g.closePath();
+    const sg = g.createLinearGradient(0, hy - R, 0, hy); sg.addColorStop(0, "#fff2ea"); sg.addColorStop(.6, "#ffc2b2"); sg.addColorStop(1, "#ee8a80");
+    g.fillStyle = sg; g.fill(); g.strokeStyle = "#c96a5e"; g.lineWidth = ol; g.stroke();
+    g.strokeStyle = "rgba(200,100,90,.55)"; g.lineWidth = Math.max(1, w * .018);
+    for (let k = 1; k < 8; k++) { const a = Math.PI * (1.02 + k * .96 / 8); g.beginPath(); g.moveTo(cx, hy); g.lineTo(cx + Math.cos(a) * R * .95, hy + Math.sin(a) * R * .85); g.stroke(); }
+    g.fillStyle = "#e9877b"; roundRect(g, cx - R * .3, hy - w * .03, R * .6, w * .07, w * .03, w * .03); g.fill();
+    glow(g, cx, hy - R * .92, w * .2, "#ffffff", .5);
+    const pg = g.createRadialGradient(cx - w * .02, hy - R * .95, 1, cx, hy - R * .92, w * .07); pg.addColorStop(0, "#ffffff"); pg.addColorStop(1, "#d9d2f0");
+    g.fillStyle = pg; g.beginPath(); g.arc(cx, hy - R * .92, w * .065, 0, 6.283); g.fill();
+  } else if (kind === "cork") {
+    const h = w * .28, tw = w * .86, bw = w * .7, top = yb - h;
+    g.beginPath(); g.moveTo(cx - bw / 2, yb); g.lineTo(cx - tw / 2, top + w * .03); g.lineTo(cx + tw / 2, top + w * .03); g.lineTo(cx + bw / 2, yb); g.closePath();
+    const cg = g.createLinearGradient(cx - tw / 2, 0, cx + tw / 2, 0); cg.addColorStop(0, "#a8703c"); cg.addColorStop(.4, "#e8b77a"); cg.addColorStop(1, "#9a6534");
+    g.fillStyle = cg; g.fill(); g.strokeStyle = "rgba(90,50,20,.7)"; g.lineWidth = ol; g.stroke();
+    const rr = rng(7); g.fillStyle = "rgba(110,65,25,.45)"; for (let k = 0; k < 14; k++) { const u = rr(), v = rr(); g.fillRect(cx - bw / 2 + u * bw, top + w * .06 + v * h * .8, w * .025, w * .02); }
+    ellipse(g, cx, top + w * .03, tw / 2, w * .06, "#f0c58c"); g.strokeStyle = "rgba(90,50,20,.6)"; g.lineWidth = ol; g.beginPath(); g.ellipse(cx, top + w * .03, tw / 2, w * .06, 0, 0, 6.283); g.stroke();
+    leaf(g, cx, top + w * .01, w * .22, -2.7, "#5cb23f"); leaf(g, cx, top + w * .01, w * .22, -.4, "#6fc24c");
+    g.save(); g.translate(cx, top - w * .02); g.rotate(turn * .15); daisy(g, 0, 0, w * .13, "#ffffff", "#ffc93b"); g.restore();
+  } else if (kind === "dome") {
+    const bh = w * .11, top = yb - bh;
+    g.fillStyle = BRASS(g, cx - w * .5, cx + w * .5); roundRect(g, cx - w * .5, top, w, bh, w * .03, w * .03); g.fill(); g.strokeStyle = "rgba(60,38,10,.8)"; g.lineWidth = ol; g.stroke();
+    for (const k of [-.36, -.12, .12, .36]) ellipse(g, cx + w * k, top + bh / 2, w * .022, w * .022, "#5a4012");
+    g.beginPath(); g.moveTo(cx - w * .42, top); g.quadraticCurveTo(cx - w * .4, top - w * .3, cx, top - w * .32); g.quadraticCurveTo(cx + w * .4, top - w * .3, cx + w * .42, top); g.closePath();
+    g.fillStyle = BRASS(g, cx - w * .42, cx + w * .42); g.fill(); g.stroke();
+    g.strokeStyle = "rgba(255,245,200,.6)"; g.lineWidth = Math.max(1, w * .025); g.beginPath(); g.moveTo(cx - w * .25, top - w * .05); g.quadraticCurveTo(cx - w * .22, top - w * .22, cx - w * .05, top - w * .26); g.stroke();
+    ellipse(g, cx, top - w * .34, w * .06, w * .05, "#d9b865");
+    g.strokeStyle = "#d9b865"; g.lineWidth = Math.max(1.5, w * .035); g.beginPath(); g.arc(cx, top - w * .45, w * .08, 0, 6.283); g.stroke();
+    glow(g, cx, top - w * .1, w * .5, "#ffd36a", .18);
+  } else if (kind === "bonbon") {
+    const top = yb - w * .3;
+    for (const s of [-1, 1]) {
+      const ex = cx + s * w * .42, ey = yb - w * .12;
+      g.fillStyle = s < 0 ? "#ffd93b" : "#5cf2ff"; g.beginPath(); g.moveTo(ex, ey);
+      g.lineTo(ex + s * w * .2, ey - w * .13);
+      for (let k = 0; k < 3; k++) { const y0 = ey - w * .13 + k * w * .09; g.quadraticCurveTo(ex + s * w * .29, y0 + w * .045, ex + s * w * .2, y0 + w * .09); }
+      g.lineTo(ex, ey + w * .02); g.closePath(); g.fill();
+    }
+    g.save(); g.beginPath(); g.moveTo(cx - w * .46, yb); g.quadraticCurveTo(cx - w * .46, top, cx, top); g.quadraticCurveTo(cx + w * .46, top, cx + w * .46, yb); g.closePath();
+    g.fillStyle = "#ff7fb5"; g.fill(); g.clip();
+    g.fillStyle = "rgba(255,255,255,.85)";
+    for (let k = -4; k < 5; k++) { const x0 = cx + k * w * .16 + ((turn * w * .05) % (w * .16)); g.beginPath(); g.moveTo(x0, yb); g.lineTo(x0 + w * .06, yb); g.lineTo(x0 + w * .2, top); g.lineTo(x0 + w * .14, top); g.closePath(); g.fill(); }
+    g.restore();
+    g.strokeStyle = "rgba(170,40,100,.7)"; g.lineWidth = ol; g.beginPath(); g.moveTo(cx - w * .46, yb); g.quadraticCurveTo(cx - w * .46, top, cx, top); g.quadraticCurveTo(cx + w * .46, top, cx + w * .46, yb); g.closePath(); g.stroke();
+    g.fillStyle = "#fff0f6"; roundRect(g, cx - w * .48, yb - w * .05, w * .96, w * .07, w * .03, w * .03); g.fill();
+    g.strokeStyle = "#3f8a2e"; g.lineWidth = Math.max(1, w * .03); g.beginPath(); g.moveTo(cx, top - w * .02); g.quadraticCurveTo(cx + w * .04, top - w * .14, cx + w * .1, top - w * .17); g.stroke();
+    ellipse(g, cx, top - w * .02, w * .085, w * .085, "#e8283c"); ellipse(g, cx - w * .03, top - w * .05, w * .025, w * .02, "rgba(255,255,255,.8)");
+  } else if (kind === "hatch") {
+    const bh = w * .11, top = yb - bh;
+    g.fillStyle = STEEL(g, cx - w * .5, cx + w * .5); roundRect(g, cx - w * .5, top, w, bh, w * .04, w * .04); g.fill();
+    for (let k = 0; k < 6; k++) { const a = turn + k * 1.047, f = Math.sin(a); if (f > 0) ellipse(g, cx + Math.cos(a) * w * .44, top + bh / 2, w * .02 * f + .5, w * .02, "#2c3147"); }
+    g.beginPath(); g.ellipse(cx, top, w * .4, w * .3, 0, Math.PI, 2 * Math.PI); g.closePath();
+    const dg = g.createLinearGradient(0, top - w * .3, 0, top); dg.addColorStop(0, "rgba(170,240,255,.85)"); dg.addColorStop(1, "rgba(90,120,220,.75)");
+    g.fillStyle = dg; g.fill(); g.strokeStyle = "rgba(220,235,255,.9)"; g.lineWidth = ol; g.stroke();
+    g.strokeStyle = "rgba(255,255,255,.8)"; g.lineWidth = Math.max(1, w * .03); g.beginPath(); g.ellipse(cx, top, w * .3, w * .22, 0, Math.PI * 1.2, Math.PI * 1.45); g.stroke();
+    const on = Math.sin(now / 250) > 0; glow(g, cx, top - w * .32, w * .2, on ? "#5cf2ff" : "#ff5c8a", .6); ellipse(g, cx, top - w * .32, w * .045, w * .045, on ? "#bff9ff" : "#ff9fbf");
+  }
+  g.restore();
+}
+const _paintCap = paintCap;
+paintCap = function (g, r, age) {
+  const kind = CAP_KIND[themeNow().name]; if (!kind) return _paintCap(g, r, age);
+  const T = capTimeline(age), w = r.w, cx = r.x + w / 2, yb = r.y + w * .1 - T.lift * w;
+  g.save(); g.globalAlpha *= T.alpha;
+  if (T.squash !== 1) { g.translate(cx, yb); g.scale(1 + (1 - T.squash) * .5, T.squash); g.translate(-cx, -yb); }
+  capShape(g, kind, cx, yb, w, T.spin);
+  g.restore();
+  const gt = (age - CAP_TOTAL - 120) / 420;
+  if (gt > 0 && gt < 1) glow(g, cx - w * .5 + gt * w, yb - w * .12, w * .35, "#ffffff", .55 * Math.sin(gt * Math.PI));
+};
+// the locked lid (with the number of pours it waits for) takes the world's lid too
+function lockArt(g, r) { const kind = CAP_KIND[themeNow().name]; if (!kind) return false; capShape(g, kind, 0, r.w * .14, r.w, 0); return true; }
+
+// ---------- sparks in each world's style: bubbles, petals, gem glints, sprinkles, little stars ----------
+function paintParticle(g, p, a) {
+  const kind = CAP_KIND[themeNow().name];
+  if (!kind) { glow(g, p.x, p.y, p.size * 3, p.col, .5 * a); g.fillStyle = `rgba(255,255,240,${a})`; g.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size); return; }
+  const s = p.size * 1.6, rot = (p.seed || (p.seed = Math.random() * 6.28)) + p.life * 6;
+  g.save(); g.globalAlpha = a;
+  if (kind === "shell") { g.strokeStyle = "rgba(255,255,255,.9)"; g.lineWidth = Math.max(1, s * .3); g.beginPath(); g.arc(p.x, p.y, s, 0, 6.283); g.stroke(); ellipse(g, p.x - s * .35, p.y - s * .35, s * .25, s * .25, "rgba(255,255,255,.9)"); }
+  else if (kind === "cork") { g.translate(p.x, p.y); g.rotate(rot); ellipse(g, 0, 0, s * 1.2, s * .55, p.col); ellipse(g, 0, 0, s * .6, s * .25, "rgba(255,255,255,.5)"); }
+  else if (kind === "dome") { glow(g, p.x, p.y, s * 2.5, p.col, .5); g.fillStyle = "#fffbe0"; g.translate(p.x, p.y); g.rotate(rot * .3); g.beginPath(); g.moveTo(0, -s); g.lineTo(s * .6, 0); g.lineTo(0, s); g.lineTo(-s * .6, 0); g.closePath(); g.fill(); }
+  else if (kind === "bonbon") { g.translate(p.x, p.y); g.rotate(rot); g.fillStyle = p.col; roundRect(g, -s, -s * .3, s * 2, s * .6, s * .3, s * .3); g.fill(); }
+  else if (kind === "hatch") { glow(g, p.x, p.y, s * 2.5, p.col, .45); g.fillStyle = "#ffffff"; sparkPath(g, p.x, p.y, s * 1.2, s * .3); g.fill(); }
+  g.restore();
+}
+
+// buttons and popups follow the world being played (the menu and map keep the Jar World look)
+setInterval(() => {
+  let w = "hub";
+  try { if ($("menu").hidden && $("map").hidden) w = themeNow().name; } catch (e) {}
+  if (document.documentElement.dataset.world !== w) document.documentElement.dataset.world = w;
+}, 250);

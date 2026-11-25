@@ -191,6 +191,8 @@ func _ready() -> void:
 	add_child(loading)
 
 func _process(delta: float) -> void:
+	if menu_layer and map_layer:
+		_tint_glass()
 	if _limit_task != -1 and WorkerThreadPool.is_task_completed(_limit_task):
 		WorkerThreadPool.wait_for_task_completion(_limit_task)
 		_limit_task = -1
@@ -231,8 +233,34 @@ func _process(delta: float) -> void:
 
 # ---------- building the screens ----------
 
+## Jar World: buttons and panels take the colors of the world being played (the menu and map keep the night look).
+const WORLD_GLASS := {"reef": ["#06405899", "#aaf5ff73"], "sunpetal": ["#78341e99", "#ffd7aa8c"], "grove": ["#12382299", "#e9cd7d80"],
+	"candy": ["#96266099", "#ffd2eba6"], "space": ["#22104e99", "#c8afff80"]}
+var _glass_boxes: Array = []
+var _glass_world := "hub"
+
+func _tint_glass() -> void:
+	var w := "hub"
+	if not menu_layer.visible and not map_layer.visible:
+		w = Art.THEMES[Art.region % Art.THEMES.size()].name
+	if w == _glass_world:
+		return
+	_glass_world = w
+	Regions.ui_glass = [Color(WORLD_GLASS[w][0]), Color(WORLD_GLASS[w][1])] if WORLD_GLASS.has(w) else []
+	get_tree().call_group("icon_buttons", "queue_redraw")
+	for e in _glass_boxes:
+		var sb: StyleBoxFlat = e[0]
+		if WORLD_GLASS.has(w):
+			var c := Color(WORLD_GLASS[w][0])
+			sb.bg_color = Color(c.r, c.g, c.b, max(e[1], 0.82))
+			sb.border_color = Color(WORLD_GLASS[w][1])
+		else:
+			sb.bg_color = Color(0.05, 0.07, 0.17, e[1])
+			sb.border_color = Color(0.72, 0.8, 1.0, 0.28)
+
 func _glass(radius := 34, alpha := 0.6) -> StyleBoxFlat:
 	var sb := StyleBoxFlat.new()
+	_glass_boxes.append([sb, alpha])
 	sb.bg_color = Color(0.05, 0.07, 0.17, alpha)
 	sb.border_color = Color(0.72, 0.8, 1.0, 0.28)
 	sb.set_border_width_all(3)

@@ -42,6 +42,22 @@ rep("    // the jar fills one firefly at a time", """    hubSky(g, W, H, T, H * 
 rep("St.jars[0].forEach((col, s2) => paintFly(g,", "St.jars[0].forEach((col, s2) => mixFly(BOOT_KINDS[s2], g,")
 rep("paintFly(g, x, y, R, n, T * 12, true, true, n * 3)", "mixFly(BOOT_KINDS[n], g, x, y, R, n, T * 12, true, true, n * 3)")
 rep(">Catching fireflies…<", ">Filling the jars…<")
+# each world's lid when locked, and its own sparks
+rep("""    const lg = g.createLinearGradient(0, -r.w * .22, 0, r.w * .16); lg.addColorStop(0, "#8a6239"); lg.addColorStop(1, "#5a3c22");
+    g.fillStyle = lg; roundRect(g, -r.w * .5, -r.w * .2, r.w, r.w * .34, 7, 7); g.fill();
+    g.strokeStyle = "rgba(40,24,10,.35)"; g.lineWidth = 1.5; for (let k = -2; k <= 2; k++) { g.beginPath(); g.moveTo(k * r.w * .18, -r.w * .18); g.lineTo(k * r.w * .18, r.w * .12); g.stroke(); }""",
+"""    if (!lockArt(g, r)) {
+    const lg = g.createLinearGradient(0, -r.w * .22, 0, r.w * .16); lg.addColorStop(0, "#8a6239"); lg.addColorStop(1, "#5a3c22");
+    g.fillStyle = lg; roundRect(g, -r.w * .5, -r.w * .2, r.w, r.w * .34, 7, 7); g.fill();
+    g.strokeStyle = "rgba(40,24,10,.35)"; g.lineWidth = 1.5; for (let k = -2; k <= 2; k++) { g.beginPath(); g.moveTo(k * r.w * .18, -r.w * .18); g.lineTo(k * r.w * .18, r.w * .12); g.stroke(); }
+    }""")
+rep("""    const a = 1 - p.life / p.max; glow(ctx, p.x, p.y, p.size * 3, p.col, .5 * a);
+    ctx.fillStyle = `rgba(255,255,240,${a})`; ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);""",
+"""    paintParticle(ctx, p, 1 - p.life / p.max);""")
+css = open(os.path.join(os.path.dirname(__file__), "regions.css"), encoding="utf-8").read()
+rep("</style>", "\n" + css + "</style>")
+# locked level stones on the map take their world's color
+rep('g.fillStyle = "rgba(16,22,52,.88)"; g.beginPath(); g.arc(p.x, p.y, r, 0, 6.283); g.fill();', 'g.fillStyle = T.stone || "rgba(16,22,52,.88)"; g.beginPath(); g.arc(p.x, p.y, r, 0, 6.283); g.fill();')
 # the regions themselves, added just before the loading screen starts
 js = open(os.path.join(os.path.dirname(__file__), "regions.js"), encoding="utf-8").read()
 rep("(function boot() {", js + "\n(function boot() {")

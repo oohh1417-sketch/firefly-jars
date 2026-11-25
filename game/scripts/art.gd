@@ -32,20 +32,20 @@ static func jar_line(skin := "") -> Color:
 ## Jar World: one region per chapter (every 10 levels), each with its own scene, things to sort and jar.
 ## The night region ("meadow") is drawn in scenes.gd; the others in regions.gd. Same as the web test page.
 const THEMES := [
-	{"name": "reef", "custom": true, "day": true, "item": "fish", "jar": "tube", "deco": "bubbles",
+	{"name": "reef", "stone": "#0b5470e6", "custom": true, "day": true, "item": "fish", "jar": "tube", "deco": "bubbles",
 		"sky": ["#8af3ea", "#2ec7d7", "#0e86ae"], "hills": ["#f2d9a0", "#e0bf80", "#2e9e6a"], "glow": "#bff9ff",
 		"cap": ["#a8574c", "#f29b8a", "#ffe6df"], "shelf": ["#e9cf94", "#b98f55", "#fff1cc"]},
-	{"name": "sunpetal", "custom": true, "day": true, "item": "flower", "jar": "vase", "deco": "clay",
+	{"name": "sunpetal", "stone": "#7a3a22e6", "custom": true, "day": true, "item": "flower", "jar": "vase", "deco": "clay",
 		"sky": ["#ff8f8f", "#ffb877", "#ffe3a3"], "hills": ["#a6d872", "#86c45c", "#62a843"], "glow": "#ffb347",
 		"cap": ["#8c3f22", "#d9744a", "#ffc7a6"], "shelf": ["#a86b3c", "#6e4223", "#c98a55"]},
-	{"name": "grove", "custom": true, "item": "gem", "jar": "mason", "deco": "lantern",
+	{"name": "grove", "stone": "#1e4a2ce6", "custom": true, "item": "gem", "jar": "mason", "deco": "lantern",
 		"sky": ["#2f7a4f", "#1e5b3c", "#123826"], "hills": ["#1b5233", "#2c5e2a", "#16391f"], "glow": "#7dffd0",
 		"cap": ["#5a3c1c", "#c9a45a", "#f5e0a0"], "shelf": ["#5a3d22", "#3a2614", "#6fae4b"]},
 	{"name": "meadow", "item": "fly", "jar": "mason", "deco": "twine", "sky": ["#040a18", "#0d2140", "#1b3d55"], "hills": ["#0f2a3a", "#0a1f2c", "#06131d"], "glow": "#ffd93b"},
-	{"name": "candy", "custom": true, "day": true, "item": "candy", "jar": "tube", "deco": "stripes", "line": "#ffffffe6",
+	{"name": "candy", "stone": "#a33a78e6", "custom": true, "day": true, "item": "candy", "jar": "tube", "deco": "stripes", "line": "#ffffffe6",
 		"sky": ["#ff8fc8", "#ffaed6", "#ffd0e8"], "hills": ["#ff7fbd", "#ffa3cf", "#fff2f8"], "glow": "#ff8fc8",
 		"cap": ["#c2407a", "#ff7fb5", "#ffe0ee"], "shelf": ["#f7c9a0", "#d99a6a", "#fff0e0"]},
-	{"name": "space", "custom": true, "item": "planet", "jar": "tube", "deco": "metal",
+	{"name": "space", "stone": "#2e1a66e6", "custom": true, "item": "planet", "jar": "tube", "deco": "metal",
 		"sky": ["#0c0626", "#2a1258", "#5a2a8a"], "hills": ["#3b2370", "#2a1756", "#1a0d3a"], "glow": "#c58bff",
 		"cap": ["#4a5570", "#aab6d0", "#f2f6ff"], "shelf": ["#59607a", "#363b52", "#9aa4c4"]},
 ]
@@ -486,6 +486,8 @@ static func cap_timeline(age: float) -> Dictionary:
 
 
 static func cap(ci: CanvasItem, r: Rect2, age: float) -> void:
+	if Regions.cap(ci, r, age):
+		return
 	var w := r.size.x
 	var CC := Regions.cap_cols()
 	var T := cap_timeline(age)

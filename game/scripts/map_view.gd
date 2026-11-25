@@ -286,7 +286,7 @@ func _draw() -> void:
 		else:
 			if ext:
 				Art.glow(self, p, r * 1.8, Color("#ff3b2e"), 0.22 + 0.08 * sin(t * 2.0 + lv))
-			draw_circle(p, r, Color(0.063, 0.086, 0.2, 0.88))
+			draw_circle(p, r, Color(T.get("stone", "#101633e0")))
 			draw_arc(p, r, 0, TAU, 40, Color(1, 0.35, 0.24, 0.7) if ext else (Color(1, 0.47, 0.75, 0.55) if hard else Color(0.78, 0.84, 1, 0.25)), (2.5 if ext else 2.0) * k_scale, true)
 			num_col = Color(0.78, 0.82, 0.94, 0.6)
 		var fs := int(r * (0.72 if lv >= 100 else 0.85))

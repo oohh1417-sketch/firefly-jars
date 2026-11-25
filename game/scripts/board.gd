@@ -469,6 +469,10 @@ func _draw() -> void:
 	_draw_helpers(rad)
 	for p in _particles:
 		var a: float = 1.0 - p.life / p.max
+		if not p.has("rot"):
+			p["rot"] = randf() * TAU
+		if Regions.particle(self, p.p, p.c, p.s, a, p.rot + p.life * 6.0):
+			continue
 		Art.glow(self, p.p, p.s * 3.0, p.c, 0.5 * a)
 		draw_rect(Rect2(p.p - Vector2(p.s, p.s) * 0.5, Vector2(p.s, p.s)), Color(1, 1, 0.94, a))
 	_draw_tutorial_hand()
@@ -671,9 +675,10 @@ func _draw_jar_front(i: int, r: Rect2, rad: float) -> void:
 	if lid_t >= 0.0:
 		var a := 1.0 - lid_t
 		draw_set_transform(Vector2(r.get_center().x, r.position.y + w * 0.02 - lid_t * lid_t * r.size.y * 1.2), lid_t * 2.5, Vector2.ONE)
-		Art.vgradient(self, Rect2(-w * 0.5, -w * 0.2, w, w * 0.34), Color(Color("#8a6239"), a), Color(Color("#71502e"), a), Color(Color("#5a3c22"), a), 0.5)
-		for k in range(-2, 3):
-			draw_line(Vector2(k * w * 0.18, -w * 0.18), Vector2(k * w * 0.18, w * 0.12), Color(0.16, 0.09, 0.04, 0.35 * a), 1.5)
+		if not Regions.lock_art(self, w, a):
+			Art.vgradient(self, Rect2(-w * 0.5, -w * 0.2, w, w * 0.34), Color(Color("#8a6239"), a), Color(Color("#71502e"), a), Color(Color("#5a3c22"), a), 0.5)
+			for k in range(-2, 3):
+				draw_line(Vector2(k * w * 0.18, -w * 0.18), Vector2(k * w * 0.18, w * 0.12), Color(0.16, 0.09, 0.04, 0.35 * a), 1.5)
 		if lock > 0:
 			draw_circle(Vector2(0, -w * 0.03), w * 0.22, Color("#fff6d6"))
 			var font: Font = NUMBER_FONT
