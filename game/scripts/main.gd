@@ -810,16 +810,16 @@ func _build_tip() -> void:
 	tip_layer.hide()
 
 const TIPS := {
-	"color_jar": ["Color jars", "A jar with a colored ribbon on its neck only accepts fireflies of that color. Plan ahead!"],
-	"lid": ["Lidded jars", "The fireflies in a lidded jar are asleep. The number counts down by one with every pour you make. At zero, the lid pops off and you can use the jar."],
-	"cracked_jar": ["The cracked jar", "This jar is cracked. Tap it, and two helper fireflies will fly in and mend it. Then it's one more empty jar for this level."],
+	"color_jar": ["Color jars", "A jar with a colored ribbon on its neck only accepts that color. Plan ahead!"],
+	"lid": ["Lidded jars", "A lidded jar stays shut. The number counts down by one with every pour you make. At zero, the lid pops off and you can use the jar."],
+	"cracked_jar": ["The cracked jar", "This jar is cracked. Tap it, and two little helpers will come and mend it. Then it's one more empty jar for this level."],
 	"daily": ["Daily puzzle", "A new puzzle every day, with color jars and a lid. Solve it every day to grow your streak."],
 	"hard": ["Hard level", "The 5th level of every chapter is Hard: more colors and a move limit (the number under the level). Win for 25 coins and a hint. If you give up, you lose a heart."],
 	"extreme": ["Extreme level", "The last level of every chapter is Extreme: even more colors and fewer spare moves. Win for 50 coins and a hint. If you give up, you lose a heart."],
 	"lives": ["Hearts", "You lost a heart. You have 5 for Hard and Extreme levels, and one comes back every 20 minutes. Normal levels never cost hearts."],
 	"coins": ["Coins", "You earn coins for every level you solve. Spend them on hints, undos, extra moves, hearts and mending cracked jars."],
 	"streak": ["Skill streak", "Finish a level within the target moves, without a hint, and your streak grows. On Hard and Extreme levels, win with 3 or more moves to spare without losing a heart. Bonus coins at 3, 5 and 10 in a row! Miss, and it starts again from 0."],
-	"map": ["Your firefly trail", "Every level is a stone on this trail. Gold ones are done and yours glows. Hard levels have a pink star, Extreme levels a gold crown. Tap your level or Play to start."],
+	"map": ["Your world map", "Every level is a stone on this trail. Gold ones are done and yours glows. Hard levels have a pink star, Extreme levels a gold crown. Tap your level or Play to start."],
 }
 
 ## Show one card now (or after the one on screen), also outside the start of a level.
@@ -1575,7 +1575,7 @@ func _on_jar_tapped_inner(i: int) -> void:
 		_pour(sel, i)
 	elif state.only[i] >= 0 and jars[i].size() < Puzzle.CAPACITY and (jars[i].is_empty() or jars[i][-1] == jars[sel][-1]):
 		_nope(i)
-		_say(I18n.t("That jar only takes {0} fireflies", [tr(COLOR_NAMES[state.only[i]])]))
+		_say(I18n.t("That jar only takes the color {0}", [tr(COLOR_NAMES[state.only[i]])]))
 		board.selected = -1
 	elif not jars[i].is_empty() and not Puzzle.is_jar_done(jars[i]):
 		board.selected = i
@@ -1727,7 +1727,7 @@ func _use_hint() -> void:
 	board.selected = -1
 	board.hint_move = path[0]
 	Sound.play("hint")
-	_say("Move the glowing fireflies into the gold jar")
+	_say("Move the glowing ones into the gold jar")
 	_refresh()
 
 func _on_win() -> void:
@@ -1866,7 +1866,7 @@ func _tut_update() -> void:
 	board.tut_jar = _tut_target()
 	board.tut_drag_from = tut.step[0] if tut.pours > 0 else -1
 	board.tut_drag_to = tut.step[1] if tut.pours > 0 else -1
-	var msg := "Tap this jar to pick up the top fireflies"
+	var msg := "Tap this jar to pick up the top color"
 	if board.selected == tut.step[0] and tut.pours > 0:
 		msg = "Drag them to the glowing jar, or tap it"
 	elif board.selected == tut.step[0]:
@@ -2051,7 +2051,7 @@ func _show_settings() -> void:
 			Save.vibrate_on = on
 			Save.save_game()
 			Save.buzz(20))
-		_switches.cb = _switch_row(box, "Color-blind mode", "A shape on every firefly color", Save.color_blind, func(on: bool):
+		_switches.cb = _switch_row(box, "Color-blind mode", "A shape on every color", Save.color_blind, func(on: bool):
 			Save.color_blind = on
 			Save.save_game())
 		var lrow := HBoxContainer.new()
@@ -2377,7 +2377,7 @@ func _reward_or_say(kind: String) -> void:
 const OFFERS := {
 	"hint": ["Need a hint?", "You're out of hints. Watch a short video for a free one, or use your coins.", "Use {0}"],
 	"undo": ["One more undo?", "You've used this level's 3 undos. Watch a short video for one more, or use your coins.", "Use {0}"],
-	"jar": ["Mend the jar?", "Two helper fireflies will repair the cracked jar, so you get one more empty jar for this level.", "Mend for {0}"],
+	"jar": ["Mend the jar?", "Two little helpers will repair the cracked jar, so you get one more empty jar for this level.", "Mend for {0}"],
 }
 
 func _build_offer() -> void:

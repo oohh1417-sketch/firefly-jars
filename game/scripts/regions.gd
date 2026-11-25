@@ -1067,6 +1067,15 @@ static func _eyes(ci: CanvasItem, c: Vector2, s: float, f: float) -> void:
 		ci.draw_circle(c + Vector2(sx * s * 1.1 + f * s * 0.25, s * 0.1), s * 0.55, Color("#1a1430"))
 
 ## Returns false in the night world, so the board draws its firefly helper.
+## The repair sparkles, trail and glow follow each world's helper (the night world keeps golden firefly light).
+const HELPER_COL := {"reef": "#bff9ff", "sunpetal": "#ffc6e0", "grove": "#a8ffb8", "candy": "#ff9fd0", "space": "#c4b6ff"}
+static func helper_col() -> Color:
+	return Color(HELPER_COL.get(cur().name, "#fff0a0"))
+static func helper_size() -> float:
+	return 1.3 if HELPER_COL.has(cur().name) else 0.8
+static func helper_trail() -> float:
+	return 0.3 if HELPER_COL.has(cur().name) else 1.0
+
 static func helper(ci: CanvasItem, p: Vector2, r: float, flap: float, left: bool) -> bool:
 	var n: String = cur().name
 	if not n in ["reef", "sunpetal", "grove", "candy", "space"]:

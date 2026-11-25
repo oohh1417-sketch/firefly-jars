@@ -19,7 +19,7 @@ const TROPHIES := [
 	["lv10", "Night walker", "Reach level 10"],
 	["lv25", "Lantern keeper", "Reach level 25"],
 	["lv50", "Starlight", "Reach level 50"],
-	["lv100", "Firefly master", "Reach level 100"],
+	["lv100", "Jar master", "Reach level 100"],
 	["hard1", "Brave heart", "Beat a hard level"],
 	["hard10", "Unshakable", "Beat 10 hard levels"],
 	["extreme1", "Fearless", "Beat an Extreme level"],
