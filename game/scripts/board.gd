@@ -59,9 +59,33 @@ const CRACKS := [[Vector2(.62, .2), Vector2(.53, .33), Vector2(.6, .42), Vector2
 	[Vector2(.24, .68), Vector2(.33, .75), Vector2(.27, .86)]]
 const HELPER_GOLD := Color("#fff0a0")
 
+## Speed: the shelves sit on their own layer behind the jars and are painted only when they
+## change (new layout or new world). Only the worlds whose shelves move (the glowing mushroom,
+## the space thrusters) repaint them every frame.
+var _shelf_layer: Control
+var _shelf_key := ""
+const MOVING_SHELVES := ["grove", "space"]
+
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	resized.connect(_layout)
+	_shelf_layer = Control.new()
+	_shelf_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_shelf_layer.show_behind_parent = true
+	_shelf_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_shelf_layer.draw.connect(_paint_shelves)
+	add_child(_shelf_layer)
+
+func _paint_shelves() -> void:
+	for sh in _shelves:
+		Art.shelf(_shelf_layer, sh)
+
+func _update_shelves() -> void:
+	var world: String = Regions.cur().name
+	var key := "%s|%s|%s" % [world, str(_shelves), str(size)]
+	if key != _shelf_key or MOVING_SHELVES.has(world):
+		_shelf_key = key
+		_shelf_layer.queue_redraw()
 
 # ---------------- public API used by main.gd ----------------
 
@@ -372,6 +396,8 @@ func _process(delta: float) -> void:
 	_now += delta
 	if _rects.size() != _jar_count():
 		_layout()
+	if is_visible_in_tree():
+		_update_shelves()
 	if _rects.is_empty():
 		queue_redraw()
 		return
@@ -438,8 +464,6 @@ func _draw() -> void:
 	if _rects.is_empty():
 		return
 	var rad := _radius()
-	for sh in _shelves:
-		Art.shelf(self, sh)
 	for i in jars.size():
 		_draw_jar_back(i, _jar_rect(i))
 	if dragging():

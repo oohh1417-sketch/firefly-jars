@@ -193,6 +193,12 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	if menu_layer and map_layer:
 		_tint_glass()
+		# Speed: the menu and the map cover the whole screen, so the game scene under them
+		# is hidden instead of being painted every frame for nobody to see.
+		var covered := menu_layer.visible or map_layer.visible
+		backdrop.visible = not covered
+		board.visible = not covered
+		menu_scene.visible = not map_layer.visible
 	if _limit_task != -1 and WorkerThreadPool.is_task_completed(_limit_task):
 		WorkerThreadPool.wait_for_task_completion(_limit_task)
 		_limit_task = -1
