@@ -35,6 +35,22 @@ s = s[:a] + body + s[b:]
 # the regions themselves, added just before the loading screen starts
 js = open(os.path.join(os.path.dirname(__file__), "regions.js"), encoding="utf-8").read()
 rep("(function boot() {", js + "\n(function boot() {")
+# each region's own music and sounds (made by game/tools/make_region_audio.py), as small MP3s inside the page
+import subprocess, tempfile, base64, glob
+audio = {}
+root = os.path.join(os.path.dirname(__file__), "..", "..", "game", "audio")
+with tempfile.TemporaryDirectory() as tmp:
+    for wav in sorted(glob.glob(os.path.join(root, "*", "*.wav"))):
+        region, name = os.path.basename(os.path.dirname(wav)), os.path.basename(wav)[:-4]
+        mp3 = os.path.join(tmp, region + "_" + name + ".mp3")
+        rate = "64k" if name == "music" else "48k"
+        subprocess.run(["ffmpeg", "-loglevel", "error", "-y", "-i", wav, "-ac", "1", "-b:a", rate, mp3], check=True)
+        audio[region + "_" + name] = "data:audio/mpeg;base64," + base64.b64encode(open(mp3, "rb").read()).decode()
+import json
+snd = ("Object.assign(SOUND_DATA, " + json.dumps(audio) + ");\n" +
+       "for (const k of Object.keys(SOUND_DATA)) if (/^[a-z]+_sfx_/.test(k) && !SFX_NAMES.includes(k)) SFX_NAMES.push(k);\n")
+rep("const Snd = {", snd + "const Snd = {")
+print("region sounds", len(audio), sum(len(v) for v in audio.values()) // 1024, "KB")
 os.makedirs(os.path.dirname(dst) or ".", exist_ok=True)
 open(dst, "w", encoding="utf-8").write(s)
 print("ok", len(s))

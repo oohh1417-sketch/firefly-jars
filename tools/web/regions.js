@@ -379,3 +379,24 @@ mapCv.addEventListener("pointerup", e => {
     }
   }
 });
+
+// ---- each region has its own music and sounds (keys like "reef_sfx_select", "reef_music") ----
+(function regionSound() {
+  const _play = Snd.play;
+  Snd.play = function (name, rate, vol, again) {
+    let k = name;
+    try { const r = themeNow().name + "_" + name; if (SOUND_DATA[r]) k = r; } catch (e) {}
+    return _play.call(this, k, rate, vol, again);
+  };
+  let cur = "music";
+  setInterval(() => {
+    if (!Snd.musicEl) return;
+    let k = "music";
+    try { const r = themeNow().name + "_music"; if (SOUND_DATA[r]) k = r; } catch (e) {}
+    if (k === cur) return;
+    cur = k;
+    const was = !Snd.musicEl.paused;
+    Snd.musicEl.src = SOUND_DATA[k];
+    if (was) { const pr = Snd.musicEl.play(); if (pr && pr.catch) pr.catch(() => {}); }
+  }, 400);
+})();
