@@ -41,7 +41,7 @@ const THEMES := [
 	{"name": "grove", "custom": true, "item": "gem", "jar": "mason", "deco": "lantern",
 		"sky": ["#2f7a4f", "#1e5b3c", "#123826"], "hills": ["#1b5233", "#2c5e2a", "#16391f"], "glow": "#7dffd0",
 		"cap": ["#5a3c1c", "#c9a45a", "#f5e0a0"], "shelf": ["#5a3d22", "#3a2614", "#6fae4b"]},
-	{"name": "meadow", "item": "fly", "jar": "mason", "sky": ["#040a18", "#0d2140", "#1b3d55"], "hills": ["#0f2a3a", "#0a1f2c", "#06131d"], "glow": "#ffd93b"},
+	{"name": "meadow", "item": "fly", "jar": "mason", "deco": "twine", "sky": ["#040a18", "#0d2140", "#1b3d55"], "hills": ["#0f2a3a", "#0a1f2c", "#06131d"], "glow": "#ffd93b"},
 	{"name": "candy", "custom": true, "day": true, "item": "candy", "jar": "tube", "deco": "stripes", "line": "#ffffffe6",
 		"sky": ["#ff8fc8", "#ffaed6", "#ffd0e8"], "hills": ["#ff7fbd", "#ffa3cf", "#fff2f8"], "glow": "#ff8fc8",
 		"cap": ["#c2407a", "#ff7fb5", "#ffe0ee"], "shelf": ["#f7c9a0", "#d99a6a", "#fff0e0"]},
@@ -186,6 +186,7 @@ static func jar_back(ci: CanvasItem, r: Rect2, tint = null, skin := "") -> void:
 	ci.draw_set_transform(Vector2(r.get_center().x, r.end.y - r.size.x * 0.09), 0.0, Vector2(1.0, 0.18))
 	ci.draw_circle(Vector2.ZERO, r.size.x * 0.4, Color(0.82, 0.92, 1.0, 0.13))
 	ci.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	Regions.back(ci, r)
 
 ## Glass in front of the fireflies: outline, shine and screw threads.
 static func jar_front(ci: CanvasItem, r: Rect2, line: Color, width: float, skin := "") -> void:

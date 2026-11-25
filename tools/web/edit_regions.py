@@ -32,6 +32,16 @@ for i, c in enumerate(gold):
     body = body.replace('"%s"' % c, "CC[%d]" % i)
 body = body.replace("function paintCap(g, r, age) {", "function paintCap(g, r, age) {\n  const CC = capCols();", 1)
 s = s[:a] + body + s[b:]
+# the loading screen shows every world: twilight sky, a bubble for each world, mixed things filling the jar
+rep("""  function draw(t) {
+    if (done) return;""", """  function draw(t) { HUB = 1; try { drawBoot(t); } finally { HUB = 0; } }
+  function drawBoot(t) {
+    if (done) return;""")
+rep("    // the jar fills one firefly at a time", """    hubSky(g, W, H, T, H * .8); hubLand(g, W, H, T, H * .8); hubOrbs(g, W, H, T, BOOT_ORBS);
+    // the jar fills one firefly at a time""")
+rep("St.jars[0].forEach((col, s2) => paintFly(g,", "St.jars[0].forEach((col, s2) => mixFly(BOOT_KINDS[s2], g,")
+rep("paintFly(g, x, y, R, n, T * 12, true, true, n * 3)", "mixFly(BOOT_KINDS[n], g, x, y, R, n, T * 12, true, true, n * 3)")
+rep(">Catching fireflies…<", ">Filling the jars…<")
 # the regions themselves, added just before the loading screen starts
 js = open(os.path.join(os.path.dirname(__file__), "regions.js"), encoding="utf-8").read()
 rep("(function boot() {", js + "\n(function boot() {")

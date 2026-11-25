@@ -13,7 +13,9 @@ func _ready():
 	S.seen = {"cracked_jar": true, "color_jar": true, "lid": true, "daily": true, "hard": true, "extreme": true, "coins": true, "map": true, "lives": true, "tutorial": true, "streak": true}
 	var main = load("res://scenes/main.tscn").instantiate()
 	get_tree().root.add_child.call_deferred(main)
-	await get_tree().create_timer(4.0).timeout
+	await get_tree().create_timer(1.0).timeout
+	await _shot("loading")
+	await get_tree().create_timer(2.8).timeout
 	var only := OS.get_environment("REGIONS")
 	for i in 6:
 		if only != "" and not str(i) in only:

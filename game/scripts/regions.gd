@@ -5,6 +5,8 @@ extends RefCounted
 
 ## Which region's jars and things are drawn right now (set by main.gd from the chapter being played).
 static func cur() -> Dictionary:
+	if hub:
+		return Art.THEMES[3]
 	return Art.THEMES[Art.region % Art.THEMES.size()]
 
 # ---------- small drawing helpers ----------
@@ -42,7 +44,7 @@ static func _quad(p0: Vector2, p1: Vector2, p2: Vector2, out: PackedVector2Array
 # ---------- the things to sort ----------
 ## Draws the region's thing at pos. Returns false in the firefly region, so Art.fly draws a firefly.
 static func item(ci: CanvasItem, pos: Vector2, r: float, col: Color, flap: float, awake: bool, phase: float, now: float) -> bool:
-	var kind: String = cur().get("item", "fly")
+	var kind: String = force_kind if force_kind != "" else cur().get("item", "fly")
 	if kind == "fly":
 		return false
 	var A: float = col.a * (1.0 if awake else 0.5)
@@ -175,63 +177,269 @@ static func jar_points(r: Rect2, mouth: float) -> PackedVector2Array:
 				pts.append(Vector2(x + w * 0.5 + cos(a) * w * 0.36, top + sin(a) * mouth))
 	return pts
 
-## The painted extras of the region's jar (bubbles, clay rim, lantern frame, candy stripes, metal bands).
+# ---------- each world's own jar (same drawing as tools/web/regions.js) ----------
+static func _t() -> float:
+	return Time.get_ticks_msec() / 1000.0
+
+## Colors each point by where it sits between `from` and `to` (along x or y), through the given stops.
+static func _grad_poly(ci: CanvasItem, pts: PackedVector2Array, stops: Array, from: float, to: float, vertical := true) -> void:
+	if pts.size() < 3:
+		return
+	var cols := PackedColorArray()
+	for p in pts:
+		var k := clampf(((p.y if vertical else p.x) - from) / max(0.001, to - from), 0.0, 1.0)
+		var c: Color = stops[0][1]
+		for s in range(1, stops.size()):
+			if k <= stops[s][0]:
+				var a: float = stops[s - 1][0]
+				c = (stops[s - 1][1] as Color).lerp(stops[s][1], (k - a) / max(0.001, stops[s][0] - a))
+				break
+			c = stops[s][1]
+		cols.append(c)
+	ci.draw_polygon(pts, cols)
+
+static func _rr(r: Rect2, rad: float) -> PackedVector2Array:
+	var pts := PackedVector2Array()
+	rad = min(rad, r.size.x * 0.5, r.size.y * 0.5)
+	var cs := [[r.end.x - rad, r.position.y + rad, -PI / 2], [r.end.x - rad, r.end.y - rad, 0.0], [r.position.x + rad, r.end.y - rad, PI / 2], [r.position.x + rad, r.position.y + rad, PI]]
+	for c in cs:
+		for k in 6:
+			var a: float = c[2] + PI / 2 * k / 5.0
+			pts.append(Vector2(c[0], c[1]) + Vector2(cos(a), sin(a)) * rad)
+	return pts
+
+## Draws `poly` cut to the inside of the jar glass.
+static func _in_jar(ci: CanvasItem, poly: PackedVector2Array, jar: PackedVector2Array, stops: Array, y0: float, y1: float) -> void:
+	for p in Geometry2D.intersect_polygons(poly, jar):
+		_grad_poly(ci, p, stops, y0, y1)
+
+static func _star(c: Vector2, ro: float, ri: float) -> PackedVector2Array:
+	var p := PackedVector2Array()
+	for k in 10:
+		var a := -PI / 2 + k * PI / 5
+		p.append(c + Vector2(cos(a), sin(a)) * (ro if k % 2 == 0 else ri))
+	return p
+
+static func _leaf(ci: CanvasItem, p: Vector2, s: float, rot: float, col: Color) -> void:
+	var pts := PackedVector2Array([Vector2.ZERO])
+	_quad(Vector2.ZERO, Vector2(s * 0.5, -s * 0.45), Vector2(s, 0), pts, 6)
+	_quad(Vector2(s, 0), Vector2(s * 0.5, s * 0.45), Vector2.ZERO, pts, 6)
+	pts.remove_at(pts.size() - 1)
+	var out := PackedVector2Array()
+	for q in pts:
+		out.append(p + q.rotated(rot))
+	ci.draw_colored_polygon(out, col)
+
+static func _daisy(ci: CanvasItem, c: Vector2, s: float, petal: Color, mid: Color) -> void:
+	for k in 6:
+		var a := k * PI / 3
+		ci.draw_circle(c + Vector2(cos(a), sin(a)) * s * 0.55, s * 0.42, petal)
+	ci.draw_circle(c, s * 0.38, mid)
+
+const BRASS := [[0.0, Color("#7a5a20")], [0.45, Color("#f3d98c")], [1.0, Color("#80601f")]]
+const STEEL := [[0.0, Color("#4a5068")], [0.4, Color("#eef2ff")], [1.0, Color("#3e4460")]]
+
+static func _bar(ci: CanvasItem, r: Rect2, rad: float, stops: Array, line := Color(0, 0, 0, 0), lw := 1.0) -> void:
+	var p := _rr(r, rad)
+	_grad_poly(ci, p, stops, r.position.x, r.end.x, false)
+	if line.a > 0.0:
+		ci.draw_polyline(_closed(p), line, lw, true)
+
+## Behind the things inside: water and sand, warm light, candy stripes, a starry glass.
+static func back(ci: CanvasItem, r: Rect2) -> void:
+	var x := r.position.x
+	var w := r.size.x
+	var top := r.position.y
+	var bot := r.end.y
+	var t := _t()
+	var ph := x * 0.05
+	var jar := Art.jar_points(r)
+	match cur().get("deco", ""):
+		"bubbles":
+			var wy := top + w * 0.34
+			var surf := PackedVector2Array()
+			for k in 9:
+				surf.append(Vector2(x + w * k / 8.0, wy + sin(t * 2.2 + k * 1.3 + ph) * w * 0.025))
+			var water := surf.duplicate()
+			water.append(Vector2(x + w, bot))
+			water.append(Vector2(x, bot))
+			_in_jar(ci, water, jar, [[0.0, Color(0.47, 0.92, 1.0, 0.16)], [1.0, Color(0.08, 0.55, 0.82, 0.34)]], wy, bot)
+			ci.draw_polyline(surf, Color(0.9, 1, 1, 0.55), max(1.0, w * 0.03), true)
+			var sand := PackedVector2Array([Vector2(x, bot - w * 0.1)])
+			_quad(Vector2(x, bot - w * 0.1), Vector2(x + w * 0.3, bot - w * 0.17), Vector2(x + w * 0.55, bot - w * 0.11), sand, 6)
+			_quad(Vector2(x + w * 0.55, bot - w * 0.11), Vector2(x + w * 0.8, bot - w * 0.06), Vector2(x + w, bot - w * 0.13), sand, 6)
+			sand.append(Vector2(x + w, bot + 2))
+			sand.append(Vector2(x, bot + 2))
+			_in_jar(ci, sand, jar, [[0.0, Color("#f8e2ab")], [1.0, Color("#d6ad62")]], bot - w * 0.16, bot)
+			for k in 4:
+				var p := fmod(t * 0.35 + k * 0.27 + ph * 0.13, 1.0)
+				var yy := bot - w * 0.15 - p * (bot - w * 0.15 - wy)
+				var xx := x + w * (0.18 + 0.64 * fmod(k * 0.37 + ph * 0.21, 1.0)) + sin(t * 3.0 + k) * w * 0.04
+				ci.draw_arc(Vector2(xx, yy), w * (0.03 + 0.015 * (k % 2)), 0, TAU, 12, Color(1, 1, 1, 0.6), max(0.8, w * 0.022), true)
+		"clay":
+			ci.draw_colored_polygon(jar, Color(1, 0.8, 0.59, 0.1))
+		"lantern":
+			Art.glow(ci, Vector2(x + w * 0.5, bot - w * 0.4), w * 1.0, Color("#ffcf5a"), 0.2 + 0.05 * sin(t * 7.0 + ph) * sin(t * 3.1 + ph))
+		"stripes":
+			ci.draw_colored_polygon(jar, Color(1, 0.69, 0.84, 0.12))
+			var sy := bot - w * 0.16
+			_in_jar(ci, PackedVector2Array([Vector2(x - 2, sy), Vector2(x + w + 2, sy), Vector2(x + w + 2, bot + 2), Vector2(x - 2, bot + 2)]), jar, [[0.0, Color(1, 1, 1, 0.7)], [1.0, Color(1, 1, 1, 0.7)]], sy, bot)
+			for k in range(-1, 6):
+				var bx := x + k * w * 0.22
+				_in_jar(ci, PackedVector2Array([Vector2(bx, bot), Vector2(bx + w * 0.1, bot), Vector2(bx + w * 0.26, sy), Vector2(bx + w * 0.16, sy)]), jar, [[0.0, Color(1, 0.36, 0.54, 0.6)], [1.0, Color(1, 0.36, 0.54, 0.6)]], sy, bot)
+		"metal":
+			_grad_poly(ci, jar, [[0.0, Color(0.35, 0.16, 0.63, 0.0)], [1.0, Color(0.35, 0.16, 0.63, 0.3)]], top, bot)
+			for k in 6:
+				var a := 0.3 + 0.7 * absf(sin(t * 1.5 + k * 1.7 + ph))
+				ci.draw_rect(Rect2(x + w * (0.15 + fmod(k * 0.41 + ph * 0.17, 0.7)), top + r.size.y * (0.25 + fmod(k * 0.23 + ph * 0.11, 0.65)), 1.5, 1.5), Color(1, 1, 1, a * 0.8))
+			ci.draw_polyline(_ring(r, PI, TAU), Color(0.8, 0.69, 1.0, 0.38), max(2.0, w * 0.07), true)
+
+static func _ring(r: Rect2, a0: float, a1: float) -> PackedVector2Array:
+	var c := Vector2(r.get_center().x, r.position.y + r.size.y * 0.56)
+	var p := PackedVector2Array()
+	for k in 25:
+		var a := a0 + (a1 - a0) * k / 24.0
+		p.append(c + Vector2(cos(a) * r.size.x * 0.68, sin(a) * r.size.x * 0.15).rotated(-0.12))
+	return p
+
+## In front of the things inside: rims, frames, twine, icing, rings and little decorations.
 static func deco(ci: CanvasItem, r: Rect2) -> void:
 	var x := r.position.x
 	var w := r.size.x
 	var top := r.position.y
 	var bot := r.end.y
-	var lw: float = max(1.5, w * 0.04)
+	var t := _t()
+	var ph := x * 0.05
+	var thin: float = max(1.0, w * 0.025)
 	match cur().get("deco", ""):
 		"bubbles":
-			for b in [Vector3(1.08, 0.35, 0.07), Vector3(1.16, 0.2, 0.045), Vector3(1.1, 0.08, 0.03)]:
-				ci.draw_arc(Vector2(x + w * b.x, top + w * b.y), w * b.z, 0, TAU, 16, Color(1, 1, 1, 0.75), max(1.0, w * 0.025), true)
-			var sc := PackedVector2Array([Vector2(x + w * 0.08, bot + w * 0.02)])
-			for k in 4:
-				var x0 := x + w * (0.08 + k * 0.21)
-				_quad(Vector2(x0, bot + w * 0.02), Vector2(x0 + w * 0.105, bot - w * 0.12), Vector2(x0 + w * 0.21, bot + w * 0.02), sc, 5)
-			_shape(ci, sc, Color("#ff9d8c"), Color("#d9675a"), max(1.0, w * 0.03))
+			var col := Rect2(x - w * 0.01, top - w * 0.04, w * 1.02, w * 0.13)
+			var cp := _rr(col, w * 0.065)
+			_grad_poly(ci, cp, [[0.0, Color("#ffc0b0")], [1.0, Color("#e2665a")]], col.position.y, col.end.y)
+			ci.draw_polyline(_closed(cp), Color(0.55, 0.18, 0.16, 0.55), thin, true)
+			for k in 5:
+				ci.draw_circle(Vector2(x + w * (0.12 + k * 0.19), top + w * 0.025), w * 0.022, Color(1, 0.94, 0.9, 0.85))
+			var sc := Vector2(x + w * 0.5, top - w * 0.02 + w * 0.08)
+			var sh := PackedVector2Array([sc])
+			for k in 7:
+				var a := PI * (1.1 + k * 0.8 / 6.0)
+				sh.append(sc + Vector2(cos(a), sin(a)) * w * 0.16 * (1.0 if k % 2 == 0 else 1.08))
+			_shape(ci, sh, Color("#fff1e2"), Color("#d9826e"), max(1.0, w * 0.022))
+			for k in range(1, 5):
+				var a := PI * (1.1 + k * 0.8 / 5.0)
+				ci.draw_line(sc, sc + Vector2(cos(a), sin(a)) * w * 0.13, Color("#d9826e"), max(1.0, w * 0.02), true)
+			for b in [Vector4(1.1, 0.45, 0.07, 0), Vector4(1.18, 0.25, 0.045, 1), Vector4(1.1, 0.1, 0.03, 2)]:
+				ci.draw_arc(Vector2(x + w * b.x + sin(t * 2.0 + b.w) * w * 0.02, top + w * b.y), w * b.z, 0, TAU, 14, Color(1, 1, 1, 0.8), thin, true)
+			var weed := PackedVector2Array([Vector2(x + w * 0.9, bot + w * 0.02)])
+			_quad(weed[0], Vector2(x + w * 1.08 + sin(t * 1.6 + ph) * w * 0.05, bot - w * 0.2), Vector2(x + w * 0.98, bot - w * 0.4), weed, 8)
+			ci.draw_polyline(weed, Color("#2ea36a"), max(1.5, w * 0.05), true)
+			_shape(ci, _star(Vector2(x + w * 0.06, bot - w * 0.02), w * 0.14, w * 0.06), Color("#ff9f43"), Color("#c8651c"), max(1.0, w * 0.02))
 		"clay":
 			var rim := Rect2(x + w * 0.06, top - w * 0.03, w * 0.88, w * 0.12)
-			Art.vgradient(ci, rim, Color("#f2a27b"), Color("#d9744a"), Color("#b9562f"), 0.5)
-			ci.draw_rect(rim, Color(0.43, 0.16, 0.06, 0.6), false, max(1.0, w * 0.025))
-			var stem := PackedVector2Array([Vector2(x + w * 0.5, bot)])
-			_quad(Vector2(x + w * 0.5, bot), Vector2(x + w * 0.5, bot + w * 0.1), Vector2(x + w * 0.32, bot + w * 0.12), stem, 6)
-			ci.draw_polyline(stem, Color("#5fa640"), lw, true)
-			ci.draw_colored_polygon(_ell(Vector2(x + w * 0.66, bot + w * 0.07), w * 0.1, w * 0.05), Color("#6fb14d"))
+			var rp := _rr(rim, w * 0.05)
+			_grad_poly(ci, rp, [[0.0, Color("#f2a27b")], [1.0, Color("#b9562f")]], rim.position.y, rim.end.y)
+			ci.draw_polyline(_closed(rp), Color(0.43, 0.16, 0.06, 0.6), thin, true)
+			for k in 6:
+				ci.draw_circle(Vector2(x + w * (0.17 + k * 0.133), top + w * 0.03), w * 0.02, Color("#fff3dc"))
+			for k in 3:
+				var yy := top + w * (0.13 + k * 0.05)
+				ci.draw_line(Vector2(x + w * 0.15, yy + w * 0.03), Vector2(x + w * 0.85, yy), Color("#caa06a"), max(1.2, w * 0.035), true)
+			_daisy(ci, Vector2(x + w * 0.84, top + w * 0.17), w * 0.13, Color.WHITE, Color("#ffc93b"))
+			var vine := PackedVector2Array()
+			var p0 := Vector2(x + w * 0.86, bot - w * 0.1)
+			var p3 := Vector2(x + w * 0.82, top + r.size.y * 0.3)
+			var c1 := Vector2(x + w * 0.7, bot - r.size.y * 0.3)
+			var c2 := Vector2(x + w * 0.95, top + r.size.y * 0.5)
+			for k in 17:
+				var u := k / 16.0
+				vine.append(p0.bezier_interpolate(c1, c2, p3, u))
+			ci.draw_polyline(vine, Color(0.31, 0.63, 0.24, 0.75), thin, true)
+			for f in [Vector2(0.75, -2.4), Vector2(0.55, -0.6), Vector2(0.38, -2.5)]:
+				_leaf(ci, Vector2(x + w * 0.84, top + r.size.y * f.x), w * 0.16, f.y, Color(0.43, 0.75, 0.31, 0.85))
+			var foot := Rect2(x + w * 0.1, bot - w * 0.05, w * 0.8, w * 0.12)
+			var fp := _rr(foot, w * 0.05)
+			_grad_poly(ci, fp, [[0.0, Color("#e88a5e")], [1.0, Color("#9c4524")]], foot.position.y, foot.end.y)
+			ci.draw_polyline(_closed(fp), Color(0.43, 0.16, 0.06, 0.6), max(1.0, w * 0.02), true)
+			for k in 5:
+				ci.draw_circle(Vector2(x + w * (0.22 + k * 0.14), bot + w * 0.01), w * 0.018, Color("#fff3dc"))
 		"lantern":
-			var wood := Color("#6b4a26")
-			var dark := Color(0.2, 0.12, 0.05, 0.8)
-			for sx in [-0.03, 0.95]:
-				var bar := Rect2(x + w * sx, top + w * 0.28, w * 0.08, r.size.y - w * 0.36)
-				ci.draw_rect(bar, wood)
-				ci.draw_rect(bar, dark, false, max(1.0, w * 0.025))
-			var base := Rect2(x - w * 0.06, bot - w * 0.1, w * 1.12, w * 0.14)
-			ci.draw_rect(base, wood)
-			ci.draw_rect(base, dark, false, max(1.0, w * 0.025))
-			ci.draw_arc(Vector2(x + w * 0.5, top - w * 0.32), w * 0.14, PI * 1.05, PI * 1.95, 12, Color("#c9a45a"), lw, true)
-			Art.glow(ci, Vector2(x + w * 0.5, bot - w * 0.05), w * 0.6, Color("#ffd36a"), 0.18)
+			var dark := Color(0.24, 0.15, 0.04, 0.85)
+			var lw: float = max(1.0, w * 0.022)
+			for sx in [-0.05, 0.95]:
+				_bar(ci, Rect2(x + w * sx, top + w * 0.2, w * 0.1, r.size.y - w * 0.26), w * 0.04, BRASS, dark, lw)
+				for fy in [0.3, 0.55, 0.8]:
+					ci.draw_circle(Vector2(x + w * (sx + 0.05), top + r.size.y * fy), w * 0.025, Color("#5a4012"))
+			_bar(ci, Rect2(x - w * 0.08, top + w * 0.1, w * 1.16, w * 0.12), w * 0.05, BRASS, dark, lw)
+			_bar(ci, Rect2(x - w * 0.1, bot - w * 0.1, w * 1.2, w * 0.15), w * 0.05, BRASS, dark, lw)
+			for fx in [-0.04, 0.86]:
+				ci.draw_rect(Rect2(x + w * fx, bot + w * 0.04, w * 0.18, w * 0.07), Color("#6b4c16"))
+			var bail := PackedVector2Array()
+			for k in 17:
+				bail.append(Vector2(x - w * 0.02, top + w * 0.16).bezier_interpolate(Vector2(x - w * 0.02, top - w * 0.5), Vector2(x + w * 1.02, top - w * 0.5), Vector2(x + w * 1.02, top + w * 0.16), k / 16.0))
+			ci.draw_polyline(bail, Color("#d9b865"), max(1.5, w * 0.055), true)
+			var ivy := PackedVector2Array()
+			for k in 17:
+				ivy.append(Vector2(x, bot - w * 0.1).bezier_interpolate(Vector2(x - w * 0.12, bot - r.size.y * 0.25), Vector2(x + w * 0.1, top + r.size.y * 0.55), Vector2(x - w * 0.03, top + r.size.y * 0.4), k / 16.0))
+			ci.draw_polyline(ivy, Color("#3f8a2e"), thin, true)
+			for f in [Vector2(0.78, 3.6), Vector2(0.62, -0.4), Vector2(0.47, 3.3)]:
+				_leaf(ci, Vector2(x - w * 0.02, top + r.size.y * f.x), w * 0.17, f.y, Color("#5cb23f"))
+			Art.glow(ci, Vector2(x + w * 0.5, bot - w * 0.05), w * 0.6, Color("#ffd36a"), 0.16)
+		"twine":
+			for k in 2:
+				var yy := top + w * (0.15 + k * 0.05)
+				ci.draw_line(Vector2(x + w * 0.08, yy), Vector2(x + w * 0.92, yy + w * 0.02), Color("#c9a36a"), max(1.2, w * 0.035), true)
+			var tp := Vector2(x + w * 0.9, top + w * 0.2)
+			var hang := tp + Vector2(w * 0.08, w * 0.22)
+			ci.draw_line(tp, hang, Color("#c9a36a"), max(1.0, w * 0.03), true)
+			var rot := 0.25 + sin(t * 1.4 + ph) * 0.08
+			var tag := _rr(Rect2(-w * 0.11, 0, w * 0.22, w * 0.27), w * 0.03)
+			var tg := PackedVector2Array()
+			for q in tag:
+				tg.append(hang + q.rotated(rot))
+			_shape(ci, tg, Color("#f6ecd0"), Color(0.47, 0.35, 0.16, 0.6), max(1.0, w * 0.02))
+			ci.draw_colored_polygon(_star(hang + Vector2(0, w * 0.14).rotated(rot), w * 0.07, w * 0.03), Color("#ffc93b"))
 		"stripes":
-			var y0 := bot - w * 0.62
-			var band := Rect2(x + w * 0.06, y0, w * 0.88, w * 0.16)
-			ci.draw_rect(band, Color(1, 1, 1, 0.75))
-			for k in 4:
-				var bx := x + w * (0.1 + k * 0.22)
-				ci.draw_colored_polygon(PackedVector2Array([Vector2(bx, y0 + w * 0.16), Vector2(bx + w * 0.08, y0 + w * 0.16), Vector2(bx + w * 0.16, y0), Vector2(bx + w * 0.08, y0)]), Color(1, 0.36, 0.54, 0.55))
-			for s in [[0.18, 0.9, "#7dff6b"], [0.8, 1.3, "#5cf2ff"], [0.25, 1.6, "#ffd93b"]]:
-				ci.draw_rect(Rect2(x + w * s[0], top + w * s[1], w * 0.1, w * 0.035), Color(Color(s[2]), 0.7))
+			var ic := PackedVector2Array([Vector2(x - w * 0.02, top - w * 0.04), Vector2(x + w * 1.02, top - w * 0.04), Vector2(x + w * 1.02, top + w * 0.1)])
+			var drips := [0.1, 0.22, 0.12, 0.28, 0.14, 0.1]
+			for k in range(5, -1, -1):
+				var dx := x + w * k / 5.0
+				var dy: float = top + w * (0.1 + drips[k])
+				_quad(ic[ic.size() - 1], Vector2(dx + w * 0.1, top + w * 0.1), Vector2(dx + w * 0.025, dy), ic, 4)
+				for j in 7:
+					var a := PI * j / 6.0
+					ic.append(Vector2(dx, dy) + Vector2(cos(a), sin(a)) * w * 0.025)
+			ci.draw_colored_polygon(ic, Color("#ff8fc0"))
+			ci.draw_colored_polygon(_rr(Rect2(x + w * 0.05, top - w * 0.03, w * 0.9, w * 0.03), w * 0.015), Color(1, 1, 1, 0.55))
+			for s in [[0.15, 0.03, "#7dff6b"], [0.35, 0.06, "#5cf2ff"], [0.55, 0.02, "#ffd93b"], [0.75, 0.05, "#ffffff"], [0.9, 0.02, "#b98cff"]]:
+				var c := Vector2(x + w * s[0], top + w * s[1])
+				var d := Vector2(cos(s[0] * 9.0), sin(s[0] * 9.0)) * w * 0.045
+				ci.draw_line(c - d, c + d, Color(s[2]), w * 0.03, true)
+			for sd in [-1.0, 1.0]:
+				var ex := x - w * 0.02 if sd < 0 else x + w * 1.02
+				var ey := top + w * 0.03
+				var wr := PackedVector2Array([Vector2(ex, ey), Vector2(ex + sd * w * 0.2, ey - w * 0.13)])
+				for k in 3:
+					var y0 := ey - w * 0.13 + k * w * 0.1
+					_quad(Vector2(ex + sd * w * 0.2, y0), Vector2(ex + sd * w * 0.3, y0 + w * 0.05), Vector2(ex + sd * w * 0.2, y0 + w * 0.1), wr, 4)
+				wr.append(Vector2(ex, ey + w * 0.04))
+				ci.draw_colored_polygon(wr, Color("#ffd93b") if sd < 0 else Color("#5cf2ff"))
+				ci.draw_line(Vector2(ex + sd * w * 0.03, ey), Vector2(ex + sd * w * 0.16, ey - w * 0.06), Color(1, 1, 1, 0.7), max(1.0, w * 0.02), true)
+				ci.draw_line(Vector2(ex + sd * w * 0.03, ey + w * 0.02), Vector2(ex + sd * w * 0.16, ey + w * 0.1), Color(1, 1, 1, 0.7), max(1.0, w * 0.02), true)
 		"metal":
-			for yy in [top + w * 0.14, bot - w * 0.5]:
-				var mb := Rect2(x - w * 0.02, yy, w * 1.04, w * 0.1)
-				var c0 := Color("#59607a")
-				var c1 := Color("#e6ecff")
-				var mid := mb.position.x + mb.size.x * 0.4
-				ci.draw_polygon(PackedVector2Array([mb.position, Vector2(mid, mb.position.y), Vector2(mid, mb.end.y), Vector2(mb.position.x, mb.end.y)]), PackedColorArray([c0, c1, c1, c0]))
-				ci.draw_polygon(PackedVector2Array([Vector2(mid, mb.position.y), Vector2(mb.end.x, mb.position.y), mb.end, Vector2(mid, mb.end.y)]), PackedColorArray([c1, Color("#4a5068"), Color("#4a5068"), c1]))
-				for k in [0.15, 0.5, 0.85]:
-					ci.draw_circle(Vector2(x + w * k, yy + w * 0.05), w * 0.022, Color("#2c3147"))
-			for s in [Vector2(0.3, 0.7), Vector2(0.7, 1.2), Vector2(0.4, 1.7)]:
-				ci.draw_colored_polygon(Art._spark(Vector2(x + w * s.x, top + w * s.y), w * 0.06, w * 0.015), Color(1, 1, 1, 0.8))
+			ci.draw_polyline(_ring(r, 0.0, PI), Color(0.86, 0.76, 1.0, 0.85), max(2.0, w * 0.07), true)
+			ci.draw_polyline(_ring(r, 0.3, 1.2), Color(1, 1, 1, 0.6), max(1.0, w * 0.02), true)
+			_bar(ci, Rect2(x - w * 0.04, top - w * 0.03, w * 1.08, w * 0.12), w * 0.05, STEEL)
+			for k in [0.15, 0.5, 0.85]:
+				ci.draw_circle(Vector2(x + w * k, top + w * 0.03), w * 0.02, Color("#2c3147"))
+			ci.draw_line(Vector2(x + w * 0.85, top - w * 0.03), Vector2(x + w * 0.98, top - w * 0.3), Color("#9aa4c4"), max(1.0, w * 0.03), true)
+			var on := sin(t * 4.0 + ph) > 0.0
+			Art.glow(ci, Vector2(x + w * 0.98, top - w * 0.32), w * 0.2, Color("#ff5c8a") if on else Color("#5cf2ff"), 0.5)
+			ci.draw_circle(Vector2(x + w * 0.98, top - w * 0.32), w * 0.045, Color("#ff8fb0") if on else Color("#aaf8ff"))
+			for sd in [-1.0, 1.0]:
+				var fx := x + w * 0.06 if sd < 0 else x + w * 0.94
+				ci.draw_colored_polygon(PackedVector2Array([Vector2(fx, bot - w * 0.5), Vector2(fx + sd * w * 0.2, bot - w * 0.05), Vector2(fx + sd * w * 0.2, bot + w * 0.06), Vector2(fx, bot - w * 0.08)]), Color("#6a5aa8"))
+			_bar(ci, Rect2(x + w * 0.08, bot - w * 0.06, w * 0.84, w * 0.12), w * 0.04, STEEL)
+			Art.glow(ci, Vector2(x + w * 0.5, bot + w * 0.1), w * 0.45, Color("#5cf2ff"), 0.35 + 0.1 * sin(t * 6.0 + ph))
 
 ## A shelf in the region's colors. Returns false for the night region (the wooden shelf).
 static func shelf(ci: CanvasItem, sh: Rect2) -> bool:
@@ -522,3 +730,57 @@ static func live(ci: CanvasItem, T: Dictionary, W: float, H: float, t: float, pa
 			if not _meteors.has(key):
 				_meteors[key] = {"list": [], "next": 0.0}
 			Art.meteors(ci, _meteors[key], t, W, H, false)
+
+# ---------- Jar World hub: the loading screen and the main menu show every world ----------
+## True while the hub is drawn: the jar is the classic glass jar with the gold lid.
+static var hub := false
+## When set, Art.fly draws this thing instead of the region's own ("fish", "flower", "gem", "fly", "candy", "planet").
+static var force_kind := ""
+const MIX := ["fish", "flower", "gem", "fly", "candy", "planet"]
+const HUB_STARS := 90
+
+static func mix_fly(ci: CanvasItem, kind: String, pos: Vector2, r: float, col: Color, flap: float, moving: bool, phase: float, now: float) -> void:
+	force_kind = kind
+	Art.fly(ci, pos, r, col, flap, true, moving, phase, now)
+	force_kind = ""
+
+## A twilight sky: deep blue at the top, purple, then a warm glow at the horizon.
+static func hub_sky(ci: CanvasItem, W: float, H: float, t: float, horizon: float) -> void:
+	var bands := [[0.0, Color("#0b0a2a")], [0.45, Color("#271b5c")], [0.75, Color("#573287")], [0.9, Color("#a9528e")], [1.0, Color("#f09a7a")]]
+	for k in bands.size() - 1:
+		var y0: float = horizon * bands[k][0]
+		var y1: float = horizon * bands[k + 1][0]
+		ci.draw_polygon(PackedVector2Array([Vector2(0, y0), Vector2(W, y0), Vector2(W, y1), Vector2(0, y1)]), PackedColorArray([bands[k][1], bands[k][1], bands[k + 1][1], bands[k + 1][1]]))
+	ci.draw_rect(Rect2(0, horizon, W, H - horizon), Color("#f09a7a"))
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 29
+	for i in HUB_STARS:
+		var sx := rng.randf()
+		var sy := rng.randf() * horizon * 0.8
+		var ph := rng.randf() * TAU
+		var sz := 1.0 + rng.randf() * 2.0
+		var a := (0.2 + 0.55 * absf(sin(t * 0.6 * sz * 0.5 + ph))) * (1.0 - sy / horizon)
+		ci.draw_rect(Rect2(sx * W, sy, sz, sz), Color(1, 0.98, 0.92, a))
+
+static func hub_land(ci: CanvasItem, W: float, H: float, ground: float) -> void:
+	var sz := Vector2(W, H)
+	Art.hill(ci, sz, ground - H * 0.11, H * 0.03, 5.0, 1.2, Color("#4a2a72"))
+	Art.hill(ci, sz, ground - H * 0.05, H * 0.025, 7.0, 3.1, Color("#331c5c"))
+	Art.hill(ci, sz, ground, H * 0.012, 4.0, 0.4, Color("#1d1040"))
+	ci.draw_rect(Rect2(0, ground + H * 0.012, W, H), Color("#1d1040"))
+
+## A little glass bubble showing one world, with its thing inside.
+static func world_orb(ci: CanvasItem, c: Vector2, R: float, i: int, t: float) -> void:
+	var Wd: Dictionary = Art.THEMES[i]
+	Art.glow(ci, c, R * 1.9, Color(Wd.glow), 0.22)
+	var circle := _ell(c, R, R, 0.0, 40)
+	_grad_poly(ci, circle, [[0.0, Color(Wd.sky[0])], [0.6, Color(Wd.sky[1])], [1.0, Color(Wd.sky[2])]], c.y - R, c.y + R)
+	for p in Geometry2D.intersect_polygons(_ell(c + Vector2(0, R * 1.15), R * 1.3, R * 0.55, 0.0, 30), circle):
+		ci.draw_colored_polygon(p, Color(Wd.hills[0]))
+	mix_fly(ci, Wd.item, c - Vector2(0, R * 0.04), R * 0.5, Art.COLORS[[0, 6, 4, 0, 2, 5][i]], t * 8.0 + i, true, i * 3.0, t)
+	ci.draw_arc(c, R, 0, TAU, 40, Color(1, 1, 1, 0.8), max(1.5, R * 0.08), true)
+	ci.draw_arc(c, R * 0.74, PI * 1.1, PI * 1.4, 10, Color(1, 1, 1, 0.7), max(1.5, R * 0.1), true)
+
+static func hub_orbs(ci: CanvasItem, W: float, H: float, t: float, spots: Array, R: float) -> void:
+	for i in spots.size():
+		world_orb(ci, Vector2(spots[i].x * W, spots[i].y * H + sin(t * 1.2 + i * 1.7) * 4.0), R, i, t)

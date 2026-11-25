@@ -1,6 +1,7 @@
 // ===================== TEST BUILD: six themed regions =====================
 // Each chapter is a region with its own scene, its own things to sort and its own jar.
 // Same levels and rules. Added on top of the normal game by tools/web/edit_regions.py.
+let HUB = 0, FORCE_KIND = null;   // set while drawing the hub (loading screen and menu)
 const REGIONS = [
   { name: "reef", custom: 1, day: 1, title: "Bubble Reef", item: "fish", jar: "tube", deco: "bubbles",
     sky: ["#8af3ea", "#2ec7d7", "#0e86ae"], hills: ["#f2d9a0", "#e0bf80", "#2e9e6a"], glow: "#bff9ff",
@@ -11,7 +12,7 @@ const REGIONS = [
   { name: "grove", custom: 1, title: "Lantern Grove", item: "gem", jar: "mason", deco: "lantern",
     sky: ["#2f7a4f", "#1e5b3c", "#123826"], hills: ["#1b5233", "#2c5e2a", "#16391f"], glow: "#7dffd0",
     cap: ["#5a3c1c", "#c9a45a", "#f5e0a0"], shelf: ["#5a3d22", "#3a2614", "#6fae4b"] },
-  Object.assign({}, THEMES[0], { title: "Firefly Night", item: "fly", jar: "mason" }),
+  Object.assign({}, THEMES[0], { title: "Firefly Night", item: "fly", jar: "mason", deco: "twine" }),
   { name: "candy", custom: 1, day: 1, title: "Candy Clouds", item: "candy", jar: "tube", deco: "stripes", line: "rgba(255,255,255,.9)",
     sky: ["#ff8fc8", "#ffaed6", "#ffd0e8"], hills: ["#ff7fbd", "#ffa3cf", "#fff2f8"], glow: "#ff8fc8",
     cap: ["#c2407a", "#ff7fb5", "#ffe0ee"], shelf: ["#f7c9a0", "#d99a6a", "#fff0e0"] },
@@ -94,7 +95,7 @@ const ITEMS = {
 };
 const _paintFly = paintFly;
 paintFly = function (g, x, y, r, c, flap, awake, moving, id, skin) {
-  const kind = themeNow().item || "fly";
+  const kind = FORCE_KIND || themeNow().item || "fly";
   if (kind === "fly") return _paintFly(g, x, y, r, c, flap, awake, moving, id, skin);
   const col = COLORS[c], sk = skin || save.flySkin;
   if (!col) return;
@@ -126,42 +127,155 @@ jarPath = function (g, r, mouth = 0) {
 };
 const _jarLine = jarLine;
 jarLine = function (skin) { const T = themeNow(); if (T.line && (!(skin || save.jarSkin) || (skin || save.jarSkin) === "classic")) return T.line; return _jarLine(skin); };
-function regionDeco(g, r, deco) {
-  const x = r.x, w = r.w, top = r.y, bot = r.y + r.h, lw = Math.max(1.5, w * .04);
+// ---------- each world's own jar: drawn behind the things inside (back) and in front of them (front) ----------
+const BRASS = (g, x0, x1) => { const b = g.createLinearGradient(x0, 0, x1, 0); b.addColorStop(0, "#7a5a20"); b.addColorStop(.45, "#f3d98c"); b.addColorStop(1, "#80601f"); return b; };
+const STEEL = (g, x0, x1) => { const b = g.createLinearGradient(x0, 0, x1, 0); b.addColorStop(0, "#4a5068"); b.addColorStop(.4, "#eef2ff"); b.addColorStop(1, "#3e4460"); return b; };
+function shellPath(g, cx, cy, s) {
+  g.beginPath(); g.moveTo(cx, cy + s * .5);
+  for (let k = 0; k <= 6; k++) { const a = Math.PI * (1.1 + k * .8 / 6), px = cx + Math.cos(a) * s, py = cy + s * .5 + Math.sin(a) * s;
+    if (k) { const am = Math.PI * (1.1 + (k - .5) * .8 / 6); g.quadraticCurveTo(cx + Math.cos(am) * s * 1.12, cy + s * .5 + Math.sin(am) * s * 1.12, px, py); } else g.lineTo(px, py); }
+  g.closePath();
+}
+function daisy(g, cx, cy, s, petal, mid) {
+  g.fillStyle = petal; for (let k = 0; k < 6; k++) { const a = k * Math.PI / 3; ellipse(g, cx + Math.cos(a) * s * .55, cy + Math.sin(a) * s * .55, s * .42, s * .42, petal); }
+  ellipse(g, cx, cy, s * .38, s * .38, mid);
+}
+function leaf(g, x, y, s, rot, col) { g.save(); g.translate(x, y); g.rotate(rot); g.fillStyle = col; g.beginPath(); g.moveTo(0, 0); g.quadraticCurveTo(s * .5, -s * .45, s, 0); g.quadraticCurveTo(s * .5, s * .45, 0, 0); g.fill(); g.restore(); }
+function regionBack(g, r, deco, i) {
+  const x = r.x, w = r.w, top = r.y, bot = r.y + r.h, t = now / 1000;
+  g.save(); jarPath(g, r); g.clip();
+  if (deco === "bubbles") {
+    const wy = top + w * .34, wg = g.createLinearGradient(0, wy, 0, bot);
+    wg.addColorStop(0, "rgba(120,235,255,.16)"); wg.addColorStop(1, "rgba(20,140,210,.34)");
+    g.fillStyle = wg; g.beginPath(); g.moveTo(x, wy);
+    for (let k = 0; k <= 8; k++) g.lineTo(x + w * k / 8, wy + Math.sin(t * 2.2 + k * 1.3 + i) * w * .025);
+    g.lineTo(x + w, bot); g.lineTo(x, bot); g.closePath(); g.fill();
+    g.strokeStyle = "rgba(230,255,255,.55)"; g.lineWidth = Math.max(1, w * .03); g.beginPath();
+    for (let k = 0; k <= 8; k++) g.lineTo(x + w * k / 8, wy + Math.sin(t * 2.2 + k * 1.3 + i) * w * .025); g.stroke();
+    // sand on the bottom
+    const sg = g.createLinearGradient(0, bot - w * .16, 0, bot); sg.addColorStop(0, "#f8e2ab"); sg.addColorStop(1, "#d6ad62");
+    g.fillStyle = sg; g.beginPath(); g.moveTo(x, bot - w * .1); g.quadraticCurveTo(x + w * .3, bot - w * .17, x + w * .55, bot - w * .11); g.quadraticCurveTo(x + w * .8, bot - w * .06, x + w, bot - w * .13); g.lineTo(x + w, bot); g.lineTo(x, bot); g.closePath(); g.fill();
+    // little bubbles rising through the water
+    g.strokeStyle = "rgba(255,255,255,.6)"; g.lineWidth = Math.max(.8, w * .022);
+    for (let k = 0; k < 4; k++) { const p = (t * .35 + k * .27 + i * .13) % 1, yy = bot - w * .15 - p * (bot - w * .15 - wy), xx = x + w * (.18 + .64 * ((k * .37 + i * .21) % 1)) + Math.sin(t * 3 + k) * w * .04;
+      g.beginPath(); g.arc(xx, yy, w * (.03 + .015 * (k % 2)), 0, 6.283); g.stroke(); }
+  } else if (deco === "clay") {
+    g.fillStyle = "rgba(255,205,150,.10)"; g.fillRect(x, top, w, r.h);
+  } else if (deco === "lantern") {
+    glow(g, x + w / 2, bot - w * .4, w * 1.1, "#ffcf5a", .2 + .05 * Math.sin(t * 7 + i * 2) * Math.sin(t * 3.1 + i));
+  } else if (deco === "stripes") {
+    g.fillStyle = "rgba(255,175,215,.12)"; g.fillRect(x, top, w, r.h);
+    const sy = bot - w * .16; g.fillStyle = "rgba(255,255,255,.7)"; g.fillRect(x, sy, w, w * .16);
+    g.fillStyle = "rgba(255,92,138,.6)"; for (let k = -1; k < 6; k++) { g.beginPath(); g.moveTo(x + k * w * .22, bot); g.lineTo(x + k * w * .22 + w * .1, bot); g.lineTo(x + k * w * .22 + w * .26, sy); g.lineTo(x + k * w * .22 + w * .16, sy); g.closePath(); g.fill(); }
+  } else if (deco === "metal") {
+    const sg = g.createLinearGradient(0, top, 0, bot); sg.addColorStop(0, "rgba(90,40,160,0)"); sg.addColorStop(1, "rgba(90,40,160,.3)");
+    g.fillStyle = sg; g.fillRect(x, top, w, r.h);
+    for (let k = 0; k < 6; k++) { const a = .3 + .7 * Math.abs(Math.sin(t * 1.5 + k * 1.7 + i)); g.fillStyle = `rgba(255,255,255,${a * .8})`; g.fillRect(x + w * (.15 + ((k * .41 + i * .17) % .7)), top + r.h * (.25 + ((k * .23 + i * .11) % .65)), 1.5, 1.5); }
+  }
+  g.restore();
+  if (deco === "metal") {   // back half of the ring around the capsule
+    g.strokeStyle = "rgba(205,175,255,.38)"; g.lineWidth = Math.max(2, w * .07);
+    g.beginPath(); g.ellipse(x + w / 2, top + r.h * .56, w * .68, w * .15, -.12, Math.PI, 2 * Math.PI); g.stroke();
+  }
+}
+function regionDeco(g, r, deco, i) {
+  const x = r.x, w = r.w, top = r.y, bot = r.y + r.h, lw = Math.max(1.5, w * .04), t = now / 1000;
   g.save(); g.lineCap = "round"; g.lineJoin = "round";
   if (deco === "bubbles") {
-    for (const [bx, by, br] of [[1.08, .35, .07], [1.16, .2, .045], [1.1, .08, .03]]) { g.strokeStyle = "rgba(255,255,255,.75)"; g.lineWidth = Math.max(1, w * .025); g.beginPath(); g.arc(x + w * bx, top + w * by, w * br, 0, 6.283); g.stroke(); }
-    g.fillStyle = "#ff9d8c"; g.strokeStyle = "#d9675a"; g.lineWidth = Math.max(1, w * .03);
-    g.beginPath(); g.moveTo(x + w * .08, bot + w * .02); for (let k = 0; k < 4; k++) g.quadraticCurveTo(x + w * (.08 + k * .21 + .105), bot - w * .12, x + w * (.08 + (k + 1) * .21), bot + w * .02); g.closePath(); g.fill(); g.stroke();
+    // coral collar around the rim, with a shell in front
+    const cg = g.createLinearGradient(0, top - w * .05, 0, top + w * .1); cg.addColorStop(0, "#ffc0b0"); cg.addColorStop(1, "#e2665a");
+    g.fillStyle = cg; roundRect(g, x - w * .01, top - w * .04, w * 1.02, w * .13, w * .065, w * .065); g.fill();
+    g.strokeStyle = "rgba(140,45,40,.55)"; g.lineWidth = Math.max(1, w * .025); g.stroke();
+    for (let k = 0; k < 5; k++) ellipse(g, x + w * (.12 + k * .19), top + w * .025, w * .022, w * .022, "rgba(255,240,230,.85)");
+    shellPath(g, x + w * .5, top - w * .02, w * .16); g.fillStyle = "#fff1e2"; g.fill(); g.strokeStyle = "#d9826e"; g.lineWidth = Math.max(1, w * .022); g.stroke();
+    for (let k = 1; k < 5; k++) { const a = Math.PI * (1.1 + k * .8 / 5); g.beginPath(); g.moveTo(x + w * .5, top + w * .06); g.lineTo(x + w * .5 + Math.cos(a) * w * .13, top + w * .06 + Math.sin(a) * w * .13); g.stroke(); }
+    // bubbles floating up beside the tube
+    g.strokeStyle = "rgba(255,255,255,.8)"; g.lineWidth = Math.max(1, w * .025);
+    for (const [bx, by, br, sp] of [[1.1, .45, .07, 0], [1.18, .25, .045, 1], [1.1, .1, .03, 2]]) { g.beginPath(); g.arc(x + w * bx + Math.sin(t * 2 + sp) * w * .02, top + w * by, w * br, 0, 6.283); g.stroke(); }
+    // a starfish and seaweed at the foot
+    g.strokeStyle = "#2ea36a"; g.lineWidth = Math.max(1.5, w * .05);
+    g.beginPath(); g.moveTo(x + w * .9, bot + w * .02); g.quadraticCurveTo(x + w * 1.08 + Math.sin(t * 1.6 + i) * w * .05, bot - w * .2, x + w * .98, bot - w * .4); g.stroke();
+    starPath(g, x + w * .06, bot - w * .02, w * .14, w * .06); g.fillStyle = "#ff9f43"; g.fill(); g.strokeStyle = "#c8651c"; g.lineWidth = Math.max(1, w * .02); g.stroke();
   } else if (deco === "clay") {
+    // painted terracotta rim
     const rim = g.createLinearGradient(0, top - w * .04, 0, top + w * .1); rim.addColorStop(0, "#f2a27b"); rim.addColorStop(1, "#b9562f");
     g.fillStyle = rim; roundRect(g, x + w * .06, top - w * .03, w * .88, w * .12, w * .05, w * .05); g.fill(); g.strokeStyle = "rgba(110,40,15,.6)"; g.lineWidth = Math.max(1, w * .025); g.stroke();
-    g.strokeStyle = "#5fa640"; g.lineWidth = lw; g.beginPath(); g.moveTo(x + w * .5, bot); g.quadraticCurveTo(x + w * .5, bot + w * .1, x + w * .32, bot + w * .12); g.stroke();
-    ellipse(g, x + w * .66, bot + w * .07, w * .1, w * .05, "#6fb14d");
+    for (let k = 0; k < 6; k++) ellipse(g, x + w * (.17 + k * .133), top + w * .03, w * .02, w * .02, "#fff3dc");
+    // twine wrapped around the neck, with a daisy tucked in
+    g.strokeStyle = "#caa06a"; g.lineWidth = Math.max(1.2, w * .035);
+    for (let k = 0; k < 3; k++) { const yy = top + w * (.13 + k * .05); g.beginPath(); g.moveTo(x + w * .15, yy + w * .03); g.lineTo(x + w * .85, yy); g.stroke(); }
+    daisy(g, x + w * .84, top + w * .17, w * .13, "#ffffff", "#ffc93b");
+    // a painted vine climbing the glass
+    g.strokeStyle = "rgba(80,160,60,.75)"; g.lineWidth = Math.max(1, w * .025);
+    g.beginPath(); g.moveTo(x + w * .86, bot - w * .1); g.bezierCurveTo(x + w * .7, bot - r.h * .3, x + w * .95, top + r.h * .5, x + w * .82, top + r.h * .3); g.stroke();
+    for (const [fy, rot] of [[.75, -2.4], [.55, -.6], [.38, -2.5]]) leaf(g, x + w * .84, top + r.h * fy, w * .16, rot, "rgba(110,190,80,.85)");
+    // terracotta foot with a dotted band
+    const fg = g.createLinearGradient(0, bot - w * .06, 0, bot + w * .08); fg.addColorStop(0, "#e88a5e"); fg.addColorStop(1, "#9c4524");
+    g.fillStyle = fg; roundRect(g, x + w * .1, bot - w * .05, w * .8, w * .12, w * .05, w * .05); g.fill(); g.strokeStyle = "rgba(110,40,15,.6)"; g.lineWidth = Math.max(1, w * .02); g.stroke();
+    for (let k = 0; k < 5; k++) ellipse(g, x + w * (.22 + k * .14), bot + w * .01, w * .018, w * .018, "#fff3dc");
   } else if (deco === "lantern") {
-    const wood = "#6b4a26", dark = "rgba(50,30,12,.8)";
-    g.fillStyle = wood; g.strokeStyle = dark; g.lineWidth = Math.max(1, w * .025);
-    for (const sx of [-.03, .95]) { roundRect(g, x + w * sx, top + w * .28, w * .08, r.h - w * .36, w * .03, w * .03); g.fill(); g.stroke(); }
-    roundRect(g, x - w * .06, bot - w * .1, w * 1.12, w * .14, w * .04, w * .04); g.fill(); g.stroke();
-    g.strokeStyle = "#c9a45a"; g.lineWidth = lw; g.beginPath(); g.arc(x + w / 2, top - w * .32, w * .14, Math.PI * 1.05, Math.PI * 1.95); g.stroke();
-    glow(g, x + w / 2, bot - w * .05, w * .6, "#ffd36a", .18);
+    // brass lantern frame: two side posts with rivets and a little vine
+    const dark = "rgba(60,38,10,.85)"; g.lineWidth = Math.max(1, w * .022); g.strokeStyle = dark;
+    for (const sx of [-.05, .95]) {
+      g.fillStyle = BRASS(g, x + w * sx, x + w * (sx + .1)); roundRect(g, x + w * sx, top + w * .2, w * .1, r.h - w * .26, w * .04, w * .04); g.fill(); g.stroke();
+      for (const fy of [.3, .55, .8]) ellipse(g, x + w * (sx + .05), top + r.h * fy, w * .025, w * .025, "#5a4012");
+    }
+    // top band and base plate with feet
+    g.fillStyle = BRASS(g, x - w * .08, x + w * 1.08); roundRect(g, x - w * .08, top + w * .1, w * 1.16, w * .12, w * .05, w * .05); g.fill(); g.stroke();
+    g.fillStyle = BRASS(g, x - w * .1, x + w * 1.1); roundRect(g, x - w * .1, bot - w * .1, w * 1.2, w * .15, w * .05, w * .05); g.fill(); g.stroke();
+    for (const fx of [-.04, .86]) { g.fillStyle = "#6b4c16"; roundRect(g, x + w * fx, bot + w * .04, w * .18, w * .07, 0, w * .04); g.fill(); }
+    // the bail handle on top
+    g.strokeStyle = BRASS(g, x + w * .2, x + w * .8); g.lineWidth = Math.max(1.5, w * .055);
+    g.beginPath(); g.moveTo(x - w * .02, top + w * .16); g.bezierCurveTo(x - w * .02, top - w * .5, x + w * 1.02, top - w * .5, x + w * 1.02, top + w * .16); g.stroke();
+    // ivy on the posts
+    g.strokeStyle = "#3f8a2e"; g.lineWidth = Math.max(1, w * .025);
+    g.beginPath(); g.moveTo(x, bot - w * .1); g.bezierCurveTo(x - w * .12, bot - r.h * .25, x + w * .1, top + r.h * .55, x - w * .03, top + r.h * .4); g.stroke();
+    for (const [fy, rot] of [[.78, 3.6], [.62, -.4], [.47, 3.3]]) leaf(g, x - w * .02, top + r.h * fy, w * .17, rot, "#5cb23f");
+    glow(g, x + w / 2, bot - w * .05, w * .6, "#ffd36a", .16);
+  } else if (deco === "twine") {
+    // the classic mason jar: twine around the neck and a little paper tag with a star
+    g.strokeStyle = "#c9a36a"; g.lineWidth = Math.max(1.2, w * .035);
+    for (let k = 0; k < 2; k++) { const yy = top + w * (.15 + k * .05); g.beginPath(); g.moveTo(x + w * .08, yy); g.lineTo(x + w * .92, yy + w * .02); g.stroke(); }
+    const tx = x + w * .9, ty = top + w * .2, sw = Math.sin(t * 1.4 + i) * .08;
+    g.beginPath(); g.moveTo(tx, ty); g.lineTo(tx + w * .08, ty + w * .22); g.stroke();
+    g.save(); g.translate(tx + w * .08, ty + w * .22); g.rotate(.25 + sw);
+    g.fillStyle = "#f6ecd0"; roundRect(g, -w * .11, 0, w * .22, w * .27, w * .03, w * .03); g.fill(); g.strokeStyle = "rgba(120,90,40,.6)"; g.lineWidth = Math.max(1, w * .02); g.stroke();
+    starPath(g, 0, w * .14, w * .07, w * .03); g.fillStyle = "#ffc93b"; g.fill(); g.restore();
   } else if (deco === "stripes") {
-    g.save(); jarPath(g, r); g.clip();
-    const sy = bot - w * .26; g.fillStyle = "rgba(255,255,255,.75)"; g.fillRect(x, sy, w, w * .26);
-    g.fillStyle = "rgba(255,92,138,.55)"; for (let k = -1; k < 6; k++) { g.beginPath(); g.moveTo(x + k * w * .22, bot); g.lineTo(x + k * w * .22 + w * .1, bot); g.lineTo(x + k * w * .22 + w * .3, sy); g.lineTo(x + k * w * .22 + w * .2, sy); g.closePath(); g.fill(); }
-    g.restore();
-    for (const [sx, sy2, c] of [[.18, .9, "#7dff6b"], [.8, 1.3, "#5cf2ff"], [.25, 1.6, "#ffd93b"]]) { g.fillStyle = c; g.globalAlpha = .7; roundRect(g, x + w * sx, top + w * sy2, w * .1, w * .035, w * .017, w * .017); g.fill(); }
-    g.globalAlpha = 1;
+    // pink icing around the rim, dripping down the glass, with sprinkles
+    g.fillStyle = "#ff8fc0"; g.beginPath(); g.moveTo(x - w * .02, top - w * .04); g.lineTo(x + w * 1.02, top - w * .04); g.lineTo(x + w * 1.02, top + w * .1);
+    for (let k = 5; k >= 0; k--) { const dx = x + w * (k / 5) * 1.0, dl = [.1, .22, .12, .28, .14, .1][k]; g.quadraticCurveTo(dx + w * .1, top + w * .1, dx + w * .02, top + w * (.1 + dl)); g.arc(dx, top + w * (.1 + dl), w * .025, 0, Math.PI); }
+    g.closePath(); g.fill();
+    g.fillStyle = "rgba(255,255,255,.55)"; roundRect(g, x + w * .05, top - w * .03, w * .9, w * .03, w * .015, w * .015); g.fill();
+    for (const [sx, sy, c] of [[.15, .03, "#7dff6b"], [.35, .06, "#5cf2ff"], [.55, .02, "#ffd93b"], [.75, .05, "#ffffff"], [.9, .02, "#b98cff"]]) { g.save(); g.translate(x + w * sx, top + w * sy); g.rotate(sx * 9); g.fillStyle = c; roundRect(g, -w * .045, -w * .015, w * .09, w * .03, w * .015, w * .015); g.fill(); g.restore(); }
+    // twisted candy-wrapper ends on both sides
+    for (const s of [-1, 1]) {
+      const ex = s < 0 ? x - w * .02 : x + w * 1.02, ey = top + w * .03;
+      g.fillStyle = s < 0 ? "#ffd93b" : "#5cf2ff"; g.beginPath(); g.moveTo(ex, ey);
+      g.lineTo(ex + s * w * .2, ey - w * .13);
+      for (let k = 0; k < 3; k++) { const y0 = ey - w * .13 + k * w * .1; g.quadraticCurveTo(ex + s * w * .3, y0 + w * .05, ex + s * w * .2, y0 + w * .1); }
+      g.lineTo(ex, ey + w * .04); g.closePath(); g.fill(); g.fillStyle = "rgba(0,0,0,.12)"; ellipse(g, ex + s * w * .02, ey + w * .02, w * .035, w * .05, "rgba(0,0,0,.15)");
+      g.strokeStyle = "rgba(255,255,255,.7)"; g.lineWidth = Math.max(1, w * .02); g.beginPath(); g.moveTo(ex + s * w * .03, ey); g.lineTo(ex + s * w * .16, ey - w * .06); g.moveTo(ex + s * w * .03, ey + w * .02); g.lineTo(ex + s * w * .16, ey + w * .1); g.stroke();
+    }
   } else if (deco === "metal") {
-    const band = (yy) => { const mg = g.createLinearGradient(x, 0, x + w, 0); mg.addColorStop(0, "#59607a"); mg.addColorStop(.4, "#e6ecff"); mg.addColorStop(1, "#4a5068");
-      g.fillStyle = mg; roundRect(g, x - w * .02, yy, w * 1.04, w * .1, w * .04, w * .04); g.fill(); g.fillStyle = "#2c3147"; for (const k of [.15, .5, .85]) { g.beginPath(); g.arc(x + w * k, yy + w * .05, w * .022, 0, 6.283); g.fill(); } };
-    band(top + w * .14); band(bot - w * .5);
-    g.fillStyle = "rgba(255,255,255,.8)"; for (const [sx, sy] of [[.3, .7], [.7, 1.2], [.4, 1.7]]) { sparkPath(g, x + w * sx, top + w * sy, w * .06, w * .015); g.fill(); }
+    // front half of the ring, a metal collar with a blinking antenna, and a thruster base
+    g.strokeStyle = "rgba(220,195,255,.85)"; g.lineWidth = Math.max(2, w * .07);
+    g.beginPath(); g.ellipse(x + w / 2, top + r.h * .56, w * .68, w * .15, -.12, 0, Math.PI); g.stroke();
+    g.strokeStyle = "rgba(255,255,255,.6)"; g.lineWidth = Math.max(1, w * .02); g.beginPath(); g.ellipse(x + w / 2, top + r.h * .56, w * .68, w * .15, -.12, .3, 1.2); g.stroke();
+    g.fillStyle = STEEL(g, x - w * .04, x + w * 1.04); roundRect(g, x - w * .04, top - w * .03, w * 1.08, w * .12, w * .05, w * .05); g.fill();
+    g.fillStyle = "#2c3147"; for (const k of [.15, .5, .85]) ellipse(g, x + w * k, top + w * .03, w * .02, w * .02, "#2c3147");
+    g.strokeStyle = "#9aa4c4"; g.lineWidth = Math.max(1, w * .03); g.beginPath(); g.moveTo(x + w * .85, top - w * .03); g.lineTo(x + w * .98, top - w * .3); g.stroke();
+    const on = Math.sin(t * 4 + i) > 0; glow(g, x + w * .98, top - w * .32, w * .2, on ? "#ff5c8a" : "#5cf2ff", .5); ellipse(g, x + w * .98, top - w * .32, w * .045, w * .045, on ? "#ff8fb0" : "#aaf8ff");
+    for (const s of [-1, 1]) { g.fillStyle = "#6a5aa8"; g.beginPath(); const fx = s < 0 ? x + w * .06 : x + w * .94; g.moveTo(fx, bot - w * .5); g.lineTo(fx + s * w * .2, bot - w * .05); g.lineTo(fx + s * w * .2, bot + w * .06); g.lineTo(fx, bot - w * .08); g.closePath(); g.fill(); }
+    g.fillStyle = STEEL(g, x + w * .05, x + w * .95); roundRect(g, x + w * .08, bot - w * .06, w * .84, w * .12, w * .03, w * .06); g.fill();
+    glow(g, x + w / 2, bot + w * .1, w * .45, "#5cf2ff", .35 + .1 * Math.sin(t * 6 + i));
   }
   g.restore();
 }
+const _pjb = paintJarBack;
+paintJarBack = function (g, r, St, i) { _pjb(g, r, St, i); const T = themeNow(); if (T.deco) regionBack(g, r, T.deco, i); };
 const _pjf = paintJarFront;
-paintJarFront = function (g, r, St, i, R) { const T = themeNow(); if (T.deco && T.deco !== "lantern") regionDeco(g, r, T.deco); if (T.deco === "lantern") regionDeco(g, r, "lantern"); _pjf(g, r, St, i, R); };
+paintJarFront = function (g, r, St, i, R) { const T = themeNow(); if (T.deco) regionDeco(g, r, T.deco, i); _pjf(g, r, St, i, R); };
 const _shelf = paintShelf;
 paintShelf = function (g, sh) {
   const T = themeNow(); if (!T.shelf) return _shelf(g, sh);
@@ -345,26 +459,64 @@ bandImage = function (G, i) {
   if (mapBands.size > 6) mapBands.delete(mapBands.keys().next().value);
   c = sceneCanvas(T, Math.ceil(G.W), Math.ceil(G.band), MPD, false); mapBands.set(i, c); return c;
 };
-// the menu shows the region the player is in, with its jar and its things dancing inside
-let menuBg = null, menuBgKey = "";
-const _drawMenu = drawMenu;
+// ---------- Jar World hub: the loading screen and the main menu show every world, not just one ----------
+const MIX = ["fish", "flower", "gem", "fly", "candy", "planet"];
+const _themeNow = themeNow;
+themeNow = function () { return HUB ? THEMES[3] : _themeNow(); };   // the hub jar is the classic glass jar with the gold lid
+function mixFly(kind, ...a) { FORCE_KIND = kind; try { paintFly(...a); } finally { FORCE_KIND = null; } }
+const hubStars = Array.from({ length: 90 }, (_, i) => { const r = rng(i * 29 + 5); return [r(), r(), r() * 6.28, .6 + r() * 1.3]; });
+// a twilight sky: deep blue at the top, purple, then a warm glow at the horizon
+function hubSky(g, W, H, T, horizon) {
+  const s = g.createLinearGradient(0, 0, 0, horizon);
+  s.addColorStop(0, "#0b0a2a"); s.addColorStop(.45, "#271b5c"); s.addColorStop(.75, "#573287"); s.addColorStop(.9, "#a9528e"); s.addColorStop(1, "#f09a7a");
+  g.fillStyle = s; g.fillRect(0, 0, W, horizon); g.fillStyle = "#f09a7a"; g.fillRect(0, horizon, W, H - horizon);
+  for (const st of hubStars) { const y = st[1] * horizon * .8; const a = (.2 + .55 * Math.abs(Math.sin(T * .6 * st[3] + st[2]))) * (1 - y / horizon); g.fillStyle = `rgba(255,250,235,${a})`; g.fillRect(st[0] * W, y, st[3], st[3]); }
+}
+function hubLand(g, W, H, T, ground) {
+  hillW(g, W, H, ground - H * .11, H * .03, 5, 1.2, "#4a2a72");
+  hillW(g, W, H, ground - H * .05, H * .025, 7, 3.1, "#331c5c");
+  hillW(g, W, H, ground, H * .012, 4, .4, "#1d1040");
+}
+// six little glass bubbles, one for each world, floating around the jar
+function worldOrb(g, x, y, R, i, T) {
+  const Wd = REGIONS[i];
+  glow(g, x, y, R * 1.9, Wd.glow, .22);
+  g.save(); g.beginPath(); g.arc(x, y, R, 0, 6.283); g.clip();
+  const s = g.createLinearGradient(0, y - R, 0, y + R); s.addColorStop(0, Wd.sky[0]); s.addColorStop(.6, Wd.sky[1]); s.addColorStop(1, Wd.sky[2]);
+  g.fillStyle = s; g.fillRect(x - R, y - R, R * 2, R * 2);
+  ellipse(g, x, y + R * 1.15, R * 1.3, R * .55, Wd.hills[0]);
+  g.restore();
+  mixFly(Wd.item, g, x, y - R * .04, R * .5, [0, 6, 4, 0, 2, 5][i], T * 8 + i, true, true, i * 3);
+  g.strokeStyle = "rgba(255,255,255,.8)"; g.lineWidth = Math.max(1.5, R * .08); g.beginPath(); g.arc(x, y, R, 0, 6.283); g.stroke();
+  g.strokeStyle = "rgba(255,255,255,.7)"; g.lineWidth = Math.max(1.5, R * .1); g.lineCap = "round"; g.beginPath(); g.arc(x, y, R * .74, Math.PI * 1.1, Math.PI * 1.4); g.stroke();
+}
+function hubOrbs(g, W, H, T, spots) {
+  const R = Math.min(W * (spots === MENU_ORBS ? .055 : .07), 34);
+  spots.forEach(([fx, fy], i) => worldOrb(g, fx * W, fy * H + Math.sin(T * 1.2 + i * 1.7) * 4, R, i, T));
+}
+const BOOT_ORBS = [[.15, .33], [.85, .33], [.1, .52], [.9, .52], [.16, .71], [.84, .71]];
+const BOOT_KINDS = ["fish", "flower", "candy", "planet"];
+const MENU_ORBS = [[.13, .2], [.88, .47], [.23, .31], [.75, .56], [.13, .39], [.27, .56]];
 drawMenu = function () {
-  const T = themeNow(); if (!T.custom) return _drawMenu();
   if (!MW) sizeMenu(); if (!MW) return;
-  const g = mctx, tt = now / 1000, key = T.name + MW + "x" + MH;
-  if (key !== menuBgKey) { menuBg = sceneCanvas(T, MW, MH, MD, false); menuBgKey = key; }
-  g.setTransform(1, 0, 0, 1, 0, 0); g.drawImage(menuBg, 0, 0); g.setTransform(MD, 0, 0, MD, 0, 0);
-  paintLive(g, T, MW, MH, tt, "sky"); paintLive(g, T, MW, MH, tt, "ground");
+  HUB = 1; try { drawHubMenu(); } finally { HUB = 0; }
+};
+function drawHubMenu() {
+  const g = mctx, tt = now / 1000; g.setTransform(MD, 0, 0, MD, 0, 0);
   const J = heroRect(), ground = J.y + J.h * .97, r = J, R = r.w * .11;
+  hubSky(g, MW, MH, tt, ground - MH * .05);
+  hubLand(g, MW, MH, tt, ground);
+  glow(g, J.cx, J.y + J.h * .55, J.w * 1.9, "#ffcf4a", .2 + .04 * Math.sin(tt * 2));
+  hubOrbs(g, MW, MH, tt, MENU_ORBS);
   heroBack(g, J, tt, ground);
-  for (const f of inJar) { const x = r.cx + Math.sin(tt * f.sp + f.a) * r.w * .3, y = r.y + r.h * .6 + Math.sin(tt * f.sp * 1.4 + f.b) * r.h * .26; f.flap += .25; paintFly(g, x, y, R, f.c, f.flap, true, true, f.a * 10); }
+  inJar.forEach((f, k) => { const x = r.cx + Math.sin(tt * f.sp + f.a) * r.w * .3, y = r.y + r.h * .6 + Math.sin(tt * f.sp * 1.4 + f.b) * r.h * .26; f.flap += .25; mixFly(MIX[k % 6], g, x, y, R, f.c, f.flap, true, true, f.a * 10); });
   heroFront(g, J, tt);
-  for (const f of outFlies) {
+  outFlies.forEach((f, k) => {
     const e = (f.t + tt * .045) % 1;
     const x = r.cx + Math.sin(e * 6 + f.seed) * MW * .45 * Math.min(1, e * 2.2) + Math.sin(tt * 1.7 + f.seed) * 6, y = r.y + r.h * .08 - e * (r.y + r.h * .1 + 40) + Math.cos(tt * 1.3 + f.seed) * 5;
-    g.globalAlpha = Math.min(1, e * 6, (1 - e) * 4); f.flap += .3; paintFly(g, x, y, R * (.55 + .45 * (1 - e)), f.c, f.flap, true, true, f.seed * 7); g.globalAlpha = 1;
-  }
-};
+    g.globalAlpha = Math.min(1, e * 6, (1 - e) * 4); f.flap += .3; mixFly(MIX[k % 6], g, x, y, R * (.55 + .45 * (1 - e)), f.c, f.flap, true, true, f.seed * 7); g.globalAlpha = 1;
+  });
+}
 // TEST BUILD ONLY: tap a chapter's name on the map to jump to its first level
 let pvDown = null;
 mapCv.addEventListener("pointerdown", e => { pvDown = { x: e.clientX, y: e.clientY }; });

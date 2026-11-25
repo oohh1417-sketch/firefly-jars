@@ -364,6 +364,7 @@ S = [
 
 # ---------- loading screen ----------
 ["Catching fireflies…", "نجمع اليراعات…", "Atrapando luciérnagas…", "Pegando vaga-lumes…", "On attrape des lucioles…", "Glühwürmchen fangen…", "Ateş böcekleri toplanıyor…", "Ловим светлячков…", "ホタルをつかまえ中…", "반딧불이 잡는 중…", "正在捕捉萤火虫…"],
+["Filling the jars…", "نملأ الجرار…", "Llenando los frascos…", "Enchendo os potes…", "On remplit les bocaux…", "Gläser werden gefüllt…", "Kavanozlar dolduruluyor…", "Наполняем банки…", "ビンをつめています…", "병을 채우는 중…", "正在装满罐子…"],
 ["Tap to play", "اضغط للعب", "Toca para jugar", "Toque para jogar", "Touche pour jouer", "Tippen zum Spielen", "Oynamak için dokun", "Нажми, чтобы играть", "タップしてスタート", "탭해서 시작", "点击开始"],
 ["Ready!", "جاهز!", "¡Listo!", "Pronto!", "Prêt !", "Bereit!", "Hazır!", "Готово!", "準備OK！", "준비 완료!", "准备好了！"],
 ["Tip: tap a jar, then tap another jar to pour", "نصيحة: اضغط على جرة ثم على جرة أخرى لتسكب", "Consejo: toca un frasco y luego otro para verter", "Dica: toque num pote e depois em outro para despejar", "Astuce : touche un bocal, puis un autre pour verser", "Tipp: Tippe ein Glas an, dann ein anderes zum Umschütten", "İpucu: bir kavanoza, sonra dökmek için başka birine dokun", "Совет: нажми на банку, потом на другую, чтобы перелить", "コツ：ビンをタップして、別のビンをタップで注ぐ", "팁: 병을 탭한 뒤 다른 병을 탭하면 옮겨져요", "提示：先点一个罐子，再点另一个就能倒入"],
