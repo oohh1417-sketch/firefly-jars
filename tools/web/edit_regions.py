@@ -6,7 +6,7 @@
 import sys, os, re
 src, dst = sys.argv[1], sys.argv[2]
 FAMILY = "--family" in sys.argv
-VERSION = "v0.30"
+VERSION = "v0.31"
 s = open(src, encoding="utf-8").read()
 
 def rep(old, new, cnt=1):

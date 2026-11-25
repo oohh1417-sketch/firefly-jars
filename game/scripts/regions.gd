@@ -183,6 +183,14 @@ static func _t() -> float:
 
 ## Colors each point by where it sits between `from` and `to` (along x or y), through the given stops.
 static func _grad_poly(ci: CanvasItem, pts: PackedVector2Array, stops: Array, from: float, to: float, vertical := true) -> void:
+	# Drop repeated points (e.g. a fully round pill shape) so triangulation never fails.
+	var clean := PackedVector2Array()
+	for q in pts:
+		if clean.is_empty() or clean[clean.size() - 1].distance_squared_to(q) > 0.0001:
+			clean.append(q)
+	if clean.size() > 1 and clean[0].distance_squared_to(clean[clean.size() - 1]) <= 0.0001:
+		clean.remove_at(clean.size() - 1)
+	pts = clean
 	if pts.size() < 3:
 		return
 	var cols := PackedColorArray()
@@ -205,7 +213,11 @@ static func _rr(r: Rect2, rad: float) -> PackedVector2Array:
 	for c in cs:
 		for k in 6:
 			var a: float = c[2] + PI / 2 * k / 5.0
-			pts.append(Vector2(c[0], c[1]) + Vector2(cos(a), sin(a)) * rad)
+			var q := Vector2(c[0], c[1]) + Vector2(cos(a), sin(a)) * rad
+			if pts.is_empty() or pts[pts.size() - 1].distance_squared_to(q) > 0.0001:
+				pts.append(q)
+	if pts.size() > 1 and pts[0].distance_squared_to(pts[pts.size() - 1]) <= 0.0001:
+		pts.remove_at(pts.size() - 1)
 	return pts
 
 ## Draws `poly` cut to the inside of the jar glass.

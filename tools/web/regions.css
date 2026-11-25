@@ -9,3 +9,5 @@ html[data-world]:not([data-world="hub"]):not([data-world="meadow"]) .glass:activ
 html[data-world]:not([data-world="hub"]):not([data-world="meadow"]) :is(.card, .panel) { background: linear-gradient(180deg, var(--wbg), var(--wbg2)); border-color: var(--glass-line); }
 html[data-world]:not([data-world="hub"]):not([data-world="meadow"]) .overlay:not(.menu):not(.mapview) { background: var(--wshade); }
 html[data-world]:not([data-world="hub"]):not([data-world="meadow"]) .info { background: var(--wbg); }
+/* long words (Russian, Turkish, German) keep fitting in the small header line */
+.level small { letter-spacing: .06em; font-size: min(12px, 3.1vw); }
