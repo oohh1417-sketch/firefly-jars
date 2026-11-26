@@ -1,0 +1,17 @@
+name: App Store build check
+on:
+  push:
+    branches: ["claude/project-thread-5x71s3"]
+    paths: [".github/workflows/asc-check.yml", "tools/asc_builds.py"]
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+        run: |
+          export ASC_KEY_FILE="$RUNNER_TEMP/k.p8"; printf '%s\n' "$KEY_P8" > "$ASC_KEY_FILE"
+          python3 tools/asc_builds.py; rm -f "$ASC_KEY_FILE"
