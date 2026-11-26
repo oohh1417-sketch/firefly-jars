@@ -27,3 +27,8 @@ c, d = a.api("GET", f"/apps/{app}/appStoreVersions?include=build&limit=3")
 print(c, json.dumps([(v["attributes"].get("versionString"), v["attributes"].get("appStoreState"), v["attributes"].get("appVersionState"), v["relationships"]["build"].get("data")) for v in d.get("data", [])]))
 c, d = a.api("GET", f"/reviewSubmissions?filter[app]={app}&include=items&limit=5")
 print("review", c, json.dumps(d)[:3000])
+
+print("\n== profiles")
+c, d = a.api("GET", "/profiles?filter[profileType]=IOS_APP_STORE&limit=50")
+for x in d.get("data", []):
+    print(x["attributes"]["name"], x["attributes"]["uuid"], x["attributes"]["profileState"], x["attributes"].get("createdDate"))

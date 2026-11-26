@@ -165,26 +165,39 @@ def make_profile(bundle, cert_id):
     if not ids:
         log(f"No App ID {bundle} in this Apple account"); sys.exit(1)
     bid = ids[0]["id"]
-    # remove old CI profiles so they don't pile up
-    old = must(api("GET", f"/profiles?filter[profileType]=IOS_APP_STORE&limit=200"), "listing profiles")
+    # Reuse the CI profile when it still fits. Never delete old profiles: a build that is
+    # in TestFlight or App Review must keep the profile it was signed with, or Apple marks
+    # it "Invalid Binary" (that is what happened to builds 135 and 137).
+    old = must(api("GET", f"/profiles?filter[profileType]=IOS_APP_STORE&filter[profileState]=ACTIVE"
+                          f"&include=certificates,bundleId&limit=200"), "listing profiles")
+    reuse = None
     for p in old["data"]:
-        if p["attributes"]["name"].startswith(PROFILE_PREFIX):
-            api("DELETE", f"/profiles/{p['id']}")
-    name = f"{PROFILE_PREFIX} {time.strftime('%Y%m%d-%H%M%S')}"
-    body = {"data": {"type": "profiles",
-                     "attributes": {"name": name, "profileType": "IOS_APP_STORE"},
-                     "relationships": {"bundleId": {"data": {"type": "bundleIds", "id": bid}},
-                                       "certificates": {"data": [{"type": "certificates", "id": cert_id}]}}}}
-    js = must(api("POST", "/profiles", body), "making the App Store profile")
-    a = js["data"]["attributes"]
+        rel = p.get("relationships", {})
+        certs = [c["id"] for c in (rel.get("certificates", {}).get("data") or [])]
+        b = (rel.get("bundleId", {}).get("data") or {}).get("id")
+        if p["attributes"]["name"].startswith(PROFILE_PREFIX) and cert_id in certs and b == bid:
+            if not reuse or p["attributes"].get("expirationDate", "") > reuse["attributes"].get("expirationDate", ""):
+                reuse = p
+    if reuse:
+        a = reuse["attributes"]
+        if not a.get("profileContent"):
+            a = must(api("GET", f"/profiles/{reuse['id']}"), "reading the App Store profile")["data"]["attributes"]
+        name = a["name"]
+        log("Reusing App Store profile", name, a["uuid"])
+    else:
+        name = f"{PROFILE_PREFIX} {time.strftime('%Y%m%d-%H%M%S')}"
+        body = {"data": {"type": "profiles",
+                         "attributes": {"name": name, "profileType": "IOS_APP_STORE"},
+                         "relationships": {"bundleId": {"data": {"type": "bundleIds", "id": bid}},
+                                           "certificates": {"data": [{"type": "certificates", "id": cert_id}]}}}}
+        a = must(api("POST", "/profiles", body), "making the App Store profile")["data"]["attributes"]
+        log("Made App Store profile", name, a["uuid"])
     content, uuid = base64.b64decode(a["profileContent"]), a["uuid"]
     home = Path.home()
     for d in (home / "Library/MobileDevice/Provisioning Profiles",
               home / "Library/Developer/Xcode/UserData/Provisioning Profiles"):
         d.mkdir(parents=True, exist_ok=True)
         (d / f"{uuid}.mobileprovision").write_bytes(content)
-    STATE.write_text(json.dumps({"profile": js["data"]["id"]}))
-    log("Made App Store profile", name, uuid)
     return uuid
 
 
