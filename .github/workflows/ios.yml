@@ -163,19 +163,6 @@ jobs:
           # new launch screen names so iPhones drop their saved copy of the old launch picture
           python3 ../tools/ios_launch_rename.py ../build/ios
 
-      # Apple rejects the app (ITMS-91064) if the app's own PrivacyInfo.xcprivacy lists tracking
-      # domains but says NSPrivacyTracking=false. The ads SDK domains are there because we do
-      # track for personalised ads (with the ATT prompt), so the manifest must say true.
-      - name: Fix the app privacy manifest (tracking)
-        working-directory: build/ios
-        run: |
-          find . -name PrivacyInfo.xcprivacy -not -path "*.framework/*" -not -path "*.xcframework/*" -not -path "./dd/*" -print | while read -r f; do
-            if /usr/libexec/PlistBuddy -c "Print :NSPrivacyTrackingDomains" "$f" >/dev/null 2>&1; then
-              /usr/libexec/PlistBuddy -c "Set :NSPrivacyTracking true" "$f" 2>/dev/null || /usr/libexec/PlistBuddy -c "Add :NSPrivacyTracking bool true" "$f"
-            fi
-            echo "== $f"; plutil -p "$f" | head -40
-          done
-
       # ---------- compile, sign, upload ----------
       - name: Unsigned test build (no Apple secrets yet)
         if: env.HAS_SIGNING != 'true'
@@ -205,14 +192,12 @@ jobs:
             -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/FireflyJars.xcarchive" -derivedDataPath dd \
             | tail -60
           APP=$(ls -d "$RUNNER_TEMP"/FireflyJars.xcarchive/Products/Applications/*.app)
-          find "$APP" -name "*.xcprivacy" | while read -r f; do echo "== ${f#$APP/}"; plutil -p "$f" | grep -v "Reasons\|=> \"[0-9A-F]\{4\}\.[0-9]\"" || true; done
-          PM="$APP/PrivacyInfo.xcprivacy"
-          if [ -f "$PM" ]; then
-            plutil -p "$PM" | head -30
-            if /usr/libexec/PlistBuddy -c "Print :NSPrivacyTrackingDomains" "$PM" >/dev/null 2>&1 && \
-               [ "$(/usr/libexec/PlistBuddy -c 'Print :NSPrivacyTracking' "$PM")" != "true" ]; then
-              echo "::error::App privacy manifest lists tracking domains but NSPrivacyTracking is not true (ITMS-91064)"; exit 1
-            fi
+          # ITMS-91064 guard: the app's own privacy manifest may only say tracking=true
+          # when it also lists tracking domains (Apple rejected build 137 for this).
+          PM="$APP/PrivacyInfo.xcprivacy"; plutil -p "$PM" | grep -i tracking || true
+          if [ -f "$PM" ] && [ "$(/usr/libexec/PlistBuddy -c 'Print :NSPrivacyTracking' "$PM" 2>/dev/null)" = "true" ] && \
+             ! /usr/libexec/PlistBuddy -c "Print :NSPrivacyTrackingDomains:0" "$PM" >/dev/null 2>&1; then
+            echo "::error::PrivacyInfo.xcprivacy says NSPrivacyTracking=true but lists no NSPrivacyTrackingDomains (ITMS-91064)"; exit 1
           fi
           DEST=export; [ "$UPLOAD" = "true" ] && DEST=upload
           cat > "$RUNNER_TEMP/ExportOptions.plist" <<PLIST
