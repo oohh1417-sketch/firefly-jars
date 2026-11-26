@@ -6,7 +6,7 @@
 import sys, os, re
 src, dst = sys.argv[1], sys.argv[2]
 FAMILY = "--family" in sys.argv
-VERSION = "v0.33"
+VERSION = "v0.34"
 s = open(src, encoding="utf-8").read()
 
 def rep(old, new, cnt=1):
@@ -65,11 +65,14 @@ rep(">Catching fireflies…<", ">Filling the jars…<")
 rep("""    const lg = g.createLinearGradient(0, -r.w * .22, 0, r.w * .16); lg.addColorStop(0, "#8a6239"); lg.addColorStop(1, "#5a3c22");
     g.fillStyle = lg; roundRect(g, -r.w * .5, -r.w * .2, r.w, r.w * .34, 7, 7); g.fill();
     g.strokeStyle = "rgba(40,24,10,.35)"; g.lineWidth = 1.5; for (let k = -2; k <= 2; k++) { g.beginPath(); g.moveTo(k * r.w * .18, -r.w * .18); g.lineTo(k * r.w * .18, r.w * .12); g.stroke(); }""",
-"""    if (!lockArt(g, r)) {
+"""    LOCK_BADGE_Y = -.03;
+    if (!lockArt(g, r)) {
     const lg = g.createLinearGradient(0, -r.w * .22, 0, r.w * .16); lg.addColorStop(0, "#8a6239"); lg.addColorStop(1, "#5a3c22");
     g.fillStyle = lg; roundRect(g, -r.w * .5, -r.w * .2, r.w, r.w * .34, 7, 7); g.fill();
     g.strokeStyle = "rgba(40,24,10,.35)"; g.lineWidth = 1.5; for (let k = -2; k <= 2; k++) { g.beginPath(); g.moveTo(k * r.w * .18, -r.w * .18); g.lineTo(k * r.w * .18, r.w * .12); g.stroke(); }
     }""")
+rep("""      g.fillStyle = "#fff6d6"; g.beginPath(); g.arc(0, -r.w * .03, r.w * .22, 0, 6.283); g.fill();""", """      g.fillStyle = "#fff6d6"; g.beginPath(); g.arc(0, r.w * LOCK_BADGE_Y, r.w * .22, 0, 6.283); g.fill();""")
+rep("""      g.fillText(String(lock), 0, -r.w * .0);""", """      g.fillText(String(lock), 0, r.w * (LOCK_BADGE_Y + .03));""")
 rep("""    const a = 1 - p.life / p.max; glow(ctx, p.x, p.y, p.size * 3, p.col, .5 * a);
     ctx.fillStyle = `rgba(255,255,240,${a})`; ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);""",
 """    paintParticle(ctx, p, 1 - p.life / p.max);""")

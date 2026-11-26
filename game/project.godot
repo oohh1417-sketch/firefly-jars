@@ -10,10 +10,10 @@ config/description="Pour glowing fireflies between jars until every jar holds on
 run/main_scene="res://scenes/main.tscn"
 config/icon="res://icon.png"
 config/features=PackedStringArray("4.7", "GL Compatibility")
-boot_splash/bg_color=Color(0.02, 0.03, 0.09, 1)
+boot_splash/bg_color=Color(0.043, 0.039, 0.165, 1)
 boot_splash/show_image=true
 boot_splash/image="res://splash.png"
-boot_splash/fullsize=true
+boot_splash/stretch_mode=4
 boot_splash/use_filter=true
 
 [autoload]
