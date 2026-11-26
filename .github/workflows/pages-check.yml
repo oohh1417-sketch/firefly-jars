@@ -1,0 +1,14 @@
+name: Website check
+on:
+  push:
+    branches: ["claude/project-thread-5x71s3"]
+    paths: [".github/workflows/pages-check.yml"]
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          B=https://oohh1417-sketch.github.io/firefly-jars
+          for p in / /privacy.html /support.html /castle-realms/; do
+            echo "$(curl -s -o /dev/null -w '%{http_code}' -L "$B$p") $p"
+          done
