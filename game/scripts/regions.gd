@@ -389,7 +389,8 @@ static func deco(ci: CanvasItem, r: Rect2) -> void:
 			for k in 3:
 				var yy := top + w * (0.13 + k * 0.05)
 				ci.draw_line(Vector2(x + w * 0.15, yy + w * 0.03), Vector2(x + w * 0.85, yy), Color("#caa06a"), max(1.2, w * 0.035), true)
-			_daisy(ci, Vector2(x + w * 0.84, top + w * 0.17), w * 0.13, Color.WHITE, Color("#ffc93b"))
+			if not corked:
+				_daisy(ci, Vector2(x + w * 0.84, top + w * 0.17), w * 0.13, Color.WHITE, Color("#ffc93b"))
 			var vine := PackedVector2Array()
 			var p0 := Vector2(x + w * 0.86, bot - w * 0.1)
 			var p3 := Vector2(x + w * 0.82, top + r.size.y * 0.3)
@@ -920,6 +921,19 @@ static func hub_orbs(ci: CanvasItem, W: float, H: float, t: float, spots: Array,
 	for i in spots.size():
 		world_orb(ci, Vector2(spots[i].x * W, spots[i].y * H + sin(t * 1.2 + i * 1.7) * 4.0), R, i, t)
 
+## True while the board draws a jar that has its lid on (some worlds tidy their decorations for it).
+static var corked := false
+
+## The front half of Sunpetal's clay rim, drawn again over the cork so the cork sits inside the neck.
+static func _clay_lip(ci: CanvasItem, cx: float, top: float, w: float) -> void:
+	var x := cx - w * 0.5
+	var lip := Rect2(x + w * 0.06, top + w * 0.02, w * 0.88, w * 0.07)
+	var lp := _rr(lip, w * 0.035)
+	_grad_poly(ci, lp, [[0.0, Color("#e08a62")], [1.0, Color("#b9562f")]], lip.position.y, lip.end.y)
+	ci.draw_polyline(_closed(lp), Color(0.43, 0.16, 0.06, 0.6), max(1.0, w * 0.025), true)
+	for k in 6:
+		ci.draw_circle(Vector2(x + w * (0.17 + k * 0.133), top + w * 0.055), w * 0.018, Color("#fff3dc"))
+
 # ---------- each world's own lid (closing a full jar, and the locked lid with a number) ----------
 const CAP_KIND := {"reef": "shell", "sunpetal": "cork", "grove": "dome", "candy": "bonbon", "space": "hatch"}
 
@@ -934,11 +948,16 @@ static func cap(ci: CanvasItem, r: Rect2, age: float) -> bool:
 	var T := Art.cap_timeline(age)
 	var w := r.size.x
 	var cx := r.get_center().x
-	var yb: float = r.position.y + w * 0.1 - T.lift * w
+	var seat := w * 0.1
+	if kind == "cork":
+		seat = w * 0.075   # pushed down into the neck: the clay rim's front edge covers its bottom
+	var yb: float = r.position.y + seat - T.lift * w
 	var sq: float = T.squash
 	ci.draw_set_transform(Vector2(cx, yb), 0.0, Vector2(1.0 + (1.0 - sq) * 0.5, sq))
 	cap_shape(ci, kind, 0.0, 0.0, w, T.spin, T.alpha)
 	ci.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	if kind == "cork":
+		_clay_lip(ci, cx, r.position.y, w)
 	var gt := (age - Art.CAP_TOTAL - 0.12) / 0.42
 	if gt > 0.0 and gt < 1.0:
 		Art.glow(ci, Vector2(cx - w * 0.5 + gt * w, yb - w * 0.12), w * 0.35, Color.WHITE, 0.55 * sin(gt * PI))
@@ -949,6 +968,12 @@ static func lock_art(ci: CanvasItem, w: float, a: float) -> bool:
 	var kind := cap_kind()
 	if kind == "":
 		return false
+	if kind == "cork":
+		# same seat as the finished cork: in the neck, behind the rim's front edge (the board's origin is 0.02 w below the jar top)
+		cap_shape(ci, kind, 0.0, w * 0.055, w, 0.0, a)
+		if a >= 1.0:
+			_clay_lip(ci, 0.0, -w * 0.02, w)
+		return true
 	cap_shape(ci, kind, 0.0, w * 0.14, w, 0.0, a)
 	return true
 
@@ -986,9 +1011,9 @@ static func cap_shape(ci: CanvasItem, kind: String, cx: float, yb: float, w: flo
 			ci.draw_circle(pearl, w * 0.065, _a(Color("#ece6f8"), A))
 			ci.draw_circle(pearl + Vector2(-w * 0.02, -w * 0.02), w * 0.025, Color(1, 1, 1, A))
 		"cork":
-			var hh := w * 0.28
-			var tw := w * 0.86
-			var bw := w * 0.7
+			var hh := w * 0.3
+			var tw := w * 0.8
+			var bw := w * 0.68
 			var top := yb - hh
 			var body := PackedVector2Array([Vector2(cx - bw / 2, yb), Vector2(cx - tw / 2, top + w * 0.03), Vector2(cx + tw / 2, top + w * 0.03), Vector2(cx + bw / 2, yb)])
 			_grad_poly(ci, body, [[0.0, _a(Color("#a8703c"), A)], [0.4, _a(Color("#e8b77a"), A)], [1.0, _a(Color("#9a6534"), A)]], cx - tw / 2, cx + tw / 2, false)

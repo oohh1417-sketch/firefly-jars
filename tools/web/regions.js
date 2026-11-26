@@ -178,6 +178,16 @@ function regionBack(g, r, deco, i) {
     g.beginPath(); g.ellipse(x + w / 2, top + r.h * .56, w * .68, w * .15, -.12, Math.PI, 2 * Math.PI); g.stroke();
   }
 }
+// true while a jar with its lid on is drawn (Sunpetal hides the side daisy then)
+let CORKED = false;
+// the front half of Sunpetal's clay rim, drawn again over the cork so the cork sits inside the neck
+function clayLip(g, cx, top, w) {
+  const x = cx - w / 2, lg = g.createLinearGradient(0, top + w * .02, 0, top + w * .09); lg.addColorStop(0, "#e08a62"); lg.addColorStop(1, "#b9562f");
+  g.save(); g.fillStyle = lg; roundRect(g, x + w * .06, top + w * .02, w * .88, w * .07, w * .035, w * .035); g.fill();
+  g.strokeStyle = "rgba(110,40,15,.6)"; g.lineWidth = Math.max(1, w * .025); g.stroke();
+  for (let k = 0; k < 6; k++) ellipse(g, x + w * (.17 + k * .133), top + w * .055, w * .018, w * .018, "#fff3dc");
+  g.restore();
+}
 function regionDeco(g, r, deco, i) {
   const x = r.x, w = r.w, top = r.y, bot = r.y + r.h, lw = Math.max(1.5, w * .04), t = now / 1000;
   g.save(); g.lineCap = "round"; g.lineJoin = "round";
@@ -204,7 +214,7 @@ function regionDeco(g, r, deco, i) {
     // twine wrapped around the neck, with a daisy tucked in
     g.strokeStyle = "#caa06a"; g.lineWidth = Math.max(1.2, w * .035);
     for (let k = 0; k < 3; k++) { const yy = top + w * (.13 + k * .05); g.beginPath(); g.moveTo(x + w * .15, yy + w * .03); g.lineTo(x + w * .85, yy); g.stroke(); }
-    daisy(g, x + w * .84, top + w * .17, w * .13, "#ffffff", "#ffc93b");
+    if (!CORKED) daisy(g, x + w * .84, top + w * .17, w * .13, "#ffffff", "#ffc93b");
     // a painted vine climbing the glass
     g.strokeStyle = "rgba(80,160,60,.75)"; g.lineWidth = Math.max(1, w * .025);
     g.beginPath(); g.moveTo(x + w * .86, bot - w * .1); g.bezierCurveTo(x + w * .7, bot - r.h * .3, x + w * .95, top + r.h * .5, x + w * .82, top + r.h * .3); g.stroke();
@@ -276,7 +286,7 @@ function regionDeco(g, r, deco, i) {
 const _pjb = paintJarBack;
 paintJarBack = function (g, r, St, i) { _pjb(g, r, St, i); const T = themeNow(); if (T.deco) regionBack(g, r, T.deco, i); };
 const _pjf = paintJarFront;
-paintJarFront = function (g, r, St, i, R) { const T = themeNow(); if (T.deco) regionDeco(g, r, T.deco, i); _pjf(g, r, St, i, R); };
+paintJarFront = function (g, r, St, i, R) { const T = themeNow(); CORKED = !r.tip && ((corks[i] !== undefined && St.jars[i].length > 0) || St.locks[i] > 0); if (T.deco) regionDeco(g, r, T.deco, i); _pjf(g, r, St, i, R); CORKED = false; };
 const _shelf = paintShelf;
 paintShelf = function (g, sh) {
   const T = themeNow(); if (!T.shelf) return _shelf(g, sh);
@@ -641,7 +651,7 @@ function capShape(g, kind, cx, yb, w, turn) {
     const pg = g.createRadialGradient(cx - w * .02, hy - R * .95, 1, cx, hy - R * .92, w * .07); pg.addColorStop(0, "#ffffff"); pg.addColorStop(1, "#d9d2f0");
     g.fillStyle = pg; g.beginPath(); g.arc(cx, hy - R * .92, w * .065, 0, 6.283); g.fill();
   } else if (kind === "cork") {
-    const h = w * .28, tw = w * .86, bw = w * .7, top = yb - h;
+    const h = w * .3, tw = w * .8, bw = w * .68, top = yb - h;
     g.beginPath(); g.moveTo(cx - bw / 2, yb); g.lineTo(cx - tw / 2, top + w * .03); g.lineTo(cx + tw / 2, top + w * .03); g.lineTo(cx + bw / 2, yb); g.closePath();
     const cg = g.createLinearGradient(cx - tw / 2, 0, cx + tw / 2, 0); cg.addColorStop(0, "#a8703c"); cg.addColorStop(.4, "#e8b77a"); cg.addColorStop(1, "#9a6534");
     g.fillStyle = cg; g.fill(); g.strokeStyle = "rgba(90,50,20,.7)"; g.lineWidth = ol; g.stroke();
@@ -693,16 +703,22 @@ const _paintCap = paintCap;
 paintCap = function (g, r, age) {
   const kind = CAP_KIND[themeNow().name];
   if (!kind) { g.save(); g.translate(0, r.w * .03); _paintCap(g, r, age); g.restore(); return; }
-  const T = capTimeline(age), w = r.w, cx = r.x + w / 2, yb = r.y + w * .1 - T.lift * w;
+  const T = capTimeline(age), w = r.w, cx = r.x + w / 2, yb = r.y + w * (kind === "cork" ? .075 : .1) - T.lift * w;
   g.save(); g.globalAlpha *= T.alpha;
   if (T.squash !== 1) { g.translate(cx, yb); g.scale(1 + (1 - T.squash) * .5, T.squash); g.translate(-cx, -yb); }
   capShape(g, kind, cx, yb, w, T.spin);
   g.restore();
+  if (kind === "cork") clayLip(g, cx, r.y, w);
   const gt = (age - CAP_TOTAL - 120) / 420;
   if (gt > 0 && gt < 1) glow(g, cx - w * .5 + gt * w, yb - w * .12, w * .35, "#ffffff", .55 * Math.sin(gt * Math.PI));
 };
 // the locked lid (with the number of pours it waits for) takes the world's lid too
-function lockArt(g, r) { const kind = CAP_KIND[themeNow().name]; if (!kind) return false; capShape(g, kind, 0, r.w * .14, r.w, 0); return true; }
+function lockArt(g, r) {
+  const kind = CAP_KIND[themeNow().name]; if (!kind) return false;
+  if (kind === "cork") { capShape(g, kind, 0, r.w * .055, r.w, 0); if (g.globalAlpha >= 1) clayLip(g, 0, -r.w * .02, r.w); LOCK_BADGE_Y = -.1; return true; }
+  capShape(g, kind, 0, r.w * .14, r.w, 0); return true;
+}
+let LOCK_BADGE_Y = -.03;
 
 // ---------- sparks in each world's style: bubbles, petals, gem glints, sprinkles, little stars ----------
 function paintParticle(g, p, a) {
