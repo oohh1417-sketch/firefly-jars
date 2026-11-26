@@ -60,7 +60,10 @@ want = {
     "application/additional_plist_content": '"' + plist.replace('"', '\\"') + '"',
     "entitlements/game_center": "true",
     "entitlements/additional": '"' + ent.replace('"', '\\"') + '"',
-    "privacy/tracking_enabled": "true",
+    # NSPrivacyTracking in the app's own PrivacyInfo.xcprivacy. Apple rejects true with no
+    # NSPrivacyTrackingDomains (ITMS-91064, build 137). Our code doesn't track; the ad SDK
+    # declares its own data use in its own manifest, and the ATT prompt still shows.
+    "privacy/tracking_enabled": "false",
     "plugins/AdMob": "true",
     "plugins/InAppStore": "true",
     "plugins/GameCenter": "true",

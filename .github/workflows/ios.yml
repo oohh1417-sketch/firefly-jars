@@ -191,6 +191,14 @@ jobs:
           xcodebuild archive -project FireflyJars.xcodeproj -scheme FireflyJars -configuration Release \
             -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/FireflyJars.xcarchive" -derivedDataPath dd \
             | tail -60
+          APP=$(ls -d "$RUNNER_TEMP"/FireflyJars.xcarchive/Products/Applications/*.app)
+          # ITMS-91064 guard: the app's own privacy manifest may only say tracking=true
+          # when it also lists tracking domains (Apple rejected build 137 for this).
+          PM="$APP/PrivacyInfo.xcprivacy"; plutil -p "$PM" | grep -i tracking || true
+          if [ -f "$PM" ] && [ "$(/usr/libexec/PlistBuddy -c 'Print :NSPrivacyTracking' "$PM" 2>/dev/null)" = "true" ] && \
+             ! /usr/libexec/PlistBuddy -c "Print :NSPrivacyTrackingDomains:0" "$PM" >/dev/null 2>&1; then
+            echo "::error::PrivacyInfo.xcprivacy says NSPrivacyTracking=true but lists no NSPrivacyTrackingDomains (ITMS-91064)"; exit 1
+          fi
           DEST=export; [ "$UPLOAD" = "true" ] && DEST=upload
           cat > "$RUNNER_TEMP/ExportOptions.plist" <<PLIST
           <?xml version="1.0" encoding="UTF-8"?>
