@@ -160,6 +160,8 @@ jobs:
           mkdir -p ../build/ios
           $G --headless --export-release "iOS" ../build/ios/FireflyJars.xcodeproj
           test -d ../build/ios/FireflyJars.xcodeproj
+          # new launch screen names so iPhones drop their saved copy of the old launch picture
+          python3 ../tools/ios_launch_rename.py ../build/ios
 
       # ---------- compile, sign, upload ----------
       - name: Unsigned test build (no Apple secrets yet)
