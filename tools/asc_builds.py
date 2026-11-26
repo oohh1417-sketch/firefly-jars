@@ -13,10 +13,11 @@ for b in js["data"]:
     ver = inc.get(("preReleaseVersions", pv["id"]), {}).get("version") if pv else None
     print(ver, at["version"], at["processingState"], "expired" if at.get("expired") else "", at.get("usesNonExemptEncryption"), at["uploadedDate"])
 
-# why a build is INVALID: the newer buildUploads resource carries Apple's error messages
-for path in [f"/apps/{app}/buildUploads?limit=4", f"/buildUploads?filter[app]={app}&limit=4"]:
-    code, js = a.api("GET", path)
-    print("\n==", path, code)
-    print(json.dumps(js, indent=1)[:6000])
-    if code == 200:
-        break
+for b in js["data"][:3]:
+    print("\n== build", b["attributes"]["version"])
+    print(json.dumps(b["attributes"], indent=1))
+    c, d = a.api("GET", f"/builds/{b['id']}/buildBetaDetail")
+    print("beta:", json.dumps(d.get("data", {}).get("attributes", d)))
+c, d = a.api("GET", "/certificates?filter[certificateType]=DISTRIBUTION")
+for x in d.get("data", []):
+    print("cert", x["id"], x["attributes"].get("expirationDate"), x["attributes"].get("activated"))
