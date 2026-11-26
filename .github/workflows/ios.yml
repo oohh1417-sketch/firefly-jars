@@ -205,6 +205,7 @@ jobs:
             -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/FireflyJars.xcarchive" -derivedDataPath dd \
             | tail -60
           APP=$(ls -d "$RUNNER_TEMP"/FireflyJars.xcarchive/Products/Applications/*.app)
+          find "$APP" -name "*.xcprivacy" | while read -r f; do echo "== ${f#$APP/}"; plutil -p "$f" | grep -A8 "NSPrivacyTracking"; done
           PM="$APP/PrivacyInfo.xcprivacy"
           if [ -f "$PM" ]; then
             plutil -p "$PM" | head -30
