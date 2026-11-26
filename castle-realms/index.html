@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1a140e">
+<title>Castle Realms</title>
+<meta name="description" content="Castle Realms: an offline castle-building strategy prototype. Gather resources, upgrade buildings, train an army and conquer the wild lands.">
+<style>
+:root{
+  --bg:#17120c;--panel:#2a2118;--card:#33281d;--line:#5a4730;--gold:#d4a23a;--gold2:#a87f2c;
+  --text:#efe6d6;--muted:#b3a48c;--good:#7cc46a;--bad:#e0705a;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:radial-gradient(ellipse at top,#2b2014 0%,var(--bg) 60%) fixed,var(--bg);color:var(--text);
+  font:16px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:560px;margin:0 auto;padding:calc(env(safe-area-inset-top) + 12px) 16px calc(env(safe-area-inset-bottom) + 24px)}
+.panel{background:linear-gradient(180deg,#2e2419,#261d14);border:2px solid var(--line);border-radius:16px;padding:16px;margin-bottom:16px;box-shadow:0 6px 20px #0007}
+h2{margin:0 0 12px;color:var(--gold);font-size:22px;padding-bottom:10px;border-bottom:1px solid var(--line)}
+.top{display:flex;gap:12px;align-items:center;position:sticky;top:0;z-index:5}
+.brand{flex:1;min-width:0}
+.brand h1{margin:0;color:var(--gold);font-size:26px;line-height:1.05}
+.brand small{color:var(--muted);letter-spacing:1px}
+.res{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.r{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:6px 10px;font-weight:700;color:var(--gold);white-space:nowrap;min-width:92px}
+.r span{font-size:12px;color:var(--muted);font-weight:400;display:block}
+.nav{display:flex;flex-direction:column;gap:10px}
+button{font:inherit;color:inherit;cursor:pointer}
+.nav button{text-align:left;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:13px 14px;font-size:18px}
+.nav button.on{background:var(--gold2);border-color:var(--gold);color:#fff8e8}
+.stat{color:var(--muted);margin:12px 0 0}.stat b{color:var(--text)}.stat b.g{color:var(--gold)}
+.big{text-align:center;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:14px}
+.big .n{font-size:42px;font-weight:800;color:var(--gold);line-height:1.1}
+.big .s{color:var(--muted)}
+.item{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-top:12px}
+.item h3{margin:0;color:var(--gold);font-size:19px}
+.item .d{color:var(--muted);font-size:14px;margin:2px 0 8px}
+.cost{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:15px;margin-bottom:10px}
+.cost .no{color:var(--bad)}
+.btn{background:var(--gold2);border:1px solid var(--gold);border-radius:9px;padding:9px 16px;font-weight:700;color:#fff8e8}
+.btn:disabled{opacity:.45;cursor:default}
+.btn.ghost{background:transparent;color:var(--gold)}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.qty{display:flex;gap:6px}
+.qty button{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 10px;color:var(--gold);font-weight:700}
+.qty button.on{background:var(--gold2);color:#fff}
+.bar{height:8px;background:#1b150f;border-radius:5px;overflow:hidden;margin:6px 0}
+.bar i{display:block;height:100%;background:linear-gradient(90deg,var(--gold2),var(--gold))}
+.log{font-size:14px;border-bottom:1px solid var(--line);padding:8px 0}
+.log:last-child{border:0}
+.win{color:var(--good);font-weight:700}.lose{color:var(--bad);font-weight:700}
+.muted{color:var(--muted)}
+.toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 20px);transform:translateX(-50%);background:#000c;border:1px solid var(--gold);
+  color:var(--text);padding:10px 16px;border-radius:12px;max-width:90vw;opacity:0;transition:opacity .25s;pointer-events:none;z-index:9}
+.toast.show{opacity:1}
+.foot{text-align:center;color:var(--muted);font-size:13px}
+.foot button{background:none;border:0;color:var(--bad);text-decoration:underline}
+@media (max-width:400px){.top{flex-direction:column;align-items:stretch}.brand h1{font-size:24px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="panel top">
+    <div class="brand"><h1>🏰 Castle Realms</h1><small>Offline prototype</small></div>
+    <div class="res" id="res"></div>
+  </div>
+
+  <div class="panel">
+    <h2>Command</h2>
+    <div class="nav" id="nav"></div>
+    <p class="stat">Castle Level: <b id="sLvl"></b></p>
+    <p class="stat" style="margin-top:4px">Total Power: <b class="g" id="sPow"></b></p>
+  </div>
+
+  <div class="panel" id="view"></div>
+
+  <p class="foot">Progress saves on this device. <button id="reset">Reset game</button></p>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+// ---------- Data ----------
+const SAVE_KEY = "castle-realms-v1";
+const RES = [
+  {id:"food",  icon:"🍖", name:"Food"},
+  {id:"wood",  icon:"🪵", name:"Wood"},
+  {id:"stone", icon:"🪨", name:"Stone"},
+  {id:"silver",icon:"🪙", name:"Silver"},
+];
+const TICK_SEC = 3;            // resources arrive every 3 seconds
+const OFFLINE_CAP_H = 8;       // max hours of production while away
+
+// Production buildings make one resource. Others give bonuses.
+const BUILDINGS = [
+  {id:"farm",     icon:"🌾", name:"Farm",        makes:"food",  base:{food:30, wood:40, stone:20, silver:0},  desc:"Produces food"},
+  {id:"lumber",   icon:"🪓", name:"Lumber Mill", makes:"wood",  base:{food:40, wood:20, stone:30, silver:0},  desc:"Produces wood"},
+  {id:"quarry",   icon:"⛏️", name:"Quarry",      makes:"stone", base:{food:40, wood:40, stone:10, silver:0},  desc:"Produces stone"},
+  {id:"mine",     icon:"⚒️", name:"Silver Mine", makes:"silver",base:{food:50, wood:50, stone:50, silver:0},  desc:"Produces silver"},
+  {id:"barracks", icon:"🛡️", name:"Barracks",                   base:{food:60, wood:80, stone:60, silver:20}, desc:"Unlocks troops, +10% troop attack per level"},
+  {id:"walls",    icon:"🧱", name:"Walls",                      base:{food:20, wood:60, stone:120,silver:20}, desc:"Fewer troops lost in battle per level"},
+  {id:"warehouse",icon:"📦", name:"Warehouse",                  base:{food:40, wood:80, stone:60, silver:0},  desc:"Raises how much of each resource you can store"},
+];
+const KEEP_BASE = {food:80, wood:70, stone:60, silver:40};
+
+const TROOPS = [
+  {id:"inf",  icon:"🗡️", name:"Infantry", power:10, cost:{food:20, wood:10, stone:0,  silver:2},  needs:1, desc:"Cheap and sturdy"},
+  {id:"arch", icon:"🏹", name:"Archers",  power:14, cost:{food:15, wood:25, stone:0,  silver:4},  needs:2, desc:"Strong ranged attack"},
+  {id:"cav",  icon:"🐎", name:"Cavalry",  power:24, cost:{food:40, wood:10, stone:10, silver:10}, needs:4, desc:"Elite riders"},
+  {id:"siege",icon:"🪨", name:"Catapult", power:45, cost:{food:20, wood:60, stone:50, silver:20}, needs:6, desc:"Crushes strong camps"},
+];
+
+const TARGETS = [
+  {id:"wolves",  icon:"🐺", name:"Wolf Den",        power:150,   loot:{food:120, wood:60,  stone:20,  silver:10}},
+  {id:"bandits", icon:"🏕️", name:"Bandit Camp",     power:450,   loot:{food:200, wood:200, stone:100, silver:60}},
+  {id:"raiders", icon:"⛺", name:"Raider Outpost",  power:1100,  loot:{food:400, wood:350, stone:300, silver:150}},
+  {id:"orcs",    icon:"👹", name:"Goblin Fort",     power:2500,  loot:{food:800, wood:700, stone:600, silver:350}},
+  {id:"keep",    icon:"🏯", name:"Rebel Lord's Keep",power:5500, loot:{food:1600,wood:1400,stone:1300,silver:800}},
+  {id:"dragon",  icon:"🐉", name:"Dragon's Lair",   power:12000, loot:{food:3500,wood:3000,stone:3000,silver:2000}},
+];
+
+// ---------- State ----------
+function fresh(){
+  return {
+    res:{food:500, wood:400, stone:300, silver:200},
+    keep:1,
+    b:{farm:1, lumber:1, quarry:1, mine:1, barracks:1, walls:0, warehouse:0},
+    army:{inf:20, arch:0, cav:0, siege:0},
+    cleared:{},            // target id -> times won
+    log:[],
+    tab:"castle",
+    last:Date.now(),
+  };
+}
+let S = load();
+
+function load(){
+  try{
+    const raw = localStorage.getItem(SAVE_KEY);
+    if(raw){
+      const s = Object.assign(fresh(), JSON.parse(raw));
+      s.b = Object.assign(fresh().b, s.b); s.army = Object.assign(fresh().army, s.army);
+      return s;
+    }
+  }catch(e){}
+  return fresh();
+}
+function save(){ S.last = Date.now(); try{ localStorage.setItem(SAVE_KEY, JSON.stringify(S)); }catch(e){} }
+
+// ---------- Formulas ----------
+const fmt = n => n >= 1e6 ? (n/1e6).toFixed(1)+"M" : n >= 1e4 ? (n/1e3).toFixed(1)+"K" : Math.floor(n).toLocaleString("en-US");
+const scale = (base, lvl, k=1.6) => { const o={}; for(const r of RES) o[r.id] = Math.round((base[r.id]||0) * Math.pow(k, lvl-1)); return o; };
+const keepCost = () => scale(KEEP_BASE, S.keep, 1.9);
+const bCost = b => scale(b.base, Math.max(1, S.b[b.id] + 1), 1.55);
+const perTick = id => { const b = BUILDINGS.find(x=>x.makes===id); const l = S.b[b.id]; return l ? Math.round(4*l + 2*l*l) : 0; };
+const storeCap = () => 2000 + 1500*S.b.warehouse + 500*S.keep;
+const troopAtk = () => 1 + 0.1*S.b.barracks;
+function armyPower(){ let p = 0; for(const t of TROOPS) p += S.army[t.id]*t.power; return Math.round(p*troopAtk()); }
+function buildPower(){ let p = S.keep*150; for(const b of BUILDINGS) p += S.b[b.id]*25; return p; }
+const totalPower = () => armyPower() + buildPower();
+const canPay = c => RES.every(r => S.res[r.id] >= (c[r.id]||0));
+function pay(c){ for(const r of RES) S.res[r.id] -= (c[r.id]||0); }
+function gain(c, mult=1){ const cap = storeCap(); for(const r of RES) S.res[r.id] = Math.min(cap, S.res[r.id] + Math.round((c[r.id]||0)*mult)); }
+const enemyPower = t => Math.round(t.power * (1 + 0.35*(S.cleared[t.id]||0)));
+
+function costHTML(c){
+  return '<div class="cost">' + RES.filter(r=>c[r.id]).map(r =>
+    `<span class="${S.res[r.id] < c[r.id] ? "no":""}">${r.icon} ${fmt(c[r.id])}</span>`).join("") + "</div>";
+}
+
+// ---------- Actions ----------
+function upgradeKeep(){
+  const c = keepCost(); if(!canPay(c)) return toast("Not enough resources");
+  pay(c); S.keep++; addLog(`🏰 Castle Keep upgraded to level ${S.keep}.`); toast(`Castle Keep is now level ${S.keep}!`); commit();
+}
+function upgradeB(id){
+  const b = BUILDINGS.find(x=>x.id===id);
+  if(S.b[id] >= S.keep) return toast("Upgrade your Castle Keep first");
+  const c = bCost(b); if(!canPay(c)) return toast("Not enough resources");
+  pay(c); S.b[id]++; toast(`${b.name} is now level ${S.b[id]}`); commit();
+}
+let qtyPick = 10;
+function train(id){
+  const t = TROOPS.find(x=>x.id===id);
+  if(S.b.barracks < t.needs) return toast(`Needs Barracks level ${t.needs}`);
+  const c = {}; for(const r of RES) c[r.id] = (t.cost[r.id]||0)*qtyPick;
+  if(!canPay(c)) return toast("Not enough resources");
+  pay(c); S.army[id] += qtyPick; toast(`Trained ${qtyPick} ${t.name}`); commit();
+}
+function attack(id){
+  const t = TARGETS.find(x=>x.id===id);
+  const mine = armyPower(); if(mine <= 0) return toast("Train some troops first");
+  const foe = enemyPower(t);
+  const chance = Math.max(0.05, Math.min(0.95, mine/(mine+foe) * 1.6 - 0.3));
+  const won = Math.random() < chance;
+  const wallsCut = Math.min(0.6, 0.06*S.b.walls);
+  const lossRate = (won ? 0.08 + 0.25*foe/(mine+foe) : 0.35 + 0.3*foe/(mine+foe)) * (1 - wallsCut);
+  const lost = {}; let lostTotal = 0;
+  for(const tr of TROOPS){ const n = Math.round(S.army[tr.id]*lossRate); lost[tr.id]=n; S.army[tr.id]-=n; lostTotal+=n; }
+  const lostTxt = TROOPS.filter(tr=>lost[tr.id]).map(tr=>`${lost[tr.id]} ${tr.name}`).join(", ") || "none";
+  if(won){
+    const mult = 1 + 0.25*(S.cleared[id]||0);
+    gain(t.loot, mult); S.cleared[id] = (S.cleared[id]||0)+1;
+    const lootTxt = RES.map(r=>`${r.icon}${fmt(t.loot[r.id]*mult)}`).join(" ");
+    addLog(`<span class="win">Victory</span> vs ${t.icon} ${t.name} (power ${fmt(foe)}). Loot: ${lootTxt}. Lost: ${lostTxt}.`);
+    toast(`Victory! Loot collected from ${t.name}`);
+  }else{
+    addLog(`<span class="lose">Defeat</span> vs ${t.icon} ${t.name} (power ${fmt(foe)}). Lost: ${lostTxt}.`);
+    toast(`Defeat at ${t.name}. Train more troops!`);
+  }
+  commit();
+}
+function addLog(html){ S.log.unshift({t:Date.now(), html}); S.log = S.log.slice(0,40); }
+
+// ---------- Production ----------
+function produce(ticks){ const g={}; for(const r of RES) g[r.id] = perTick(r.id)*ticks; gain(g); }
+(function offline(){
+  const secs = Math.min(OFFLINE_CAP_H*3600, (Date.now() - S.last)/1000);
+  const ticks = Math.floor(secs / TICK_SEC);
+  if(ticks > 20){ produce(ticks); setTimeout(()=>toast(`Welcome back, Lord! Your lands produced while you were away.`), 300); }
+  save();
+})();
+setInterval(()=>{ produce(1); save(); renderTop(); if(S.tab!=="log") renderView(); }, TICK_SEC*1000);
+
+// ---------- Rendering ----------
+const $ = id => document.getElementById(id);
+const TABS = [["castle","🏰","Castle"],["buildings","🏗️","Buildings"],["army","⚔️","Army"],["battle","🗺️","Battle"],["log","📜","Battle Log"]];
+
+function renderTop(){
+  const cap = storeCap();
+  $("res").innerHTML = RES.map(r=>`<div class="r" title="${r.name}">${r.icon} ${fmt(S.res[r.id])}<span>+${perTick(r.id)}/${TICK_SEC}s · max ${fmt(cap)}</span></div>`).join("");
+  $("sLvl").textContent = S.keep; $("sPow").textContent = fmt(totalPower());
+  $("nav").innerHTML = TABS.map(([id,ic,n])=>`<button data-tab="${id}" class="${S.tab===id?"on":""}">${ic} ${n}</button>`).join("");
+}
+
+function renderView(){
+  const v = $("view"); let h = "";
+  if(S.tab==="castle"){
+    const c = keepCost();
+    h = `<h2>Your Castle</h2>
+    <div class="big"><div>Lord Power</div><div class="n">${fmt(totalPower())}</div><div class="s">Higher power = stronger in battles</div></div>
+    <p class="muted">Welcome, Lord. Build your empire, train your army, and conquer the wild lands. Resources generate automatically every few seconds, even while you're away (up to ${OFFLINE_CAP_H} hours).</p>
+    <div class="item"><h3>🏰 Castle Keep</h3><div class="d">Level ${S.keep} · Increases max building levels & power</div>
+      <div class="row muted" style="margin-bottom:4px">Upgrade cost:</div>${costHTML(c)}
+      <button class="btn" data-act="keep" ${canPay(c)?"":"disabled"}>Upgrade Castle</button></div>
+    <div class="item"><h3>📊 Kingdom</h3><div class="d">Army power ${fmt(armyPower())} · Buildings power ${fmt(buildPower())} · Storage ${fmt(storeCap())} each</div></div>`;
+  }
+  else if(S.tab==="buildings"){
+    h = `<h2>Buildings</h2><p class="muted" style="margin:0">Buildings can't go above your Castle Keep level (${S.keep}).</p>`;
+    for(const b of BUILDINGS){
+      const l = S.b[b.id], c = bCost(b), capped = l >= S.keep;
+      const extra = b.makes ? ` · +${perTick(b.makes)} per ${TICK_SEC}s` : "";
+      h += `<div class="item"><h3>${b.icon} ${b.name}</h3><div class="d">Level ${l}${extra} · ${b.desc}</div>
+        <div class="bar"><i style="width:${Math.min(100,100*l/S.keep)}%"></i></div>
+        ${capped ? `<div class="d">Max level for now. Upgrade the Castle Keep.</div>` : costHTML(c)}
+        <button class="btn" data-act="b" data-id="${b.id}" ${!capped && canPay(c)?"":"disabled"}>${l?"Upgrade":"Build"}</button></div>`;
+    }
+  }
+  else if(S.tab==="army"){
+    h = `<h2>Army</h2><div class="big"><div>Army Power</div><div class="n">${fmt(armyPower())}</div><div class="s">Barracks level ${S.b.barracks} gives +${Math.round((troopAtk()-1)*100)}% attack</div></div>
+    <div class="row"><span class="muted">Train amount:</span><div class="qty">${[1,10,50,100].map(q=>`<button data-act="q" data-q="${q}" class="${qtyPick===q?"on":""}">${q}</button>`).join("")}</div></div>`;
+    for(const t of TROOPS){
+      const c = {}; for(const r of RES) c[r.id] = (t.cost[r.id]||0)*qtyPick;
+      const locked = S.b.barracks < t.needs;
+      h += `<div class="item"><h3>${t.icon} ${t.name} <span class="muted" style="font-size:15px">× ${fmt(S.army[t.id])}</span></h3>
+        <div class="d">Power ${t.power} each · ${t.desc}</div>
+        ${locked ? `<div class="d">🔒 Needs Barracks level ${t.needs}</div>` : costHTML(c)}
+        <button class="btn" data-act="t" data-id="${t.id}" ${!locked && canPay(c)?"":"disabled"}>Train ${qtyPick}</button></div>`;
+    }
+  }
+  else if(S.tab==="battle"){
+    const mine = armyPower();
+    h = `<h2>Battle</h2><p class="muted" style="margin:0">Your army power: <b style="color:var(--gold)">${fmt(mine)}</b>. Each win makes that place stronger next time, with bigger loot.</p>`;
+    for(const t of TARGETS){
+      const foe = enemyPower(t), n = S.cleared[t.id]||0;
+      const ratio = mine/(foe||1), odds = ratio>=1.5?"Easy":ratio>=1?"Fair":ratio>=0.6?"Risky":"Very hard";
+      const col = ratio>=1?"var(--good)":ratio>=0.6?"var(--gold)":"var(--bad)";
+      h += `<div class="item"><h3>${t.icon} ${t.name}</h3>
+        <div class="d">Enemy power ${fmt(foe)} · <b style="color:${col}">${odds}</b>${n?` · Won ${n}×`:""}</div>
+        <div class="row muted" style="font-size:14px;margin-bottom:4px">Loot:</div><div class="cost">${RES.map(r=>`<span>${r.icon} ${fmt(t.loot[r.id]*(1+0.25*n))}</span>`).join("")}</div>
+        <button class="btn" data-act="atk" data-id="${t.id}" ${mine>0?"":"disabled"}>Attack</button></div>`;
+    }
+  }
+  else{
+    h = `<h2>Battle Log</h2>` + (S.log.length ? S.log.map(e=>`<div class="log"><span class="muted">${new Date(e.t).toLocaleString()}</span><br>${e.html}</div>`).join("") : `<p class="muted">No battles yet. Go to Battle to attack a camp.</p>`);
+  }
+  v.innerHTML = h;
+}
+function commit(){ save(); renderTop(); renderView(); }
+
+let tt;
+function toast(msg){ const t=$("toast"); t.textContent=msg; t.classList.add("show"); clearTimeout(tt); tt=setTimeout(()=>t.classList.remove("show"),2200); }
+
+document.addEventListener("click", e=>{
+  const el = e.target.closest("button"); if(!el) return;
+  if(el.dataset.tab){ S.tab = el.dataset.tab; commit(); window.scrollTo({top:$("view").getBoundingClientRect().top+scrollY-document.querySelector(".top").offsetHeight-16,behavior:"smooth"}); return; }
+  const a = el.dataset.act;
+  if(a==="keep") upgradeKeep();
+  else if(a==="b") upgradeB(el.dataset.id);
+  else if(a==="t") train(el.dataset.id);
+  else if(a==="q"){ qtyPick = +el.dataset.q; renderView(); }
+  else if(a==="atk") attack(el.dataset.id);
+});
+$("reset").addEventListener("click", ()=>{
+  if(!$("reset").dataset.sure){ $("reset").dataset.sure=1; $("reset").textContent="Tap again to erase everything"; setTimeout(()=>{delete $("reset").dataset.sure; $("reset").textContent="Reset game";},3000); return; }
+  S = fresh(); commit(); toast("New game started");
+});
+renderTop(); renderView();
+</script>
+</body>
+</html>
