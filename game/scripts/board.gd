@@ -684,7 +684,9 @@ func _draw_jar_front(i: int, r: Rect2, rad: float) -> void:
 		var pu := absf(sin(_now / 0.25))
 		line = Color(1.0, 0.85, 0.23, 0.55 + 0.45 * pu)
 		Art.glow(self, r.get_center(), r.size.y * 0.75, Color("#ffd93b"), 0.16 + 0.14 * pu)
+	Regions.corked = done or state.locks[i] > 0
 	Art.jar_front(self, r, line, max(2.0, rad * 0.11))
+	Regions.corked = false
 	if only >= 0:
 		# a ribbon in the jar's color tied around the neck, with a bow
 		var c: Color = COLORS[only]
@@ -717,12 +719,13 @@ func _draw_jar_front(i: int, r: Rect2, rad: float) -> void:
 			for k in range(-2, 3):
 				draw_line(Vector2(k * w * 0.18, -w * 0.18), Vector2(k * w * 0.18, w * 0.12), Color(0.16, 0.09, 0.04, 0.35 * a), 1.5)
 		if lock > 0:
-			draw_circle(Vector2(0, -w * 0.03), w * 0.22, Color("#fff6d6"))
+			var by := -w * (0.1 if Regions.cap_kind() == "cork" else 0.03)   # the middle of the lid
+			draw_circle(Vector2(0, by), w * 0.22, Color("#fff6d6"))
 			var font: Font = NUMBER_FONT
 			var fs := int(w * 0.3)
 			var txt := str(lock)
 			var sz := font.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs)
-			draw_string(font, Vector2(-sz.x * 0.5, -w * 0.03 + font.get_ascent(fs) * 0.5 - fs * 0.08), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color("#3a2716"))
+			draw_string(font, Vector2(-sz.x * 0.5, by + font.get_ascent(fs) * 0.5 - fs * 0.08), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color("#3a2716"))
 		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 const NUMBER_FONT := preload("res://fonts/Baloo2-ExtraBold.woff2")
