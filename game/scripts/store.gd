@@ -185,17 +185,23 @@ func _process(_delta: float) -> void:
 					else:
 						pack_prices[pid] = str(prices[k])
 			"purchase":
-				if e.get("result", "") == "ok" and e.get("product_id", "") == PRODUCT_ID:
-					_grant()
-				elif e.get("result", "") == "ok" and _grant_coins(str(e.get("product_id", ""))):
-					pass
-				else:
-					purchase_done.emit(false, "The purchase didn't go through")
+				# The plugin also sends "progress" while Apple's buy sheet or a password check is
+				# open (and "unhandled" for unknown states). Those are not failures: wait for "ok"
+				# or "error". (Before, "progress" showed "didn't go through" at once.)
+				match str(e.get("result", "")):
+					"ok":
+						if e.get("product_id", "") == PRODUCT_ID:
+							_grant()
+						else:
+							_grant_coins(str(e.get("product_id", "")))
+					"error":
+						purchase_done.emit(false, "The purchase didn't go through")
 			"restore":
-				# one event per restored item; the "completion" event below reports once at the end
-				if e.get("result", "") == "ok" and e.get("product_id", "") == PRODUCT_ID:
-					Ads.set_ads_removed(true)
-				elif e.get("result", "") != "ok":
-					restore_done.emit(Save.ads_removed)   # restore failed (offline, cancelled sign-in)
-			"completion":
-				restore_done.emit(Save.ads_removed)
+				# "ok" once per restored item, then "completed" once at the end, or "error"
+				# (offline, sign-in cancelled). Coin packs are used up, so only remove_ads comes back.
+				match str(e.get("result", "")):
+					"ok":
+						if e.get("product_id", "") == PRODUCT_ID:
+							Ads.set_ads_removed(true)
+					"completed", "error":
+						restore_done.emit(Save.ads_removed)
